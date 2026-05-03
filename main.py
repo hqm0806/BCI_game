@@ -157,7 +157,7 @@ def main() -> None:
 
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("疯狂奶茶杯 - 第1周")
+    pygame.display.set_caption("疯狂奶茶杯 ")
     icon_path = os.path.join(IMAGES_DIR, "other", "游戏图标.png")
     if os.path.exists(icon_path):
         pygame.display.set_icon(pygame.image.load(icon_path))

@@ -156,14 +156,15 @@ class MainMenu:
         self.title_phase += dt * 2
 
     def _draw(self, dt: float) -> None:
-        # 注释：取消背景呼吸缩放效果，直接绘制
+        # 取消背景呼吸缩放效果，直接绘制
         if self.bg:
             self.screen.blit(self.bg, (0, 0))
         else:
             self.screen.fill((255, 240, 220))
 
+        # 增加半透明遮罩层，提升标题和按钮的可读性
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 100))
+        overlay.fill((0, 0, 0, 25))  # 参数说明：(r, g, b, a) 表示 RGBA 颜色
         self.screen.blit(overlay, (0, 0))
 
         for p in self.steam_particles:

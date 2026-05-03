@@ -55,7 +55,7 @@ class PatienceBar:
                 img = pygame.image.load(PATIENCE_BAR_IMG).convert_alpha()
                 self.bar_image = pygame.transform.scale(img, (self.bar_width, self.bar_height))
                 return
-            except Exception:
+            except (pygame.error, OSError):
                 pass
         self.bar_image = None
 
@@ -64,7 +64,7 @@ class PatienceBar:
             if os.path.exists(path):
                 try:
                     return pygame.image.load(path).convert_alpha()
-                except Exception:
+                except (pygame.error, OSError):
                     pass
         return None
 

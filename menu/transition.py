@@ -3,6 +3,7 @@
 import math
 import os
 import random
+import sys
 
 import pygame
 
@@ -52,10 +53,7 @@ class FallingIngredient:
             self.angle += self.rot_speed
 
             # 判定落入杯中 (检查高度和水平位置)
-            if (
-                self.y > self.target_y - (self.size // 2)
-                and abs(self.x - self.target_x) < self.size
-            ):
+            if self.y > self.target_y - (self.size // 2) and abs(self.x - self.target_x) < self.size:
                 self.caught = True
                 return True
         return False
@@ -69,9 +67,7 @@ class FallingIngredient:
             rect = rotated.get_rect(center=(self.x, self.y))
             screen.blit(rotated, rect)
         else:
-            pygame.draw.circle(
-                screen, self.color, (int(self.x), int(self.y)), self.size // 2
-            )
+            pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.size // 2)
 
 
 class SplashEffect:
@@ -187,9 +183,7 @@ class StartTransition:
         if os.path.exists(BACKGROUND_IMG):
             try:
                 self.game_background = pygame.image.load(BACKGROUND_IMG).convert()
-                self.game_background = pygame.transform.scale(
-                    self.game_background, (SCREEN_WIDTH, SCREEN_HEIGHT)
-                )
+                self.game_background = pygame.transform.scale(self.game_background, (SCREEN_WIDTH, SCREEN_HEIGHT))
             except (pygame.error, OSError):
                 pass
 
@@ -208,7 +202,7 @@ class StartTransition:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
-                    exit()
+                    sys.exit()
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     return
                 if event.type == pygame.MOUSEBUTTONDOWN and self.phase == "falling":
@@ -261,13 +255,8 @@ class StartTransition:
         # 生成食材
         if not self.clicked:
             self.spawn_timer += dt * 1000
-            if (
-                self.spawn_timer > self.spawn_interval
-                and self.ingredient_count < self.max_ingredients
-            ):
-                self.ingredients.append(
-                    FallingIngredient(self.cup_x, self.cup_y, size=80)
-                )
+            if self.spawn_timer > self.spawn_interval and self.ingredient_count < self.max_ingredients:
+                self.ingredients.append(FallingIngredient(self.cup_x, self.cup_y, size=80))
                 self.spawn_timer = 0
                 self.ingredient_count += 1
 
@@ -396,15 +385,3 @@ class StartTransition:
             self.screen.blit(final_img, rect)
 
         return t >= 1.0
-
-    def _draw_final_frame(self):
-        """绘制最终帧：完整游戏背景+杯子"""
-        if self.game_background:
-            self.screen.blit(self.game_background, (0, 0))
-        else:
-            self.screen.fill((255, 255, 255))
-
-        if self.orig_cup_img:
-            final_img = pygame.transform.scale(self.orig_cup_img, (80, 100))
-            rect = final_img.get_rect(center=(self.cup_x, self.cup_y))
-            self.screen.blit(final_img, rect)

@@ -35,9 +35,7 @@ class ClickParticle:
     def draw(self, screen):
         alpha = int(self.life * 255)
         surf = pygame.Surface((self.size * 2, self.size * 2), pygame.SRCALPHA)
-        pygame.draw.circle(
-            surf, (*self.color, alpha), (self.size, self.size), self.size
-        )
+        pygame.draw.circle(surf, (*self.color, alpha), (self.size, self.size), self.size)
         screen.blit(surf, (int(self.x) - self.size, int(self.y) - self.size))
 
 
@@ -92,9 +90,7 @@ class MenuItem:
 
         if self.click_t > 0:
             click_color = (*color, int(self.click_t * 100))
-            self._draw_rounded_rect(
-                surf, (0, 0, w, h), click_color, int(self.radius * s)
-            )
+            self._draw_rounded_rect(surf, (0, 0, w, h), click_color, int(self.radius * s))
 
         tw = self._text_surf.get_width()
         th = self._text_surf.get_height()
@@ -109,13 +105,9 @@ class MenuItem:
         """触发点击粒子效果"""
         self.click_t = 1.0
         for _ in range(15):
-            self.click_particles.append(
-                ClickParticle(self.rect.centerx, self.rect.centery, self.bg_color)
-            )
+            self.click_particles.append(ClickParticle(self.rect.centerx, self.rect.centery, self.bg_color))
         for _ in range(8):
-            self.click_particles.append(
-                ClickParticle(self.rect.centerx, self.rect.centery, (255, 255, 255))
-            )
+            self.click_particles.append(ClickParticle(self.rect.centerx, self.rect.centery, (255, 255, 255)))
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
@@ -155,7 +147,7 @@ class Badge:
                     img = pygame.image.load(path).convert_alpha()
                     self.badge_surf = pygame.transform.scale(img, self.size)
                     return
-                except Exception:
+                except (pygame.error, OSError):
                     pass
         self.badge_surf = None
 

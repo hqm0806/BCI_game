@@ -1,5 +1,7 @@
 """游戏启动过场动画"""
 
+import sys
+
 import pygame
 
 from config import SCREEN_HEIGHT, SCREEN_WIDTH
@@ -45,9 +47,7 @@ class SplashScreen:
         self.text2 = "In-store"
 
         # 预渲染文字部件
-        self.parts1 = _render_text_with_outline(
-            self.title_font, self.text1, self.red_bean_color, self.outline_color, 6
-        )
+        self.parts1 = _render_text_with_outline(self.title_font, self.text1, self.red_bean_color, self.outline_color, 6)
         self.parts2 = _render_text_with_outline(
             self.title_font, self.text2, self.light_gray_color, self.outline_color, 6
         )
@@ -100,7 +100,7 @@ class SplashScreen:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
-                    exit()
+                    sys.exit()
                 if event.type == pygame.KEYDOWN:
                     return  # 按键跳过
 

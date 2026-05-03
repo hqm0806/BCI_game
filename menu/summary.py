@@ -1,6 +1,7 @@
 """游戏结束总结界面"""
 
 import os
+import sys
 
 import pygame
 
@@ -27,9 +28,7 @@ class SummaryScreen:
         self.game_mode = game_mode
 
         # === 预设资源路径 (占位，后续替换真实图片即可) ===
-        self.bg_path = os.path.join(
-            ASSETS_DIR, "images", "backgrounds", "summary_bg.png"
-        )
+        self.bg_path = os.path.join(ASSETS_DIR, "images", "backgrounds", "summary_bg.png")
         self.icon_path = os.path.join(ASSETS_DIR, "images", "other", "summary_icon.png")
 
         # 加载背景
@@ -75,7 +74,7 @@ class SummaryScreen:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
-                    exit()
+                    sys.exit()
                 if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
                     return "menu"
 
@@ -87,47 +86,29 @@ class SummaryScreen:
 
             # 标题
             title_surf = self.title_font.render("游戏结束", True, (255, 255, 255))
-            self.screen.blit(
-                title_surf, (SCREEN_WIDTH // 2 - title_surf.get_width() // 2, 80)
-            )
+            self.screen.blit(title_surf, (SCREEN_WIDTH // 2 - title_surf.get_width() // 2, 80))
 
             # 分隔线
-            pygame.draw.line(
-                self.screen, (100, 100, 120), (200, 170), (SCREEN_WIDTH - 200, 170), 3
-            )
+            pygame.draw.line(self.screen, (100, 100, 120), (200, 170), (SCREEN_WIDTH - 200, 170), 3)
 
             # 最终得分
             score_label = self.info_font.render("最终得分", True, (180, 180, 200))
             score_val = self.info_font.render(str(self.score), True, (255, 220, 100))
-            self.screen.blit(
-                score_label, (SCREEN_WIDTH // 2 - score_label.get_width() // 2, 210)
-            )
-            self.screen.blit(
-                score_val, (SCREEN_WIDTH // 2 - score_val.get_width() // 2, 270)
-            )
+            self.screen.blit(score_label, (SCREEN_WIDTH // 2 - score_label.get_width() // 2, 210))
+            self.screen.blit(score_val, (SCREEN_WIDTH // 2 - score_val.get_width() // 2, 270))
 
             # 专注力指标 (键盘模式强制显示 0)
             focus_label = self.info_font.render("平均专注力", True, (180, 180, 200))
-            focus_val = self.info_font.render(
-                f"{self.focus_value:.1f}%", True, (150, 255, 150)
-            )
-            self.screen.blit(
-                focus_label, (SCREEN_WIDTH // 2 - focus_label.get_width() // 2, 360)
-            )
-            self.screen.blit(
-                focus_val, (SCREEN_WIDTH // 2 - focus_val.get_width() // 2, 420)
-            )
+            focus_val = self.info_font.render(f"{self.focus_value:.1f}%", True, (150, 255, 150))
+            self.screen.blit(focus_label, (SCREEN_WIDTH // 2 - focus_label.get_width() // 2, 360))
+            self.screen.blit(focus_val, (SCREEN_WIDTH // 2 - focus_val.get_width() // 2, 420))
 
             # 评语
             comment_surf = self.comment_font.render(self.comment, True, (220, 220, 240))
-            self.screen.blit(
-                comment_surf, (SCREEN_WIDTH // 2 - comment_surf.get_width() // 2, 510)
-            )
+            self.screen.blit(comment_surf, (SCREEN_WIDTH // 2 - comment_surf.get_width() // 2, 510))
 
             # 返回提示
-            hint_surf = self.hint_font.render(
-                "按 任意键 / 点击屏幕 返回主菜单", True, (140, 140, 150)
-            )
+            hint_surf = self.hint_font.render("按 任意键 / 点击屏幕 返回主菜单", True, (140, 140, 150))
             self.screen.blit(
                 hint_surf,
                 (SCREEN_WIDTH // 2 - hint_surf.get_width() // 2, SCREEN_HEIGHT - 60),

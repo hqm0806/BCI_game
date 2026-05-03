@@ -47,7 +47,7 @@ class MainMenu:
         cx = SCREEN_WIDTH // 2 - 400  # 按钮组水平中心：往左偏 100 像素
         cy = SCREEN_HEIGHT // 4  # 屏幕垂直中心
         btn_spacing = 95  # 按钮垂直间距（像素），数值越大按钮间距越大
-        start_y = cy + 50 # 按钮 1 坐标：往上偏，数值越大整体越靠下
+        start_y = cy + 50  # 按钮 1 坐标：往上偏，数值越大整体越靠下
         # ==========================================
 
         self.start_btn = MenuItem(
@@ -97,6 +97,8 @@ class MainMenu:
         return None
 
     def run(self) -> tuple[str | None, str]:
+        click_frames = 0  # 点击后等待的帧数
+
         while self.running:
             dt = self.clock.tick(60) / 1000.0
             for event in pygame.event.get():
@@ -108,34 +110,47 @@ class MainMenu:
                         self.running = False
                         self.result = "quit"
                     elif event.key == pygame.K_RETURN or event.key == pygame.K_1:
-                        self.running = False
+                        self.start_btn.trigger_click()
                         self.result = "start"
+                        click_frames = 15
                     elif event.key == pygame.K_2:
-                        self.running = False
-                        self.result = "mode"
+                        self.mode_selector.cycle_mode()
                     elif event.key == pygame.K_3:
-                        self.running = False
+                        self.settings_btn.trigger_click()
                         self.result = "settings"
+                        click_frames = 15  # 等粒子播完再打开设置页
                 else:
                     if self.badge.handle_event(event):
                         pass
                     if self.start_btn.handle_event(event):
-                        self.running = False
                         self.result = "start"
+                        click_frames = 15
                     mode = self.mode_selector.handle_event(event)
                     if mode:
                         self.current_mode = mode
                     if self.bci_btn.handle_event(event):
-                        self.running = False
                         self.result = "start"
                         self.current_mode = "bci"
+                        click_frames = 15
                     if self.settings_btn.handle_event(event):
-                        settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font)
-                        settings_screen.run()
+                        self.settings_btn.trigger_click()
+                        self.result = "settings"
+                        click_frames = 15  # 等粒子播完再打开设置页
 
             self._update(dt)
             self._draw(dt)
             pygame.display.flip()
+
+            # 点击后延迟 15 帧（约 0.25 秒），让粒子动画播放完
+            if click_frames > 0:
+                click_frames -= 1
+                if click_frames == 0:
+                    if self.result == "settings":
+                        settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font)
+                        settings_screen.run()
+                        self.result = None  # 返回主菜单，继续运行
+                    else:
+                        self.running = False
 
         return self.result, self.current_mode
 

@@ -88,11 +88,30 @@ class MenuItem:
         surf = pygame.Surface((w, h), pygame.SRCALPHA)
 
         color = self.hover_color if self.hovered else self.bg_color
+
+        # 拟物风格：阴影层（底部偏移）
+        shadow_offset = 4 if not self.hovered else 2  # 悬停时阴影缩小
+        self._draw_rounded_rect(surf, (2, shadow_offset, w, h), (0, 0, 0, 60), int(self.radius * s))
+
+        # 底色层
         self._draw_rounded_rect(surf, (0, 0, w, h), color, int(self.radius * s))
+
+        # 高光层（顶部半透明白色渐变条）
+        highlight_surf = pygame.Surface((w - 8, h // 3), pygame.SRCALPHA)
+        for i in range(h // 3):
+            alpha = int(50 * (1 - i / (h // 3)))
+            highlight_color = self.hover_color if self.hovered else (255, 255, 255)
+            pygame.draw.line(highlight_surf, highlight_color, (0, i), (w - 8, i))
+            highlight_surf.set_alpha(alpha)
+        surf.blit(highlight_surf, (4, 4))
 
         if self.click_t > 0:
             click_color = (*color, int(self.click_t * 100))
             self._draw_rounded_rect(surf, (0, 0, w, h), click_color, int(self.radius * s))
+
+        # 边框层
+        border_color = (*self.hover_color, 180) if self.hovered else (*self.bg_color, 120)
+        pygame.draw.rect(surf, border_color, (0, 0, w, h), 2, border_radius=int(self.radius * s))
 
         tw = self._text_surf.get_width()
         th = self._text_surf.get_height()
@@ -106,9 +125,9 @@ class MenuItem:
     def trigger_click(self) -> None:
         """触发点击粒子效果"""
         self.click_t = 1.0
-        for _ in range(15):
+        for _ in range(20):
             self.click_particles.append(ClickParticle(self.rect.centerx, self.rect.centery, self.bg_color))
-        for _ in range(8):
+        for _ in range(10):
             self.click_particles.append(ClickParticle(self.rect.centerx, self.rect.centery, (255, 255, 255)))
 
     def handle_event(self, event: pygame.event.Event) -> bool:

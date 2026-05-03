@@ -40,7 +40,6 @@ class MainMenu:
         ]
         self.steam_particles = []
         self.steam_spawn_timer = 0
-        self.bg_breathe_phase = 0.0
 
         cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
         btn_spacing = 90
@@ -78,10 +77,13 @@ class MainMenu:
 
         self.title_y = 100
         self.title_phase = 0.0
-        self.bg_breathe_scale = 1.0
 
     def _load_bg(self) -> pygame.Surface | None:
-        path = os.path.join(IMAGES_DIR, "backgrounds", "奶茶店1.png")
+        """
+        加载背景图片
+        :return: 背景图片
+        """
+        path = os.path.join(IMAGES_DIR, "backgrounds", "菜单页.jpg")
         if os.path.exists(path):
             img = pygame.image.load(path).convert()
             return pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -140,8 +142,9 @@ class MainMenu:
         for item in self.floating_items:
             item.update()
 
-        self.bg_breathe_phase += dt * 0.5
-        self.bg_breathe_scale = 1.0 + math.sin(self.bg_breathe_phase) * 0.008
+        # 注释：取消背景呼吸缩放效果
+        # self.bg_breathe_phase += dt * 0.5
+        # self.bg_breathe_scale = 1.0 + math.sin(self.bg_breathe_phase) * 0.008
 
         self.steam_spawn_timer += dt
         if self.steam_spawn_timer > 0.05:
@@ -153,16 +156,9 @@ class MainMenu:
         self.title_phase += dt * 2
 
     def _draw(self, dt: float) -> None:
+        # 注释：取消背景呼吸缩放效果，直接绘制
         if self.bg:
-            scale_offset = (SCREEN_WIDTH * self.bg_breathe_scale - SCREEN_WIDTH) // 2
-            scaled_bg = pygame.transform.scale(
-                self.bg,
-                (
-                    int(SCREEN_WIDTH * self.bg_breathe_scale),
-                    int(SCREEN_HEIGHT * self.bg_breathe_scale),
-                ),
-            )
-            self.screen.blit(scaled_bg, (-scale_offset, -scale_offset))
+            self.screen.blit(self.bg, (0, 0))
         else:
             self.screen.fill((255, 240, 220))
 

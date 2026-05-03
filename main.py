@@ -11,6 +11,7 @@ import sys
 import pygame
 
 from config import IMAGES_DIR, SCREEN_HEIGHT, SCREEN_WIDTH
+from core.audio_manager import AudioManager
 from core.state_machine import GameEvent, GameState, State, StateMachine
 from game.font_utils import load_chinese_font
 from game.session import run_game
@@ -44,13 +45,16 @@ class SplashState(State):
 class MenuState(State):
     """主菜单状态"""
 
-    def __init__(self, screen: pygame.Surface, context: dict) -> None:
+    def __init__(self, screen: pygame.Surface, context: dict, audio: AudioManager) -> None:
         self.screen = screen
         self.font = load_chinese_font(24)
         self.title_font = load_chinese_font(40)
         self._context = context
+        self._audio = audio
 
     def enter(self) -> GameState | None:
+        self._audio.play_bgm("玻璃糖果园.wav", volume=0.5)
+
         menu = MainMenu(self.screen, self.font, self.title_font)
         result, mode = menu.run()
         result = result or "quit"
@@ -108,10 +112,12 @@ class SettingsState(State):
 class TransitionState(State):
     """过场动画状态"""
 
-    def __init__(self, screen: pygame.Surface) -> None:
+    def __init__(self, screen: pygame.Surface, audio: AudioManager) -> None:
         self.screen = screen
+        self._audio = audio
 
     def enter(self) -> GameState | None:
+        self._audio.play_bgm("晨光木盒.wav", volume=0.5)
         StartTransition(self.screen).run()
         return GameState.GAME
 
@@ -158,12 +164,14 @@ def main() -> None:
 
     clock = pygame.time.Clock()
     context: dict = {}
+    audio = AudioManager()
+    audio.init()
 
     sm = StateMachine()
     sm.register(GameState.SPLASH, SplashState(screen, load_chinese_font(110)))
-    sm.register(GameState.MENU, MenuState(screen, context))
+    sm.register(GameState.MENU, MenuState(screen, context, audio))
     sm.register(GameState.SETTINGS, SettingsState(screen))
-    sm.register(GameState.TRANSITION, TransitionState(screen))
+    sm.register(GameState.TRANSITION, TransitionState(screen, audio))
     sm.register(GameState.GAME, GameStateImpl(screen, clock, context))
     sm.register(GameState.QUIT, QuitState())
 

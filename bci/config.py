@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,14 @@ DEFAULT_CONFIG = {
 }
 
 
+def _get_config_path():
+    """获取配置文件路径，优先使用 exe 同级目录（可写）"""
+    if getattr(sys, "frozen", False):
+        # 打包后，配置文件应放在 exe 同级目录
+        return os.path.join(os.path.dirname(sys.executable), BCI_CONFIG_FILE)
+    return BCI_CONFIG_FILE
+
+
 def load_bci_config():
     """
     加载 BCI 配置文件
@@ -20,9 +29,10 @@ def load_bci_config():
     返回:
         dict: 包含 server_ip 和 server_port 的配置字典
     """
-    if os.path.exists(BCI_CONFIG_FILE):
+    config_path = _get_config_path()
+    if os.path.exists(config_path):
         try:
-            with open(BCI_CONFIG_FILE, encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 config = json.load(f)
                 return {
                     "server_ip": config.get("server_ip", DEFAULT_CONFIG["server_ip"]),
@@ -47,8 +57,9 @@ def save_bci_config(ip, port):
         "server_ip": ip,
         "server_port": port,
     }
+    config_path = _get_config_path()
     try:
-        with open(BCI_CONFIG_FILE, "w", encoding="utf-8") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         return True
     except Exception as e:

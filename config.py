@@ -5,8 +5,17 @@
 """
 
 import os
+import sys
 
 import pygame
+
+
+def _get_base_path():
+    """获取资源基础路径，支持 PyInstaller 打包"""
+    if getattr(sys, "frozen", False):
+        return sys._MEIPASS
+    return os.path.abspath(".")
+
 
 # ============================================================
 # 屏幕配置
@@ -19,7 +28,7 @@ TITLE = "疯狂奶茶杯 - 第1周"  # 游戏窗口标题栏文字
 # ============================================================
 # 资源路径配置
 # ============================================================
-ASSETS_DIR = "assets"  # 资源文件夹根目录
+ASSETS_DIR = os.path.join(_get_base_path(), "assets")  # 资源文件夹根目录
 IMAGES_DIR = os.path.join(ASSETS_DIR, "images")  # 图片资源目录
 SOUNDS_DIR = os.path.join(ASSETS_DIR, "sounds")  # 音效资源目录
 

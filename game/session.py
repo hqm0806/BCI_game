@@ -13,7 +13,10 @@ from bci.filter import AttentionMappingCurve, DeadZoneFilter, ExponentialSmoothi
 from config import (
     BACKGROUND_IMG,
     CUP_HEIGHT,
+    CUP_WIDTH,
     DEFAULT_GAME_MODE,
+    DEAD_ZONE,
+    FOCUS_SENSITIVITY,
     FOCUS_TEAPOT_IMG,
     GAME_DURATION,
     GAME_MODES,
@@ -21,6 +24,7 @@ from config import (
     PATIENCE_BAR_SIZE,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    SMOOTHING_FACTOR,
 )
 from data.recipes import evaluate_recipe
 from data.score_manager import ScoreManager
@@ -86,6 +90,11 @@ class GameSession:
 
     focus_teapot: FocusTeapotUI | None
 
+    focus_x: int
+    cup_target_x: int
+    focus_min: int
+    focus_max: int
+
     def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, game_mode: str = "regular") -> None:
         self.screen = screen
         self.clock = clock
@@ -140,8 +149,8 @@ class GameSession:
         if self.bci_mode:
             self.bci_available = self.bci_reader.connect()
 
-        self.dead_zone = DeadZoneFilter(threshold=5)
-        self.smooth_yaw = ExponentialSmoothing(alpha=0.1)
+        self.dead_zone = DeadZoneFilter(threshold=DEAD_ZONE)
+        self.smooth_yaw = ExponentialSmoothing(alpha=SMOOTHING_FACTOR)
 
         self.attention_curve = None
         if self.free_combine:
@@ -173,6 +182,11 @@ class GameSession:
         self.attention = None
         self.raw_yaw = 0
         self.smoothed_yaw_value = 0
+
+        self.focus_x = SCREEN_WIDTH // 2
+        self.cup_target_x = SCREEN_WIDTH // 2 - CUP_WIDTH // 2
+        self.focus_min = CUP_WIDTH // 2
+        self.focus_max = SCREEN_WIDTH - CUP_WIDTH // 2
 
         teapot_img_path = FOCUS_TEAPOT_IMG if os.path.exists(FOCUS_TEAPOT_IMG) else None
         self.focus_teapot = None
@@ -257,12 +271,6 @@ class GameSession:
             result = self.bci_reader.read_with_timeout()
             if result != (None, None):
                 self.attention, self.raw_yaw = result
-                # 添加调试信息：打印原始yaw值
-                print(f"[BCI DEBUG] raw_yaw={self.raw_yaw:.2f}, attention={self.attention}")
-                # 限幅：确保yaw在合理范围内
-                if abs(self.raw_yaw) > 180:
-                    print(f"[BCI WARNING] yaw值异常: {self.raw_yaw:.2f}，可能被重置为0")
-                    self.raw_yaw = 0
             else:
                 self.attention = 50
                 self.raw_yaw = 0
@@ -272,14 +280,20 @@ class GameSession:
 
         filtered_yaw = self.dead_zone.filter(self.raw_yaw)
         self.smoothed_yaw_value = self.smooth_yaw.smooth(filtered_yaw)
-        print(f"[BCI DEBUG] filtered_yaw={filtered_yaw:.2f}, smoothed_yaw={self.smoothed_yaw_value:.2f}")
+
+        self.focus_x += int(self.smoothed_yaw_value * FOCUS_SENSITIVITY / 30)
+        self.focus_x = max(self.focus_min, min(self.focus_max, self.focus_x))
+
+        self.cup_target_x = self.focus_x - CUP_WIDTH // 2
 
         if self.attention is not None:
             self.focus_samples.append(self.attention)
 
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
         if self.use_yaw_control:
-            self.cup.update(yaw=self.smoothed_yaw_value, dt=dt_sec)
+            self.cup.rect.x = self.cup_target_x
+            self.cup.rect.left = max(0, self.cup.rect.left)
+            self.cup.rect.right = min(SCREEN_WIDTH, self.cup.rect.right)
         else:
             self.cup.update(keys=keys, dt=dt_sec)
 

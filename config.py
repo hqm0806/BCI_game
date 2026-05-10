@@ -42,9 +42,7 @@ CUP_LEVEL_IMGS = [  # 不同等级的杯子图片列表
     os.path.join(IMAGES_DIR, "cups", "cup2.png"),
     os.path.join(IMAGES_DIR, "cups", "cup3.png"),
 ]
-FOCUS_TEAPOT_IMG = os.path.join(
-    IMAGES_DIR, "other", "focus_teapot.png"
-)  # 专注力茶壶 UI 图片
+FOCUS_TEAPOT_IMG = os.path.join(IMAGES_DIR, "other", "focus_teapot.png")  # 专注力茶壶 UI 图片
 INGREDIENT_IMGS = {  # 食材图片字典
     "红茶": os.path.join(IMAGES_DIR, "ingredients", "tea.png"),
     "牛奶": os.path.join(IMAGES_DIR, "ingredients", "milk.png"),
@@ -68,9 +66,7 @@ PATIENCE_BAR_TIMEOUT = 90.0  # 接住小料的超时时间（秒）
 # 系统会依次尝试加载，直到成功为止
 # ============================================================
 CHINESE_FONTS = [
-    os.path.join(
-        ASSETS_DIR, "fonts", "ZCOOLKuaiLe-Regular.ttf"
-    ),  # 站酷快乐体（项目内置卡通字体，优先使用）
+    os.path.join(ASSETS_DIR, "fonts", "ZCOOLKuaiLe-Regular.ttf"),  # 站酷快乐体（项目内置卡通字体，优先使用）
     "simhei.ttf",  # 黑体（Windows 系统字体）
     "simkai.ttf",  # 楷体（Windows 系统字体）
     "msyh.ttf",  # 微软雅黑（Windows 系统字体）
@@ -132,15 +128,10 @@ INGREDIENT_POINTS = {  # 食材分值/金钱值，接到对应食材时获得的
 # 注意：BCI服务器IP和端口请在游戏中点击"BCI设置"按钮进行配置
 # 配置文件保存在 bci_config.json
 # ============================================================
-DEFAULT_ATTENTION = 50  # 默认专注力值（0-100），模拟数据基准值
-DEAD_ZONE = 10  # 死区阈值，头动信号绝对值小于此值时视为静止（防抖动）
-SMOOTHING_FACTOR = (
-    0.3  # 指数平滑因子（0-1），值越大响应越快但越抖动，值越小越平滑但延迟越大
-)
-YAW_SCALE = 0.1  # 头动偏航角缩放系数，控制头部转动映射到杯子移动的距离（相对模式）
-YAW_MAPPING_MODE = "absolute"  # 映射模式："relative"(相对位移) 或 "absolute"(绝对位置映射)
-YAW_MIN = -30.0  # 头动偏航角最小值（度）
-YAW_MAX = 30.0   # 头动偏航角最大值（度）
+DEFAULT_ATTENTION = 50  # 默认专注力值（0-100）
+DEAD_ZONE = 5  # 死区阈值，头动信号绝对值小于此值时视为静止（防抖动）
+SMOOTHING_FACTOR = 0.15  # 指数平滑因子（0-1），值越大响应越快但越抖动
+FOCUS_SENSITIVITY = 30  # 焦点灵敏度：yaw每1度对应屏幕移动1像素
 BCI_CONNECTION_TIMEOUT = 5  # 连接超时时间（秒）
 
 # ============================================================

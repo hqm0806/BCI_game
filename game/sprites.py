@@ -17,7 +17,6 @@ from config import (
     CUP_LEVEL_IMGS,
     CUP_SPEED,
     CUP_WIDTH,
-    DEAD_ZONE,
     INGREDIENT_COLORS,
     INGREDIENT_IMGS,
     INGREDIENT_SIZE,
@@ -26,10 +25,6 @@ from config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     WHITE,
-    YAW_SCALE,
-    YAW_MAPPING_MODE,
-    YAW_MIN,
-    YAW_MAX,
 )
 
 
@@ -102,28 +97,12 @@ class Cup(pygame.sprite.Sprite):
 
         参数:
             keys: 按键状态字典（pygame.key.get_pressed() 返回值），键盘控制时使用
-            yaw: 头动偏航角（浮点数），头动控制时使用
+            yaw: 头动偏航角（浮点数），头动控制时使用（已弃用，杯子位置由session控制）
             dt: 帧间隔时间（秒），用于动画计算
         """
-        move_dir = 0  # 移动方向：-1 左，0 停，1 右
+        move_dir = 0
 
-        if self.yaw_control and yaw is not None:
-            # 头动控制模式
-            if abs(yaw) > DEAD_ZONE:  # DEAD_ZONE，死区阈值，防抖动
-                if YAW_MAPPING_MODE == "absolute":
-                    # 绝对位置映射：将yaw [YAW_MIN, YAW_MAX] 映射到屏幕 [0, SCREEN_WIDTH-CUP_WIDTH]
-                    normalized = (yaw - YAW_MIN) / (YAW_MAX - YAW_MIN)  # 归一化到 [0, 1]
-                    normalized = max(0.0, min(1.0, normalized))  # 限制在 [0, 1]
-                    target_x = int(normalized * (SCREEN_WIDTH - CUP_WIDTH))
-                    self.rect.x = target_x
-                    print(f"[DEBUG] yaw={yaw:.2f}, normalized={normalized:.3f}, cup.x={self.rect.x}")
-                else:
-                    # 相对位移模式（原始方式）
-                    self.rect.x += yaw * YAW_SCALE
-                    print(f"[DEBUG] yaw={yaw:.2f}, delta_x={yaw * YAW_SCALE:.2f}, cup.x={self.rect.x}")
-                move_dir = -1 if yaw < 0 else 1
-        elif keys:
-            # 键盘控制模式
+        if keys:
             if keys[pygame.K_LEFT]:
                 self.rect.x -= self.speed
                 move_dir = -1
@@ -131,25 +110,21 @@ class Cup(pygame.sprite.Sprite):
                 self.rect.x += self.speed
                 move_dir = 1
 
-        # 限制杯子不超出屏幕左右边界
         self.rect.left = max(0, self.rect.left)
         self.rect.right = min(SCREEN_WIDTH, self.rect.right)
 
-        # 更新倾斜：目标角度 ±12°（5.0 为最大倾斜角度），0.2 为平滑过渡系数
         target_tilt = move_dir * 12.0
         self._tilt += (target_tilt - self._tilt) * 0.2
 
-        # 更新弹跳动画
         if self._bounce_t >= 0:
             self._bounce_t += dt / self._bounce_dur
             if self._bounce_t >= 1.0:
                 self._bounce_t = -1.0
 
-        # 应用变换（旋转 + 缩放）
         scale = 1.0
         if self._bounce_t >= 0:
             bounce_phase = math.sin(self._bounce_t * math.pi)
-            scale = 1.0 + 0.1 * bounce_phase  # 0.1 为最大缩放幅度（10%）
+            scale = 1.0 + 0.1 * bounce_phase
 
         rotated = pygame.transform.rotozoom(self._orig_image, -self._tilt, scale)
         new_rect = rotated.get_rect(center=(self.rect.centerx, self.rect.centery))

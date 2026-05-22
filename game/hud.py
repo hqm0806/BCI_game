@@ -11,6 +11,8 @@ from config import (
     SCREEN_WIDTH,
 )
 
+from game.font_utils import load_chinese_font
+
 _glow_alpha = 0.0
 _glow_phase = 0.0
 
@@ -145,17 +147,37 @@ def draw_hud(
     total_max_time = cup_manager.total_cups * CUP_DURATION
     game_remaining = max(0.0, total_max_time - game_elapsed)
 
-    cup_remaining = cup_manager.get_cup_remaining()
+    bar_w = 1000
+    bar_x = (SCREEN_WIDTH - bar_w) // 2
+    bar_y = 0
+    bar_h = 50
+    bar_center_x = SCREEN_WIDTH // 2
+    bar_right = bar_x + bar_w
+    bar_font = load_chinese_font(38)  # 调整字体大小
+    money_text = bar_font.render(f"收益: {score_manager.total_money}", True, (20, 20, 20))
+    cy = bar_y + (bar_h - money_text.get_height()) // 2 + 5
+    screen.blit(money_text, (bar_center_x - money_text.get_width() // 2, cy))
 
-    money_text = font.render(f"收益: {score_manager.total_money}", True, (180, 255, 180))
-    screen.blit(money_text, (10, 50))
+    mode_text = bar_font.render(mode_name, True, (20, 20, 20))
+    screen.blit(mode_text, (bar_x + 80, cy))
 
-    mode_text = font.render(f"{mode_name}", True, (100, 50, 150))
-    screen.blit(mode_text, (10, 90))
+    cup_text = bar_font.render(
+        f"第 {cup_manager.cup_number}/{cup_manager.total_cups} 杯",
+        True,
+        (20, 20, 20),
+    )
+    screen.blit(cup_text, (bar_right - 80 - cup_text.get_width(), cy))
+
+    total_time_text = hint_font.render(
+        f"总局 {int(game_remaining)}s",
+        True,
+        (20, 20, 20),
+    )
+    screen.blit(total_time_text, (8, 4))
 
     if bci_mode:
         gyro_x = SCREEN_WIDTH - 300
-        gyro_y = 10
+        gyro_y = 52
         line_h = 22
         gyro_data = [
             f"偏航角: {raw_gyro_x:.2f}",
@@ -179,31 +201,6 @@ def draw_hud(
                 color = (100, 255, 100)
             txt = hint_font.render(line, True, color)
             screen.blit(txt, (gyro_x, gyro_y + i * line_h))
-
-    cup_text = font.render(
-        f"第 {cup_manager.cup_number}/{cup_manager.total_cups} 杯",
-        True,
-        (0, 0, 0),
-    )
-    screen.blit(cup_text, (SCREEN_WIDTH // 2 - 120, 10))
-
-    timer_color = (200, 50, 50) if cup_remaining < 3 else (50, 50, 50)
-    timer_text = font.render(f"剩余: {cup_remaining:.1f}s", True, timer_color)
-    screen.blit(timer_text, (SCREEN_WIDTH // 2 - 120, 50))
-
-    catch_text = font.render(
-        f"接住: {cup_manager.catch_count}",
-        True,
-        (50, 50, 50),
-    )
-    screen.blit(catch_text, (SCREEN_WIDTH // 2 - 120, 90))
-
-    total_time_text = hint_font.render(
-        f"总局剩余: {int(game_remaining)}s",
-        True,
-        (80, 80, 80),
-    )
-    screen.blit(total_time_text, (10, 130))
 
     if focus_teapot:
         if attention is not None:

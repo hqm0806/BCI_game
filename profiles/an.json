@@ -1,7 +1,7 @@
 {
-  "level": 2,
-  "cumulative_revenue": 68,
-  "total_games": 4,
+  "level": 3,
+  "cumulative_revenue": 123,
+  "total_games": 8,
   "games_history": [
     {
       "mode": "regular",
@@ -32,6 +32,38 @@
       "revenue": 38,
       "cups": 1,
       "secrets": 1,
+      "avg_attention": 0.0,
+      "date": "2026-05-23"
+    },
+    {
+      "mode": "regular",
+      "revenue": 13,
+      "cups": 5,
+      "secrets": 2,
+      "avg_attention": 0.0,
+      "date": "2026-05-23"
+    },
+    {
+      "mode": "regular",
+      "revenue": 0,
+      "cups": 5,
+      "secrets": 2,
+      "avg_attention": 0.0,
+      "date": "2026-05-23"
+    },
+    {
+      "mode": "regular",
+      "revenue": 0,
+      "cups": 5,
+      "secrets": 0,
+      "avg_attention": 0.0,
+      "date": "2026-05-23"
+    },
+    {
+      "mode": "regular",
+      "revenue": 42,
+      "cups": 5,
+      "secrets": 0,
       "avg_attention": 0.0,
       "date": "2026-05-23"
     }

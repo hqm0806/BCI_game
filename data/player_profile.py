@@ -12,8 +12,13 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-LEVEL_THRESHOLDS = [0, 35, 100, 300]  # 升级所需累计营业额：L1起始, L2=35, L3=100, L4=300
-SAVE_FILE = "player_profile.json"
+LEVEL_THRESHOLDS = [0, 35, 100, 300]
+PROFILES_DIR = "profiles"
+
+
+def _profile_path(username: str) -> str:
+    os.makedirs(PROFILES_DIR, exist_ok=True)
+    return os.path.join(PROFILES_DIR, f"{username}.json")
 
 
 @dataclass
@@ -22,6 +27,49 @@ class PlayerProfile:
     cumulative_revenue: int = 0
     total_games: int = 0
     games_history: list[dict] = field(default_factory=list)
+    _username: str = ""
+
+    @staticmethod
+    def load_for_user(username: str) -> PlayerProfile:
+        path = _profile_path(username)
+        if os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                profile = PlayerProfile(
+                    level=data.get("level", 1),
+                    cumulative_revenue=data.get("cumulative_revenue", 0),
+                    total_games=data.get("total_games", 0),
+                    games_history=data.get("games_history", []),
+                    _username=username,
+                )
+                logger.info("加载账号 [%s]: 等级%s, 累计收益%s", username, profile.level, profile.cumulative_revenue)
+                return profile
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.warning("存档损坏 [%s]: %s", username, e)
+        logger.info("新账号 [%s]", username)
+        return PlayerProfile(_username=username)
+
+    @staticmethod
+    def load(path: str | None = None) -> PlayerProfile:
+        return PlayerProfile()
+
+    def set_username(self, username: str) -> None:
+        self._username = username
+
+    def save(self) -> None:
+        if not self._username:
+            return
+        path = _profile_path(self._username)
+        data = {
+            "level": self.level,
+            "cumulative_revenue": self.cumulative_revenue,
+            "total_games": self.total_games,
+            "games_history": self.games_history[-20:],
+        }
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        logger.info("存档已保存 [%s]: 等级%s, 累计收益%s", self._username, self.level, self.cumulative_revenue)
 
     def add_game_result(
         self,
@@ -31,9 +79,7 @@ class PlayerProfile:
         secrets: int,
         avg_attention: float,
     ) -> int:
-        """记录一局游戏结果，返回新等级（如有升级则返回新等级号，否则返回0）"""
         old_level = self.level
-
         self.cumulative_revenue += revenue
         self.total_games += 1
         self.games_history.append(
@@ -46,9 +92,7 @@ class PlayerProfile:
                 "date": time.strftime("%Y-%m-%d"),
             }
         )
-
         self._check_level_up()
-
         if self.level > old_level:
             return self.level
         return 0
@@ -59,40 +103,7 @@ class PlayerProfile:
                 self.level = lv
                 break
 
-    def save(self, path: str | None = None) -> None:
-        filepath = path or SAVE_FILE
-        data = {
-            "level": self.level,
-            "cumulative_revenue": self.cumulative_revenue,
-            "total_games": self.total_games,
-            "games_history": self.games_history[-20:],
-        }
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        logger.info("存档已保存: 等级%s, 累计收益%s", self.level, self.cumulative_revenue)
-
-    @classmethod
-    def load(cls, path: str | None = None) -> PlayerProfile:
-        filepath = path or SAVE_FILE
-        if os.path.exists(filepath):
-            try:
-                with open(filepath, encoding="utf-8") as f:
-                    data = json.load(f)
-                profile = cls(
-                    level=data.get("level", 1),
-                    cumulative_revenue=data.get("cumulative_revenue", 0),
-                    total_games=data.get("total_games", 0),
-                    games_history=data.get("games_history", []),
-                )
-                logger.info("存档已加载: 等级%s, 累计收益%s", profile.level, profile.cumulative_revenue)
-                return profile
-            except (json.JSONDecodeError, KeyError) as e:
-                logger.warning("存档损坏或格式错误: %s，将使用新档", e)
-        logger.info("未找到存档，创建新档案")
-        return cls()
-
     def level_up_message(self) -> str | None:
-        """返回升级提示文字，未升级返回 None"""
         next_threshold = LEVEL_THRESHOLDS[self.level] if self.level < 4 else None
         if next_threshold is None:
             return "已满级！最高等级 Lv.4"

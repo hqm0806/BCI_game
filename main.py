@@ -19,6 +19,7 @@ from game.font_utils import load_chinese_font
 from game.session import run_game
 from menu import GameSettingsScreen, MainMenu
 from menu.calibration import CalibrationScreen
+from menu.login import LoginScreen
 from menu.splash import SplashScreen
 from menu.transition import StartTransition
 from utils.logging_config import get_logger, setup_logging
@@ -36,6 +37,29 @@ class SplashState(State):
 
     def enter(self) -> GameState | None:
         self.splash.run()
+        return GameState.LOGIN
+
+    def handle_event(self, event: GameEvent) -> GameState | None:
+        return None
+
+    def update(self) -> None:
+        pass
+
+
+class LoginState(State):
+    """登录状态"""
+
+    def __init__(self, screen: pygame.Surface, context: dict) -> None:
+        self.screen = screen
+        self._context = context
+
+    def enter(self) -> GameState | None:
+        login = LoginScreen(self.screen)
+        username = login.run()
+        if username is None or username == "quit":
+            return GameState.QUIT
+        self._context["username"] = username
+        self._context["profile"] = PlayerProfile.load_for_user(username)
         return GameState.MENU
 
     def handle_event(self, event: GameEvent) -> GameState | None:
@@ -204,12 +228,12 @@ def main() -> None:
 
     clock = pygame.time.Clock()
     context: dict = {}
-    context["profile"] = PlayerProfile.load()
     audio = AudioManager()
     audio.init()
 
     sm = StateMachine()
     sm.register(GameState.SPLASH, SplashState(screen, load_chinese_font(110)))
+    sm.register(GameState.LOGIN, LoginState(screen, context))
     sm.register(GameState.MENU, MenuState(screen, context, audio))
     sm.register(GameState.SETTINGS, SettingsState(screen))
     sm.register(GameState.CALIBRATION, CalibrationState(screen, context, audio))

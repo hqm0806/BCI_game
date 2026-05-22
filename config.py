@@ -44,13 +44,17 @@ CUP_LEVEL_IMGS = [  # 不同等级的杯子图片列表
 ]
 FOCUS_TEAPOT_IMG = os.path.join(IMAGES_DIR, "other", "focus_teapot.png")  # 专注力茶壶 UI 图片
 INGREDIENT_IMGS = {  # 食材图片字典
-    "红茶": os.path.join(IMAGES_DIR, "ingredients", "tea.png"),
-    "牛奶": os.path.join(IMAGES_DIR, "ingredients", "milk.png"),
-    "珍珠": os.path.join(IMAGES_DIR, "ingredients", "pearl.png"),
-    "椰果": os.path.join(IMAGES_DIR, "ingredients", "coconut.png"),
-    "布丁": os.path.join(IMAGES_DIR, "ingredients", "pudding.png"),
-    "仙草": os.path.join(IMAGES_DIR, "ingredients", "grass_jelly.png"),
-    "秘方": os.path.join(IMAGES_DIR, "ingredients", "secret_recipe.png"),
+    "红茶": os.path.join(IMAGES_DIR, "ingredients", "红茶.png"),
+    "绿茶": os.path.join(IMAGES_DIR, "ingredients", "绿茶.png"),
+    "牛奶": os.path.join(IMAGES_DIR, "ingredients", "牛奶.png"),
+    "珍珠": os.path.join(IMAGES_DIR, "ingredients", "珍珠.png"),
+    "椰果": os.path.join(IMAGES_DIR, "ingredients", "椰果.png"),
+    "芋圆": os.path.join(IMAGES_DIR, "ingredients", "芋圆.png"),
+    "脆啵啵": os.path.join(IMAGES_DIR, "ingredients", "脆波波.png"),
+    "椰奶": os.path.join(IMAGES_DIR, "ingredients", "椰奶.png"),
+    "草莓": os.path.join(IMAGES_DIR, "ingredients", "草莓.png"),
+    "咸芝士奶盖": os.path.join(IMAGES_DIR, "ingredients", "奶盖.png"),
+    "秘方": os.path.join(IMAGES_DIR, "ingredients", "秘方.png"),
 }
 BADGE_IMGS = [  # 徽章图片列表，按等级排列
     os.path.join(IMAGES_DIR, "badges", "badge1.png"),
@@ -96,32 +100,113 @@ CUP_COLOR = BROWN  # 杯子默认颜色（无图片时使用）
 # ============================================================
 INGREDIENT_SIZE = 40  # 食材图片尺寸（像素），修改此项可同时改变所有食材大小
 INGREDIENT_SPEED = 3  # 食材下落速度（像素/帧），值越大下落越快，游戏难度越高
-INGREDIENT_TYPES = [
-    "红茶",
-    "牛奶",
+INGREDIENT_TYPES = [  # 所有食材种类
     "珍珠",
     "椰果",
-    "布丁",
-    "仙草",
-]  # 当前关卡可掉落的食材种类列表
+    "牛奶",
+    "红茶",
+    "绿茶",
+    "芋圆",
+    "脆啵啵",
+    "乌龙茶",
+    "椰奶",
+    "草莓",
+    "芋泥",
+    "燕麦奶",
+    "咖啡",
+    "特调稀奶油顶",
+    "米酿",
+    "咸芝士奶盖",
+    "茉莉花茶",
+]
 
 INGREDIENT_COLORS = {  # 食材默认颜色（无图片时使用，RGB 格式）
-    "红茶": (160, 82, 45),
-    "牛奶": (255, 250, 240),
-    "珍珠": (105, 105, 105),
+    "珍珠": (60, 50, 40),
     "椰果": (240, 230, 140),
-    "布丁": (255, 200, 100),
-    "仙草": (50, 50, 50),
+    "牛奶": (255, 250, 240),
+    "红茶": (160, 82, 45),
+    "绿茶": (120, 180, 80),
+    "芋圆": (180, 140, 100),
+    "脆啵啵": (200, 180, 220),
+    "乌龙茶": (140, 100, 60),
+    "椰奶": (255, 245, 230),
+    "草莓": (220, 50, 80),
+    "芋泥": (170, 120, 160),
+    "燕麦奶": (230, 210, 170),
+    "咖啡": (90, 60, 40),
+    "特调稀奶油顶": (255, 245, 200),
+    "米酿": (240, 220, 160),
+    "咸芝士奶盖": (250, 240, 180),
+    "茉莉花茶": (180, 210, 100),
 }
 
-INGREDIENT_POINTS = {  # 食材分值/金钱值，接到对应食材时获得的分数
-    "红茶": 8,
+INGREDIENT_POINTS = {  # 食材分值/金钱值，接到对应食材时获得的价格（元）
+    "珍珠": 3,
+    "椰果": 3,
     "牛奶": 5,
-    "珍珠": 10,
-    "椰果": 6,
-    "布丁": 12,
-    "仙草": 8,
-    "秘方": 0,  # 秘方本身 0 分，效果是触发当前杯收益翻倍
+    "红茶": 5,
+    "绿茶": 5,
+    "芋圆": 8,
+    "脆啵啵": 8,
+    "乌龙茶": 10,
+    "椰奶": 10,
+    "草莓": 12,
+    "芋泥": 12,
+    "燕麦奶": 15,
+    "咖啡": 15,
+    "特调稀奶油顶": 20,
+    "米酿": 20,
+    "咸芝士奶盖": 20,
+    "茉莉花茶": 20,
+    "秘方": 0,
+}
+
+INGREDIENT_TIERS = {  # 等级系统：每个等级的可用食材和必接食材（含之前等级所有食材）
+    1: {"available": ["珍珠", "椰果", "牛奶", "红茶", "绿茶"], "required": ["牛奶", "红茶", "绿茶"]},
+    2: {
+        "available": ["珍珠", "椰果", "牛奶", "红茶", "绿茶", "芋圆", "脆啵啵", "乌龙茶", "椰奶"],
+        "required": ["牛奶", "红茶", "绿茶", "乌龙茶", "椰奶"],
+    },
+    3: {
+        "available": [
+            "珍珠",
+            "椰果",
+            "牛奶",
+            "红茶",
+            "绿茶",
+            "芋圆",
+            "脆啵啵",
+            "乌龙茶",
+            "椰奶",
+            "草莓",
+            "芋泥",
+            "燕麦奶",
+            "咖啡",
+        ],
+        "required": ["牛奶", "红茶", "绿茶", "乌龙茶", "椰奶", "燕麦奶", "咖啡"],
+    },
+    4: {
+        "available": [
+            "珍珠",
+            "椰果",
+            "牛奶",
+            "红茶",
+            "绿茶",
+            "芋圆",
+            "脆啵啵",
+            "乌龙茶",
+            "椰奶",
+            "草莓",
+            "芋泥",
+            "燕麦奶",
+            "咖啡",
+            "特调稀奶油顶",
+            "米酿",
+            "咸芝士奶盖",
+            "茉莉花茶",
+        ],
+        "required": ["牛奶", "红茶", "绿茶", "乌龙茶", "椰奶", "燕麦奶", "咖啡", "茉莉花茶"],
+    },
 }
 
 # ============================================================

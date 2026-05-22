@@ -149,7 +149,7 @@ class GameSession:
         self.particles = pygame.sprite.Group()
 
         self.score_manager = ScoreManager()
-        self.ingredient_manager = IngredientManager()
+        self.ingredient_manager = IngredientManager(tier=1)
         self.ingredient_manager.spawn_interval = self.spawn_interval
 
         if self.has_required:
@@ -161,6 +161,7 @@ class GameSession:
             total_cups=self._mode_total_cups,
             secret_recipe_interval=self._mode_secret_interval,
         )
+        self._current_tier = 1
 
     def _init_bci(self) -> None:
         self.bci_reader = BCIDataReader()
@@ -389,14 +390,20 @@ class GameSession:
                 logger.info("总局时间已到，游戏结束！")
                 return
 
+            cups_per_tier = max(1, self._mode_total_cups // 4)
+            new_tier = min(4, (self.cup_manager.cup_number // cups_per_tier) + 1)
+            if new_tier != self._current_tier:
+                self._current_tier = new_tier
+                self.ingredient_manager.set_tier(new_tier)
+                logger.info("升级到等级 %s！新食材已解锁", new_tier)
+
             self.cup_manager.start_new_cup()
             self.score_manager.reset_cup_ingredients()
             self.creative_ingredients = []
             self.recipe_result = None
 
     def _update_game_objects(self, dt_sec: float) -> None:
-        required: list[str] | None = ["红茶"] if self.has_required else None
-        ingredient = self.ingredient_manager.update(required_types=required)
+        ingredient = self.ingredient_manager.update(required_types=None)
         if ingredient:
             self.ingredients.add(ingredient)
 

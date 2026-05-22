@@ -1,4 +1,4 @@
-"""游戏结束总结界面（一杯制改造）"""
+"""游戏结束总结界面"""
 
 from __future__ import annotations
 
@@ -31,6 +31,9 @@ class SummaryScreen:
         cup_count: int = 0,
         secret_count: int = 0,
         max_cup_money: int = 0,
+        player_level: int = 1,
+        cumulative_revenue: int = 0,
+        upgraded: bool = False,
     ) -> None:
         self.screen = screen
         self.clock = pygame.time.Clock()
@@ -41,41 +44,39 @@ class SummaryScreen:
         self.cup_count = cup_count
         self.secret_count = secret_count
         self.max_cup_money = max_cup_money
+        self.player_level = player_level
+        self.cumulative_revenue = cumulative_revenue
+        self.upgraded = upgraded
 
         self.bg_path = os.path.join(ASSETS_DIR, "images", "backgrounds", "summary_bg.png")
-        self.icon_path = os.path.join(ASSETS_DIR, "images", "other", "summary_icon.png")
 
         self.bg = None
         if os.path.exists(self.bg_path):
             self.bg = pygame.image.load(self.bg_path).convert()
             self.bg = pygame.transform.scale(self.bg, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
-        self.title_font = _load_font(60)
-        self.info_font = _load_font(40)
-        self.comment_font = _load_font(32)
-        self.hint_font = _load_font(24)
+        self.title_font = _load_font(50)
+        self.info_font = _load_font(36)
+        self.big_font = _load_font(48)
+        self.hint_font = _load_font(22)
 
         self.comment = self._generate_comment()
 
     def _generate_comment(self) -> str:
-        is_bci = self.game_mode == "bci"
-
-        if is_bci:
-            if self.score >= 200 and self.focus_value >= 70:
+        if self.upgraded:
+            return f"升级！已达到 Lv.{self.player_level}！"
+        if self.game_mode == "bci":
+            if self.focus_value >= 70:
                 return "专注大师！脑波与奶茶的完美共鸣！"
-            if self.score >= 100:
+            if self.focus_value >= 50:
                 return "表现不错，继续保持专注！"
-            if self.score >= 50:
-                return "初露锋芒，调整呼吸再试一次！"
-            return "万事开头难，放松心态，专注力会慢慢提升的！"
+            return "调整呼吸，再试一次！"
         else:
-            if self.score >= 200:
-                return "奶茶大师！你的手速快如闪电！"
-            if self.score >= 100:
-                return "手艺精湛！是一杯好奶茶！"
-            if self.score >= 50:
-                return "初露锋芒，再接再厉！"
-            return "万事开头难，多喝奶茶多练习！"
+            if self.total_money >= 100:
+                return "奶茶大师！手艺精湛！"
+            if self.total_money >= 50:
+                return "一杯好奶茶！再接再厉！"
+            return "多练练习，手艺会越来越好的！"
 
     def run(self) -> str:
         while True:
@@ -93,25 +94,42 @@ class SummaryScreen:
             else:
                 self.screen.fill((40, 40, 55))
 
-            _draw_centered_text(self.screen, self.title_font, "游戏结束", 80, (255, 255, 255))
+            y = 80
+            _draw_centered(self.screen, self.title_font, "游戏结束", y, (255, 255, 255))
 
-            pygame.draw.line(self.screen, (100, 100, 120), (200, 155), (SCREEN_WIDTH - 200, 155), 3)
+            y += 70
+            pygame.draw.line(self.screen, (100, 100, 120), (200, y), (SCREEN_WIDTH - 200, y), 2)
 
-            _draw_centered_text(self.screen, self.info_font, "最终得分", 190, (180, 180, 200))
-            _draw_centered_text(self.screen, self.info_font, str(self.score), 240, (255, 220, 100))
+            y += 30
+            _draw_centered(self.screen, self.info_font, f"Lv.{self.player_level}", y, (255, 215, 0))
 
-            _draw_centered_text(self.screen, self.info_font, f"总收益: {self.total_money}", 300, (100, 255, 100))
-            _draw_centered_text(self.screen, self.hint_font, f"完成杯数: {self.cup_count}", 345, (180, 180, 200))
-            _draw_centered_text(self.screen, self.hint_font, f"秘方触发: {self.secret_count} 次", 375, (255, 215, 0))
-            _draw_centered_text(
-                self.screen, self.hint_font, f"最高单杯收益: {self.max_cup_money}", 405, (200, 200, 200)
+            y += 40
+            _draw_centered(self.screen, self.info_font, f"总收益: {self.total_money}", y, (100, 255, 100))
+
+            y += 30
+            _draw_centered(self.screen, self.hint_font, f"累计营业额: {self.cumulative_revenue}", y, (200, 200, 200))
+
+            y += 25
+            _draw_centered(
+                self.screen,
+                self.hint_font,
+                f"完成杯数: {self.cup_count} | 秘方: {self.secret_count} 次 | 最高单杯: {self.max_cup_money}",
+                y,
+                (180, 180, 200),
             )
 
-            _draw_centered_text(self.screen, self.info_font, "平均专注力", 460, (180, 180, 200))
-            _draw_centered_text(self.screen, self.info_font, f"{self.focus_value:.1f}%", 510, (150, 255, 150))
+            y += 35
+            if self.upgraded:
+                up_surf = self.big_font.render(f"升到 Lv.{self.player_level}！新食材已解锁", True, (255, 200, 50))
+                self.screen.blit(up_surf, (SCREEN_WIDTH // 2 - up_surf.get_width() // 2, y))
+                y += 50
 
-            comment_surf = self.comment_font.render(self.comment, True, (220, 220, 240))
-            self.screen.blit(comment_surf, (SCREEN_WIDTH // 2 - comment_surf.get_width() // 2, 570))
+            y += 15
+            _draw_centered(self.screen, self.info_font, f"平均专注力: {self.focus_value:.1f}%", y, (150, 255, 150))
+
+            y += 50
+            comment_surf = self.hint_font.render(self.comment, True, (220, 220, 240))
+            self.screen.blit(comment_surf, (SCREEN_WIDTH // 2 - comment_surf.get_width() // 2, y))
 
             hint_surf = self.hint_font.render("按 任意键 / 点击屏幕 返回主菜单", True, (140, 140, 150))
             self.screen.blit(
@@ -122,7 +140,7 @@ class SummaryScreen:
             pygame.display.flip()
 
 
-def _draw_centered_text(
+def _draw_centered(
     screen: pygame.Surface,
     font: pygame.font.Font,
     text: str,

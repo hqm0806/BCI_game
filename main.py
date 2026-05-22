@@ -14,6 +14,7 @@ from bci.data_reader import BCIDataReader
 from config import IMAGES_DIR
 from core.audio_manager import AudioManager
 from core.state_machine import GameEvent, GameState, State, StateMachine
+from data.player_profile import PlayerProfile
 from game.font_utils import load_chinese_font
 from game.session import run_game
 from menu import GameSettingsScreen, MainMenu
@@ -174,7 +175,10 @@ class GameStateImpl(State):
     def enter(self) -> GameState | None:
         mode = self._context.get("game_mode", "regular")
         calib = self._context.get("calibration", None)
-        game_result = run_game(self.screen, self.clock, game_mode=mode, calibration=calib)
+        profile = self._context.get("profile")
+        game_result = run_game(self.screen, self.clock, game_mode=mode, calibration=calib, profile=profile)
+        if profile:
+            profile.save()
         if game_result == "quit":
             return GameState.QUIT
         return GameState.MENU
@@ -200,6 +204,7 @@ def main() -> None:
 
     clock = pygame.time.Clock()
     context: dict = {}
+    context["profile"] = PlayerProfile.load()
     audio = AudioManager()
     audio.init()
 

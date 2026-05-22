@@ -107,11 +107,14 @@ class GameSession:
         clock: pygame.time.Clock,
         game_mode: str = "regular",
         calibration: dict | None = None,
+        profile=None,
     ) -> None:
         self.screen = screen
         self.clock = clock
         self.game_mode = game_mode
         self._calibration = calibration or {}
+        self._profile = profile
+        self._upgrade_level = 0
 
         self._load_mode_config()
         self._load_fonts()
@@ -149,7 +152,8 @@ class GameSession:
         self.particles = pygame.sprite.Group()
 
         self.score_manager = ScoreManager()
-        self.ingredient_manager = IngredientManager(tier=1)
+        start_tier = self._profile.level if self._profile else 1
+        self.ingredient_manager = IngredientManager(tier=start_tier)
         self.ingredient_manager.spawn_interval = self.spawn_interval
 
         if self.has_required:
@@ -224,6 +228,7 @@ class GameSession:
             self.cup.yaw_control = False
 
         self.cup_manager.start_new_cup()
+        self._current_tier = self._profile.level if self._profile else 1
 
     def _print_mode_rules(self) -> None:
         logger.info("=" * 50)
@@ -485,6 +490,25 @@ class GameSession:
             if not self.bci_mode:
                 avg_focus = 0.0
 
+            if self._profile:
+                old_level = self._profile.level
+                upgraded = self._profile.add_game_result(
+                    revenue=self.score_manager.total_money,
+                    mode=self.game_mode,
+                    cups=self.score_manager.cup_count,
+                    secrets=self.score_manager.secret_recipe_count,
+                    avg_attention=avg_focus,
+                )
+                self._upgrade_level = old_level if upgraded else self._profile.level
+                is_upgraded = upgraded > 0
+                p_level = self._profile.level
+                p_rev = self._profile.cumulative_revenue
+            else:
+                self._upgrade_level = 1
+                is_upgraded = False
+                p_level = 1
+                p_rev = 0
+
             summary = SummaryScreen(
                 self.screen,
                 self.score_manager.score,
@@ -494,6 +518,9 @@ class GameSession:
                 cup_count=self.score_manager.cup_count,
                 secret_count=self.score_manager.secret_recipe_count,
                 max_cup_money=self.score_manager.get_max_cup_money(),
+                player_level=p_level,
+                cumulative_revenue=p_rev,
+                upgraded=is_upgraded,
             )
             return summary.run()
 
@@ -501,9 +528,13 @@ class GameSession:
 
 
 def run_game(
-    screen: pygame.Surface, clock: pygame.time.Clock, game_mode: str = "regular", calibration: dict | None = None
+    screen: pygame.Surface,
+    clock: pygame.time.Clock,
+    game_mode: str = "regular",
+    calibration: dict | None = None,
+    profile=None,
 ) -> str:
-    session = GameSession(screen, clock, game_mode, calibration)
+    session = GameSession(screen, clock, game_mode, calibration, profile)
     return session.run()
 
 

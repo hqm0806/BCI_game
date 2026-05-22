@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 
 import pygame
 
@@ -79,14 +80,17 @@ class SummaryScreen:
             return "多练练习，手艺会越来越好的！"
 
     def run(self) -> str:
+        start = time.time()
         while True:
             self.clock.tick(60)
+            elapsed = time.time() - start
+            can_exit = elapsed >= 3.0
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                if can_exit and (event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN):
                     return "menu"
 
             if self.bg:
@@ -131,7 +135,12 @@ class SummaryScreen:
             comment_surf = self.hint_font.render(self.comment, True, (220, 220, 240))
             self.screen.blit(comment_surf, (SCREEN_WIDTH // 2 - comment_surf.get_width() // 2, y))
 
-            hint_surf = self.hint_font.render("按 任意键 / 点击屏幕 返回主菜单", True, (140, 140, 150))
+            if can_exit:
+                hint_text = "按 任意键 / 点击屏幕 返回主菜单"
+            else:
+                remain = max(0, int(3 - elapsed) + 1)
+                hint_text = f"请耐心等待 {remain} 秒... 结算中"
+            hint_surf = self.hint_font.render(hint_text, True, (140, 140, 150))
             self.screen.blit(
                 hint_surf,
                 (SCREEN_WIDTH // 2 - hint_surf.get_width() // 2, SCREEN_HEIGHT - 50),

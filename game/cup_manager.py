@@ -174,4 +174,4 @@ class DifficultyAdapter:
         return self.baseline
 
     def get_secret_threshold(self) -> float:
-        return self.baseline + SECRET_RECIPE_OFFSET
+        return min(88.0, self.baseline + SECRET_RECIPE_OFFSET)

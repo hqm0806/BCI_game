@@ -170,7 +170,8 @@ class GameSession:
     def _init_bci(self) -> None:
         self.bci_reader = BCIDataReader()
         self.bci_available = False
-        if self.bci_mode:
+        use_bci = self.bci_mode or bool(self._calibration)
+        if use_bci:
             self.bci_available = self.bci_reader.connect()
 
         self.attention_curve = None
@@ -182,7 +183,7 @@ class GameSession:
             speed_max=CUP_SPEED_MAX,
             baseline=DIFFICULTY_BASELINE,
         )
-        self.difficulty_adapter = DifficultyAdapter() if self.bci_mode else None
+        self.difficulty_adapter = DifficultyAdapter() if use_bci else None
 
     def _load_background(self) -> None:
         self.background = None
@@ -201,7 +202,7 @@ class GameSession:
 
         self.running = True
         self.show_summary = False
-        self.use_yaw_control = self.bci_mode and self.bci_available
+        self.use_yaw_control = self.bci_available
         self.cup.yaw_control = self.use_yaw_control
         self.game_start_time = time_module.time()
         self.focus_samples = []
@@ -226,7 +227,7 @@ class GameSession:
         if teapot_img_path:
             self.focus_teapot = FocusTeapotUI(image_path=teapot_img_path, x=10, y=90, width=120, height=140)
 
-        if self.bci_mode and not self.bci_available:
+        if not self.bci_available and (self.bci_mode or self._calibration):
             logger.warning("BCI设备未连接，无法使用头动控制，将自动切换到键盘控制")
             self.use_yaw_control = False
             self.cup.yaw_control = False
@@ -370,7 +371,7 @@ class GameSession:
             self.cup.update(keys=keys, dt=dt_sec)
 
     def _update_ingredient_speed(self) -> None:
-        if self.bci_mode and self.bci_available and self.attention is not None:
+        if self.bci_available and self.attention is not None:
             normalized = self._normalize_attention(self.attention)
             speed = self.attention_speed_curve.get_speed(normalized)
             self.ingredient_manager.set_current_speed(speed)
@@ -394,7 +395,7 @@ class GameSession:
         if self.cup_manager.cup_ended:
             return
 
-        if self.bci_mode and self.bci_available and self.attention is not None:
+        if self.bci_available and self.attention is not None:
             threshold = self.difficulty_adapter.get_secret_threshold() if self.difficulty_adapter else 75.0
             if self.attention > threshold:
                 self.focus_above_seconds += dt_sec
@@ -505,7 +506,7 @@ class GameSession:
             recipe_font=self.recipe_font,
             focus_teapot=self.focus_teapot,
             attention=self.attention,
-            bci_mode=self.bci_mode,
+            bci_mode=self.bci_available,
             free_combine=self.free_combine,
             recipe_result=self.recipe_result,
             creative_ingredients=self.creative_ingredients,

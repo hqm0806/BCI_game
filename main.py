@@ -83,17 +83,18 @@ class MenuState(State):
         self._audio.play_bgm("玻璃糖果园.wav", volume=0.5)
 
         menu = MainMenu(self.screen, self.font, self.title_font)
-        result, mode = menu.run()
+        result, mode, use_bci = menu.run()
         result = result or "quit"
         mode = mode or "regular"
         self._context["game_mode"] = mode
+        self._context["use_bci"] = use_bci
 
         if result == "quit":
             return GameState.QUIT
         if result == "settings":
             return GameState.SETTINGS
         if result == "start":
-            if self._context.get("game_mode") == "bci":
+            if self._context.get("use_bci"):
                 return GameState.CALIBRATION
             return GameState.TRANSITION
         return None

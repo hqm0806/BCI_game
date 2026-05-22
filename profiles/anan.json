@@ -1,7 +1,7 @@
 {
   "level": 4,
-  "cumulative_revenue": 1758,
-  "total_games": 12,
+  "cumulative_revenue": 1779,
+  "total_games": 13,
   "games_history": [
     {
       "mode": "regular",
@@ -96,6 +96,14 @@
       "revenue": 622,
       "cups": 5,
       "secrets": 5,
+      "avg_attention": 0.0,
+      "date": "2026-05-23"
+    },
+    {
+      "mode": "regular",
+      "revenue": 21,
+      "cups": 5,
+      "secrets": 0,
       "avg_attention": 0.0,
       "date": "2026-05-23"
     }

@@ -33,6 +33,7 @@ class MainMenu:
         self.running = True
         self.result = None
         self.current_mode = "regular"
+        self._use_bci = False
 
         self.bg = self._load_bg()
         self.badge = Badge(BADGE_IMGS, SCREEN_WIDTH - 85, 12, size=(80, 80))
@@ -146,7 +147,8 @@ class MainMenu:
                         self.current_mode = mode
                     if self.bci_btn.handle_event(event):
                         self.result = "start"
-                        self.current_mode = "bci"
+                        self.current_mode = "regular"
+                        self._use_bci = True
                         click_frames = 15
                     if self.settings_btn.handle_event(event):
                         self.settings_btn.trigger_click()
@@ -168,7 +170,7 @@ class MainMenu:
                     else:
                         self.running = False
 
-        return self.result, self.current_mode
+        return self.result, self.current_mode, self._use_bci
 
     def _update(self, dt: float) -> None:
         self.badge.update(dt)

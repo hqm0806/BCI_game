@@ -121,7 +121,7 @@ class BCIDataReader:
                 "top": 0,
                 "width": SCREEN_WIDTH,
                 "height": SCREEN_HEIGHT,
-                "sensitivityX": 10,
+                "sensitivityX": 8,
                 "sensitivityY": 8,
             },
         }

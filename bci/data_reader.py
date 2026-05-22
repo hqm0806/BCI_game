@@ -37,6 +37,19 @@ class BCIDataReader:
         self.connected = False
         self.recv_buffer = b""
 
+        self._attention_history: list[tuple[float, float]] = []
+        self._rolling_avg = 50.0
+
+    def get_rolling_attention(self) -> float:
+        now = time.time()
+        self._attention_history = [(t, v) for t, v in self._attention_history if now - t <= 3.0]
+        if self._attention_history:
+            self._rolling_avg = sum(v for _, v in self._attention_history) / len(self._attention_history)
+        return self._rolling_avg
+
+    def _record_attention(self, value: int) -> None:
+        self._attention_history.append((time.time(), float(value)))
+
     def connect(self, ip=None, port=None):
         """连接 BCI 设备并启动陀螺仪算法"""
         if ip:
@@ -188,6 +201,7 @@ class BCIDataReader:
 
                 if algorithm_name == "attention" and data_content is not None:
                     self.attention = int(data_content)
+                    self._record_attention(self.attention)
                     self.last_update_time = time.time()
 
                 elif algorithm_name == "gyroscope" and data_content is not None:

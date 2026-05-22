@@ -101,10 +101,17 @@ class GameSession:
     focus_min: int
     focus_max: int
 
-    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, game_mode: str = "regular") -> None:
+    def __init__(
+        self,
+        screen: pygame.Surface,
+        clock: pygame.time.Clock,
+        game_mode: str = "regular",
+        calibration: dict | None = None,
+    ) -> None:
         self.screen = screen
         self.clock = clock
         self.game_mode = game_mode
+        self._calibration = calibration or {}
 
         self._load_mode_config()
         self._load_fonts()
@@ -307,6 +314,13 @@ class GameSession:
         if self.attention is not None:
             self.focus_samples.append(self.attention)
 
+    def _normalize_attention(self, raw: float) -> float:
+        norm_min = self._calibration.get("norm_min", 0.0)
+        norm_max = self._calibration.get("norm_max", 100.0)
+        if norm_max - norm_min < 1:
+            return raw
+        return max(0.0, min(100.0, (raw - norm_min) / (norm_max - norm_min) * 100.0))
+
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
         if self.use_yaw_control:
             fx = int(self.platform_focus_x)
@@ -316,14 +330,16 @@ class GameSession:
 
     def _update_ingredient_speed(self) -> None:
         if self.bci_mode and self.bci_available and self.attention is not None:
-            speed = self.attention_speed_curve.get_speed(self.attention)
+            normalized = self._normalize_attention(self.attention)
+            speed = self.attention_speed_curve.get_speed(normalized)
             self.ingredient_manager.set_current_speed(speed)
         else:
             self.ingredient_manager.set_current_speed(self.mode_speed)
 
     def _update_difficulty(self, dt_sec: float) -> None:
         if self.difficulty_adapter is not None and self.attention is not None:
-            baseline = self.difficulty_adapter.update(self.attention, dt_sec)
+            normalized = self._normalize_attention(self.attention)
+            baseline = self.difficulty_adapter.update(normalized, dt_sec)
             self.attention_speed_curve.set_baseline(baseline)
 
     def _check_secret_recipe(self, dt_sec: float) -> None:
@@ -448,6 +464,7 @@ class GameSession:
             platform_focus_y=self.platform_focus_y,
             cup_x=self.cup.rect.centerx,
             cup_y=self.cup.rect.centery,
+            rolling_attention=self.bci_reader.get_rolling_attention() if self.bci_available else 0.0,
         )
 
         pygame.display.flip()
@@ -473,8 +490,10 @@ class GameSession:
         return "quit"
 
 
-def run_game(screen: pygame.Surface, clock: pygame.time.Clock, game_mode: str = "regular") -> str:
-    session = GameSession(screen, clock, game_mode)
+def run_game(
+    screen: pygame.Surface, clock: pygame.time.Clock, game_mode: str = "regular", calibration: dict | None = None
+) -> str:
+    session = GameSession(screen, clock, game_mode, calibration)
     return session.run()
 
 

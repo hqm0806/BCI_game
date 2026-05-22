@@ -140,6 +140,7 @@ class GameSession:
         self.font = load_chinese_font(36)
         self.hint_font = load_chinese_font(20)
         self.recipe_font = load_chinese_font(28)
+        self.pause_font = load_chinese_font(48)
 
     def _init_game_objects(self) -> None:
         self.cup = Cup()
@@ -225,7 +226,11 @@ class GameSession:
         self._attn_offsets: list[float] = []
         self._attn_variance = 0.0
         self._attn_mode = "中等模式"
-        self._was_speed_zero = False
+
+        self._paused = False
+        self._low_attn_seconds = 0.0
+        self._high_attn_seconds = 0.0
+        self._blackout_alpha = 0.0
 
         self.focus_min = CUP_WIDTH // 2
         self.focus_max = SCREEN_WIDTH - CUP_WIDTH // 2
@@ -282,6 +287,30 @@ class GameSession:
         self.screen.blit(mode_text, (10, 10))
         pygame.display.flip()
 
+    def _update_pause_state(self, dt_sec: float) -> None:
+        if self.attention is None:
+            return
+        if self.attention <= 5:
+            self._low_attn_seconds += dt_sec
+            self._high_attn_seconds = 0.0
+        elif self.attention >= 10:
+            self._high_attn_seconds += dt_sec
+            self._low_attn_seconds = 0.0
+        else:
+            self._low_attn_seconds = 0.0
+            self._high_attn_seconds = 0.0
+
+        if not self._paused and self._low_attn_seconds >= 5.0:
+            self._paused = True
+        elif self._paused and self._high_attn_seconds >= 5.0:
+            self._paused = False
+            self._low_attn_seconds = 0.0
+            self._high_attn_seconds = 0.0
+            self.ingredient_manager.reset_spawn_timer()
+
+        target_alpha = 180 if self._paused else 0
+        self._blackout_alpha += (target_alpha - self._blackout_alpha) * 0.05
+
     def run(self) -> str:
         self._render()
         while self.running:
@@ -295,16 +324,20 @@ class GameSession:
 
             self._update_bci_data()
             self._update_cup(keys, dt_sec)
-            self._update_attention_variance()
-            self._update_ingredient_speed()
-            self._check_secret_recipe(dt_sec)
-            self._check_cup_end()
+            self._update_pause_state(dt_sec)
+
+            if not self._paused:
+                self._update_attention_variance()
+                self._update_ingredient_speed()
+                self._check_secret_recipe(dt_sec)
+                self._check_cup_end()
 
             if not self.running:
                 break
 
-            self._update_game_objects(dt_sec)
-            self._handle_collisions()
+            if not self._paused:
+                self._update_game_objects(dt_sec)
+                self._handle_collisions()
 
             self._update_bci_data()
             if self.use_yaw_control:
@@ -388,13 +421,6 @@ class GameSession:
     def _update_ingredient_speed(self) -> None:
         if self.bci_available and self.attention is not None:
             speed = self.attention_speed_curve.get_speed(self.attention)
-
-            was_stopped = getattr(self, "_was_speed_zero", False)
-            is_stopped = speed == 0.0
-            if not is_stopped and was_stopped:
-                self.ingredient_manager.reset_spawn_timer()
-            self._was_speed_zero = is_stopped
-
             self.ingredient_manager.set_current_speed(speed)
             for ing in self.ingredients:
                 ing.speed = speed
@@ -551,6 +577,27 @@ class GameSession:
             attn_mode=self._attn_mode,
             attn_baseline=self._calibration.get("baseline", 40.0) if self._calibration else 40.0,
         )
+
+        if self._blackout_alpha > 1:
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, int(self._blackout_alpha)))
+            self.screen.blit(overlay, (0, 0))
+
+            if self._paused:
+                pause_text = self.pause_font.render("请调整身心状态", True, (255, 255, 255))
+                self.screen.blit(
+                    pause_text,
+                    (SCREEN_WIDTH // 2 - pause_text.get_width() // 2, SCREEN_HEIGHT // 2 - 60),
+                )
+                sub_text = self.hint_font.render(
+                    f"保持专注力 >10 持续 {max(0, 5 - self._high_attn_seconds):.0f}s 恢复游戏",
+                    True,
+                    (200, 200, 200),
+                )
+                self.screen.blit(
+                    sub_text,
+                    (SCREEN_WIDTH // 2 - sub_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20),
+                )
 
         pygame.display.flip()
 

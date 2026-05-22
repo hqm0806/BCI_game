@@ -98,15 +98,14 @@ class SensitivityCurve:
 
 class AttentionToSpeedCurve:
     """
-    实时专注力 → 食材落下速度的映射曲线（分段线性，以校准基线为参考）
+    实时专注力 → 食材落下速度的映射曲线（3段线性，以校准基线为参考）
 
     规则:
-        attn ∈ [0, 20]                       → speed = 0（停止）
-        attn ∈ [20, baseline-20]              → speed 从 0 线性增至 Vmax
+        attn ∈ [0, baseline-20]               → speed = Vmax（最快）
         attn ∈ [baseline-20, baseline+20]     → speed 从 Vmax 线性降至 Vmin
-        attn ∈ [baseline+20, 100]             → speed = Vmin（最慢，最易）
+        attn ∈ [baseline+20, 100]             → speed = Vmin（最慢）
 
-    专注力越高 → 食材越慢 → 更易接住；专注力越低 → 食材越快甚至停止。
+    专注力越高 → 食材越慢 → 更易接住；专注力越低 → 食材越快。
     """
 
     def __init__(
@@ -125,14 +124,11 @@ class AttentionToSpeedCurve:
     def get_speed(self, attention: float) -> float:
         a = max(0.0, min(100.0, attention))
         b = self.baseline
-        lo = max(20.0, b - 20.0)
+        lo = max(0.0, b - 20.0)
         hi = min(100.0, b + 20.0)
 
-        if a <= 20.0:
-            return 0.0
         if a <= lo:
-            t = (a - 20.0) / max(1.0, lo - 20.0)
-            return self.speed_max * t
+            return self.speed_max
         if a <= hi:
             t = (a - lo) / max(1.0, hi - lo)
             return self.speed_max - (self.speed_max - self.speed_min) * t

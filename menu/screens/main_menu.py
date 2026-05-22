@@ -15,6 +15,7 @@ from config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
+from game.font_utils import load_chinese_font
 from menu.bci_button import GlowButton
 from menu.components import Badge
 from menu.mode_selector import ModeSelector
@@ -27,6 +28,7 @@ class MainMenu:
         self.screen = screen
         self.font = font
         self.title_font = title_font
+        self.big_title_font = load_chinese_font(64)
         self.clock = pygame.time.Clock()
         self.running = True
         self.result = None
@@ -96,7 +98,7 @@ class MainMenu:
 
         self.btn_cx = cx  # 保存按钮组水平中心，用于标题对齐
 
-        self.title_y = start_y - 150  # 标题 Y 坐标：固定在第一个按钮上方 xx 像素处
+        self.title_y = start_y - 175
         self.title_phase = 0.0
 
     def _load_bg(self) -> pygame.Surface | None:
@@ -212,14 +214,19 @@ class MainMenu:
             item.draw(self.screen)
 
         title_offset = math.sin(self.title_phase) * 8
-        title_surf = self.title_font.render("疯狂奶茶杯", True, (255, 220, 150))
-        title_shadow = self.title_font.render("疯狂奶茶杯", True, (80, 40, 10))
+        title_chars = list("疯狂奶茶杯")
+        char_spacing = 15
+        char_surfs = [self.big_title_font.render(c, True, (255, 220, 150)) for c in title_chars]
+        char_shadows = [self.big_title_font.render(c, True, (80, 40, 10)) for c in title_chars]
+        total_w = sum(s.get_width() for s in char_surfs) + char_spacing * (len(char_surfs) - 1)
 
-        tw = title_surf.get_width()
-        tx = self.btn_cx - tw // 2  # 标题水平对齐到按钮组
+        tx = self.btn_cx - total_w // 2
         ty = self.title_y + title_offset - 3
-        self.screen.blit(title_shadow, (tx + 3, ty + 3))
-        self.screen.blit(title_surf, (tx, ty))
+        cx = tx
+        for surf, shadow in zip(char_surfs, char_shadows):
+            self.screen.blit(shadow, (cx + 3, ty + 3))
+            self.screen.blit(surf, (cx, ty))
+            cx += surf.get_width() + char_spacing
 
         sub_surf = self.font.render("接住食材 · 制作属于你的美味奶茶", True, (220, 200, 170))
         sw = sub_surf.get_width()

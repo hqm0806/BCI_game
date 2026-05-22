@@ -81,6 +81,7 @@ class SummaryScreen:
 
     def run(self) -> str:
         start = time.time()
+        last_esc = 0.0
         while True:
             self.clock.tick(60)
             elapsed = time.time() - start
@@ -90,7 +91,12 @@ class SummaryScreen:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                if can_exit and (event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN):
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    now = time.time()
+                    if now - last_esc < 0.5:
+                        return "menu"
+                    last_esc = now
+                elif can_exit and (event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN):
                     return "menu"
 
             if self.bg:

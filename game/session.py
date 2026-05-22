@@ -403,6 +403,7 @@ class GameSession:
                 logger.info("升级到等级 %s！新食材已解锁", new_tier)
 
             self.cup_manager.start_new_cup()
+            self.cup.update_level(0)
             self.score_manager.reset_cup_ingredients()
             self.creative_ingredients = []
             self.recipe_result = None
@@ -580,7 +581,7 @@ def _handle_catches(
                 creative_ingredients.append(hit.type)
                 recipe_result = evaluate_recipe(creative_ingredients)
 
-            cup.update_level(score_manager.score)
+            cup.update_level(cup_manager.catch_count)
             logger.info("接住 %s！分数: %s", hit.type, score_manager.score)
 
     return creative_ingredients, recipe_result

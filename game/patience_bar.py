@@ -8,7 +8,7 @@ import os
 import pygame
 
 from config import (
-    CUP_LEVEL_IMGS,
+    CUP_IMGS,
     PATIENCE_BAR_IMG,
     PATIENCE_BAR_SIZE,
 )
@@ -60,7 +60,7 @@ class PatienceBar:
         self.bar_image = None
 
     def _load_cup_icon(self) -> pygame.Surface | None:
-        for path in CUP_LEVEL_IMGS:
+        for path in CUP_IMGS:
             if os.path.exists(path):
                 try:
                     return pygame.image.load(path).convert_alpha()

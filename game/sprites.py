@@ -12,9 +12,10 @@ from typing import Any
 import pygame
 
 from config import (
+    BROWN,
     CUP_COLOR,
     CUP_HEIGHT,
-    CUP_LEVEL_IMGS,
+    CUP_IMGS,
     CUP_SPEED,
     CUP_WIDTH,
     INGREDIENT_COLORS,
@@ -43,7 +44,7 @@ class Cup(pygame.sprite.Sprite):
         self._current_level = 0
 
         # 加载所有等级的杯子图片
-        for path in CUP_LEVEL_IMGS:
+        for path in CUP_IMGS:
             try:
                 img = pygame.image.load(path).convert_alpha()
                 img = pygame.transform.scale(img, (CUP_WIDTH, CUP_HEIGHT))
@@ -74,11 +75,10 @@ class Cup(pygame.sprite.Sprite):
         self._bounce_t = -1.0  # 弹跳进度 (0~1)，-1 表示无弹跳动画
         self._bounce_dur = 0.2  # 弹跳持续时间（秒），值越小弹跳越快
 
-    def update_level(self, score: int) -> None:
-        """根据分数切换杯子等级图片"""
-        if score >= 100:
+    def update_level(self, catch_count: int) -> None:
+        if catch_count >= 3:
             new_level = 2
-        elif score >= 50:
+        elif catch_count >= 1:
             new_level = 1
         else:
             new_level = 0

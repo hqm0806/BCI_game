@@ -101,19 +101,19 @@ class SummaryScreen:
             y = 80
             _draw_centered(self.screen, self.title_font, "游戏结束", y, (255, 255, 255))
 
-            y += 70
+            y += 80
             pygame.draw.line(self.screen, (100, 100, 120), (200, y), (SCREEN_WIDTH - 200, y), 2)
 
-            y += 30
+            y += 40
             _draw_centered(self.screen, self.info_font, f"Lv.{self.player_level}", y, (255, 215, 0))
 
-            y += 40
+            y += 50
             _draw_centered(self.screen, self.info_font, f"总收益: {self.total_money}", y, (100, 255, 100))
 
-            y += 30
+            y += 45
             _draw_centered(self.screen, self.hint_font, f"累计营业额: {self.cumulative_revenue}", y, (200, 200, 200))
 
-            y += 25
+            y += 40
             _draw_centered(
                 self.screen,
                 self.hint_font,
@@ -122,16 +122,16 @@ class SummaryScreen:
                 (180, 180, 200),
             )
 
-            y += 35
+            y += 50
             if self.upgraded:
                 up_surf = self.big_font.render(f"升到 Lv.{self.player_level}！新食材已解锁", True, (255, 200, 50))
                 self.screen.blit(up_surf, (SCREEN_WIDTH // 2 - up_surf.get_width() // 2, y))
-                y += 50
+                y += 60
 
-            y += 15
+            y += 25
             _draw_centered(self.screen, self.info_font, f"平均专注力: {self.focus_value:.1f}%", y, (150, 255, 150))
 
-            y += 50
+            y += 60
             comment_surf = self.hint_font.render(self.comment, True, (220, 220, 240))
             self.screen.blit(comment_surf, (SCREEN_WIDTH // 2 - comment_surf.get_width() // 2, y))
 

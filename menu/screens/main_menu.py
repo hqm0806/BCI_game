@@ -18,6 +18,7 @@ from config import (
 from game.font_utils import load_chinese_font
 from menu.bci_button import GlowButton
 from menu.components import Badge
+from menu.history import HistoryScreen
 from menu.mode_selector import ModeSelector
 from menu.particles import FloatingItem, SteamParticle
 from menu.screens.game_settings import GameSettingsScreen
@@ -25,7 +26,12 @@ from menu.screens.game_settings import GameSettingsScreen
 
 class MainMenu:
     def __init__(
-        self, screen: pygame.Surface, font: pygame.font.Font, title_font: pygame.font.Font, player_level: int = 1
+        self,
+        screen: pygame.Surface,
+        font: pygame.font.Font,
+        title_font: pygame.font.Font,
+        player_level: int = 1,
+        history_games: list | None = None,
     ) -> None:
         self.screen = screen
         self.font = font
@@ -36,6 +42,7 @@ class MainMenu:
         self.result = None
         self.current_mode = "regular"
         self._use_bci = False
+        self._history_games = history_games or []
 
         self.bg = self._load_bg()
         self.badge = Badge(
@@ -149,7 +156,7 @@ class MainMenu:
                         click_frames = 15
                 else:
                     if self.badge.handle_event(event):
-                        pass
+                        HistoryScreen(self.screen, self._history_games).run()
                     if self.start_btn.handle_event(event):
                         self.result = "start"
                         click_frames = 15

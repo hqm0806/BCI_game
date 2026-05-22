@@ -111,7 +111,7 @@ class AttentionToSpeedCurve:
     def __init__(
         self,
         speed_min: float = 2.0,
-        speed_max: float = 8.0,
+        speed_max: float = 5.0,
         baseline: float = 60.0,
     ) -> None:
         self.speed_min = speed_min

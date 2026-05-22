@@ -83,7 +83,8 @@ class MenuState(State):
 
         profile = self._context.get("profile")
         player_level = profile.level if profile else 1
-        menu = MainMenu(self.screen, self.font, self.title_font, player_level)
+        history_games = profile.games_history if profile else []
+        menu = MainMenu(self.screen, self.font, self.title_font, player_level, history_games)
         result, mode, use_bci = menu.run()
         result = result or "quit"
         mode = mode or "regular"

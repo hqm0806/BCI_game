@@ -78,20 +78,26 @@ class PlayerProfile:
         cups: int,
         secrets: int,
         avg_attention: float,
+        duration: float = 0.0,
+        focus_samples: list | None = None,
     ) -> int:
         old_level = self.level
         self.cumulative_revenue += revenue
         self.total_games += 1
-        self.games_history.append(
-            {
-                "mode": mode,
-                "revenue": revenue,
-                "cups": cups,
-                "secrets": secrets,
-                "avg_attention": round(avg_attention, 1),
-                "date": time.strftime("%Y-%m-%d"),
-            }
-        )
+        timestamp = time.strftime("%Y-%m-%d %H:%M")
+        entry = {
+            "mode": mode,
+            "revenue": revenue,
+            "cups": cups,
+            "secrets": secrets,
+            "avg_attention": round(avg_attention, 1),
+            "duration": round(duration, 1),
+            "date": timestamp,
+        }
+        if focus_samples:
+            step = max(1, len(focus_samples) // 100)
+            entry["focus_samples"] = focus_samples[::step]
+        self.games_history.append(entry)
         self._check_level_up()
         if self.level > old_level:
             return self.level

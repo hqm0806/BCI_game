@@ -239,7 +239,7 @@ SECRET_RECIPE_OFFSET = 10  # 秘方阈值偏移量 m，阈值 = min(基线 + m, 
 DIFFICULTY_BASELINE = 60  # 难度基线初始值（0-100），自适应调节
 DIFFICULTY_ADAPT_WINDOW = 30  # 难度自适应窗口（秒），取此窗口内平均专注力更新基线
 CUP_SPEED_MIN = 2.0  # 专注力高时的最低食材速度（px/frame），约可接住 ≥8 个/杯
-CUP_SPEED_MAX = 8.0  # 专注力低时的最高食材速度（px/frame），约可接住 ≤6 个/杯
+CUP_SPEED_MAX = 5.0  # 专注力低时的最高食材速度（px/frame），约可接住 ≤6 个/杯
 DIFFICULTY_BASELINE_MIN = 40  # 基线调节下限
 DIFFICULTY_BASELINE_MAX = 80  # 基线调节上限
 

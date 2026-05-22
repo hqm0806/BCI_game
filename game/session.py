@@ -290,7 +290,7 @@ class GameSession:
     def _update_pause_state(self, dt_sec: float) -> None:
         if self.attention is None:
             return
-        if self.attention <= 5:
+        if self.attention <= 15:
             self._low_attn_seconds += dt_sec
             self._high_attn_seconds = 0.0
         elif self.attention >= 10:
@@ -609,12 +609,15 @@ class GameSession:
 
             if self._profile:
                 old_level = self._profile.level
+                game_duration = time_module.time() - self.game_start_time
                 upgraded = self._profile.add_game_result(
                     revenue=self.score_manager.total_money,
                     mode=self.game_mode,
                     cups=self.score_manager.cup_count,
                     secrets=self.score_manager.secret_recipe_count,
                     avg_attention=avg_focus,
+                    duration=game_duration,
+                    focus_samples=self.focus_samples,
                 )
                 self._upgrade_level = old_level if upgraded else self._profile.level
                 is_upgraded = upgraded > 0

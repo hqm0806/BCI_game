@@ -196,7 +196,7 @@ class SummaryScreen:
                 graph_w = 1100
                 graph_h = 160
                 graph_x = (SCREEN_WIDTH - graph_w) // 2
-                graph_y = y
+                graph_y = y + 5
                 total_sec = len(self.focus_samples) / 60.0
                 self._draw_waveform(graph_x, graph_y, graph_w, graph_h, total_sec)
                 y = graph_y + graph_h + 30

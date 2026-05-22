@@ -141,7 +141,7 @@ class BCIDataReader:
                 return None
             self.recv_buffer += data
         except BlockingIOError:
-            return None
+            pass
         except (ConnectionResetError, ConnectionAbortedError):
             logger.error("[BCI] 连接被重置")
             self.connected = False

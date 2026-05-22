@@ -147,33 +147,35 @@ def draw_hud(
     total_max_time = cup_manager.total_cups * CUP_DURATION
     game_remaining = max(0.0, total_max_time - game_elapsed)
 
-    bar_w = 1000
+    bar_w = 1280
     bar_x = (SCREEN_WIDTH - bar_w) // 2
     bar_y = 0
-    bar_h = 50
+    bar_h = 60
     bar_center_x = SCREEN_WIDTH // 2
     bar_right = bar_x + bar_w
-    bar_font = load_chinese_font(38)  # 调整字体大小
+    bar_font = load_chinese_font(38)
+    spacing = 200
+
     money_text = bar_font.render(f"收益: {score_manager.total_money}", True, (20, 20, 20))
-    cy = bar_y + (bar_h - money_text.get_height()) // 2 + 5
+    cy = bar_y + (bar_h - money_text.get_height()) // 2
     screen.blit(money_text, (bar_center_x - money_text.get_width() // 2, cy))
 
     mode_text = bar_font.render(mode_name, True, (20, 20, 20))
-    screen.blit(mode_text, (bar_x + 80, cy))
+    screen.blit(mode_text, (bar_x + spacing, cy))
 
     cup_text = bar_font.render(
         f"第 {cup_manager.cup_number}/{cup_manager.total_cups} 杯",
         True,
         (20, 20, 20),
     )
-    screen.blit(cup_text, (bar_right - 80 - cup_text.get_width(), cy))
+    screen.blit(cup_text, (bar_right - spacing - cup_text.get_width(), cy))
 
-    total_time_text = hint_font.render(
+    total_time_text = bar_font.render(
         f"总局 {int(game_remaining)}s",
         True,
-        (20, 20, 20),
+        (60, 60, 60),
     )
-    screen.blit(total_time_text, (8, 4))
+    screen.blit(total_time_text, (SCREEN_WIDTH - total_time_text.get_width() - 12, SCREEN_HEIGHT - 36))
 
     if bci_mode:
         gyro_x = SCREEN_WIDTH - 300
@@ -237,25 +239,6 @@ def draw_hud(
     elif bci_mode and attention is None:
         bci_text = hint_font.render("BCI设备未连接", True, (200, 0, 0))
         screen.blit(bci_text, (10, 235))
-
-    if cup_manager.secret_recipe_spawned and not cup_manager.secret_recipe_caught:
-        _glow_phase += 0.06
-        alpha_val = int(128 + 127 * math.sin(_glow_phase))
-        secret_surf = recipe_font.render("秘方已掉落!", True, (255, 215, 0))
-        secret_surf.set_alpha(alpha_val)
-        screen.blit(
-            secret_surf,
-            (SCREEN_WIDTH // 2 - secret_surf.get_width() // 2, SCREEN_HEIGHT - 100),
-        )
-    elif cup_manager.secret_recipe_caught:
-        _glow_phase += 0.06
-        alpha_val = int(128 + 127 * math.sin(_glow_phase))
-        double_surf = recipe_font.render("2x 收益!", True, (255, 215, 0))
-        double_surf.set_alpha(alpha_val)
-        screen.blit(
-            double_surf,
-            (SCREEN_WIDTH // 2 - double_surf.get_width() // 2, SCREEN_HEIGHT - 100),
-        )
 
     if bci_mode and not cup_manager.secret_recipe_spawned:
         threshold = 75.0

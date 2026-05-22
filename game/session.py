@@ -201,7 +201,7 @@ class GameSession:
         if os.path.exists(TOP_BAR_IMG):
             try:
                 self._top_bar = pygame.image.load(TOP_BAR_IMG).convert_alpha()
-                self._top_bar = pygame.transform.smoothscale(self._top_bar, (1000, 70))  #调整背景竖的大小
+                self._top_bar = pygame.transform.smoothscale(self._top_bar, (1280, 60))
             except Exception:
                 pass
 
@@ -277,8 +277,10 @@ class GameSession:
 
         self.all_sprites.draw(self.screen)
         if self._top_bar:
-            bw = self._top_bar.get_width()
-            self.screen.blit(self._top_bar, ((SCREEN_WIDTH - bw) // 2, 0))
+            self.screen.blit(self._top_bar, (0, 0))
+            mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
+            mask.fill((0, 0, 0, 60))
+            self.screen.blit(mask, (0, 0))
         mode_text = self.font.render(f"{self.mode_name}", True, (100, 50, 150))
         self.screen.blit(mode_text, (10, 10))
         pygame.display.flip()
@@ -501,8 +503,10 @@ class GameSession:
             self.screen.fill((255, 255, 255))
 
         if self._top_bar:
-            bw = self._top_bar.get_width()
-            self.screen.blit(self._top_bar, ((SCREEN_WIDTH - bw) // 2, 0))
+            self.screen.blit(self._top_bar, (0, 0))
+            mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
+            mask.fill((0, 0, 0, 60))
+            self.screen.blit(mask, (0, 0))
 
         self.all_sprites.draw(self.screen)
         self.ingredients.draw(self.screen)

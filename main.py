@@ -10,7 +10,7 @@ import sys
 
 import pygame
 
-from config import IMAGES_DIR, SCREEN_HEIGHT, SCREEN_WIDTH
+from config import IMAGES_DIR
 from core.audio_manager import AudioManager
 from core.state_machine import GameEvent, GameState, State, StateMachine
 from game.font_utils import load_chinese_font
@@ -156,8 +156,8 @@ def main() -> None:
     logger.info("游戏启动")
 
     pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("疯狂奶茶杯 ")
+    screen = pygame.display.set_mode((1280, 720), pygame.SCALED | pygame.RESIZABLE)
+    pygame.display.set_caption("疯狂奶茶杯")
     icon_path = os.path.join(IMAGES_DIR, "other", "游戏图标.png")
     if os.path.exists(icon_path):
         pygame.display.set_icon(pygame.image.load(icon_path))

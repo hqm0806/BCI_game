@@ -134,7 +134,7 @@ class MainMenu:
                     elif event.key == pygame.K_3:
                         self.settings_btn.trigger_click()
                         self.result = "settings"
-                        click_frames = 15  # 等粒子播完再打开设置页
+                        click_frames = 15
                 else:
                     if self.badge.handle_event(event):
                         pass

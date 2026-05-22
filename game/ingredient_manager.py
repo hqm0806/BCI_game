@@ -48,6 +48,9 @@ class IngredientManager:
     def set_spawn_interval(self, interval: float) -> None:
         self.spawn_interval = interval
 
+    def reset_spawn_timer(self) -> None:
+        self.last_spawn_time = time.time()
+
     def set_required_probability(self, prob: float) -> None:
         self._required_prob = max(0.0, min(1.0, prob))
 

@@ -137,6 +137,7 @@ def draw_hud(
     rolling_attention=0.0,
     attn_variance=0.0,
     attn_mode="",
+    attn_baseline=0.0,
 ):
     global _glow_alpha, _glow_phase
     import time as time_module
@@ -219,6 +220,10 @@ def draw_hud(
             focus_teapot.update(0)
         focus_teapot.draw(screen)
 
+    if bci_mode and attn_baseline > 0:
+        bl_text = hint_font.render(f"基线: {attn_baseline:.0f}", True, (200, 200, 200))
+        screen.blit(bl_text, (10, 120))
+
     if bci_mode and attention is not None:
         if free_combine and attention_curve:
             multiplier = attention_curve.map_attention(attention)
@@ -278,7 +283,7 @@ def draw_hud(
 
     attention_value = attention if attention is not None else 0
     if bci_mode:
-        attention_text = f"注意力 {int(attention_value)}  |  3秒均值 {int(rolling_attention)}"
+        attention_text = f"注意力 {int(attention_value)}"
     else:
         attention_text = f"注意力: {int(attention_value)}"
     attention_surface = font.render(attention_text, True, (0, 255, 0) if bci_connected else (255, 0, 0))

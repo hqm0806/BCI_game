@@ -225,6 +225,7 @@ class GameSession:
         self._attn_offsets: list[float] = []
         self._attn_variance = 0.0
         self._attn_mode = "中等模式"
+        self._was_speed_zero = False
 
         self.focus_min = CUP_WIDTH // 2
         self.focus_max = SCREEN_WIDTH - CUP_WIDTH // 2
@@ -293,8 +294,8 @@ class GameSession:
                 break
 
             self._update_bci_data()
-            self._update_attention_variance()
             self._update_cup(keys, dt_sec)
+            self._update_attention_variance()
             self._update_ingredient_speed()
             self._check_secret_recipe(dt_sec)
             self._check_cup_end()
@@ -304,6 +305,13 @@ class GameSession:
 
             self._update_game_objects(dt_sec)
             self._handle_collisions()
+
+            self._update_bci_data()
+            if self.use_yaw_control:
+                fx = int(self.platform_focus_x)
+                target = max(self.focus_min, min(self.focus_max, fx))
+                self.cup.rect.centerx += (target - self.cup.rect.centerx) * 0.4
+
             self._render()
 
         return self._end_game()
@@ -374,13 +382,21 @@ class GameSession:
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
         if self.use_yaw_control:
             fx = int(self.platform_focus_x)
-            self.cup.rect.centerx = max(self.focus_min, min(self.focus_max, fx))
+            target = max(self.focus_min, min(self.focus_max, fx))
+            self.cup.rect.centerx = int(self.cup.rect.centerx + (target - self.cup.rect.centerx) * 0.4)
         else:
             self.cup.update(keys=keys, dt=dt_sec)
 
     def _update_ingredient_speed(self) -> None:
         if self.bci_available and self.attention is not None:
             speed = self.attention_speed_curve.get_speed(self.attention)
+
+            was_stopped = getattr(self, "_was_speed_zero", False)
+            is_stopped = speed == 0.0
+            if not is_stopped and was_stopped:
+                self.ingredient_manager.reset_spawn_timer()
+            self._was_speed_zero = is_stopped
+
             self.ingredient_manager.set_current_speed(speed)
             for ing in self.ingredients:
                 ing.speed = speed
@@ -535,6 +551,7 @@ class GameSession:
             rolling_attention=self.bci_reader.get_rolling_attention() if self.bci_available else 0.0,
             attn_variance=self._attn_variance,
             attn_mode=self._attn_mode,
+            attn_baseline=self._calibration.get("baseline", 40.0) if self._calibration else 40.0,
         )
 
         pygame.display.flip()

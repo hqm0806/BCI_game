@@ -158,6 +158,8 @@ class CalibrationState(State):
             result = cal.run()
             if result is not None:
                 self._context["calibration"] = result
+            else:
+                self._context["calibration"] = {"baseline": 40.0, "norm_min": 0.0, "norm_max": 100.0}
             bci_reader.disconnect()
 
         self._audio.play_bgm("晨光木盒.wav", volume=0.5)

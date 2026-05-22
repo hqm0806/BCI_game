@@ -134,7 +134,7 @@ class BCIDataReader:
             return None
 
         try:
-            data = self.socket.recv(4096)
+            data = self.socket.recv(16384)
             if not data:
                 logger.warning("[BCI] 连接被平台关闭")
                 self.connected = False

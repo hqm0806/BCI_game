@@ -21,7 +21,6 @@ from menu import GameSettingsScreen, MainMenu
 from menu.calibration import CalibrationScreen
 from menu.login import LoginScreen
 from menu.splash import SplashScreen
-from menu.transition import StartTransition
 from utils.logging_config import get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -160,7 +159,7 @@ class CalibrationState(State):
             bci_reader.disconnect()
 
         self._audio.play_bgm("晨光木盒.wav", volume=0.5)
-        StartTransition(self.screen).run()
+        SplashScreen(self.screen, load_chinese_font(110)).run()
         return GameState.GAME
 
     def handle_event(self, event: GameEvent) -> GameState | None:
@@ -179,7 +178,7 @@ class TransitionState(State):
 
     def enter(self) -> GameState | None:
         self._audio.play_bgm("晨光木盒.wav", volume=0.5)
-        StartTransition(self.screen).run()
+        SplashScreen(self.screen, load_chinese_font(110)).run()
         return GameState.GAME
 
     def handle_event(self, event: GameEvent) -> GameState | None:

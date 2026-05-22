@@ -274,6 +274,7 @@ class GameSession:
         pygame.display.flip()
 
     def run(self) -> str:
+        self._render()
         while self.running:
             dt = self.clock.tick(60)
             keys = pygame.key.get_pressed()

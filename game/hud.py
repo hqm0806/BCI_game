@@ -126,7 +126,6 @@ def draw_hud(
     creative_ingredients=None,
     attention_curve=None,
     bci_connected=False,
-    difficulty_adapter=None,
     focus_above_seconds=0.0,
     raw_gyro_x=0.0,
     raw_gyro_y=0.0,
@@ -236,26 +235,14 @@ def draw_hud(
                 (255, 255, 255),
             )
         screen.blit(bci_text, (10, 235))
-
-        if difficulty_adapter:
-            bl = difficulty_adapter.baseline
-            bli_text = hint_font.render(
-                f"基线: {bl:.0f}  阈值: {difficulty_adapter.get_secret_threshold():.0f}",
-                True,
-                (200, 200, 200),
-            )
-            screen.blit(bli_text, (10, 260))
     elif bci_mode and attention is None:
         bci_text = hint_font.render("BCI设备未连接", True, (200, 0, 0))
         screen.blit(bci_text, (10, 235))
 
     if bci_mode and not cup_manager.secret_recipe_spawned:
-        threshold = 75.0
-        if difficulty_adapter:
-            threshold = difficulty_adapter.get_secret_threshold()
         progress = min(1.0, focus_above_seconds / 5.0)
         bar_x = SCREEN_WIDTH // 2 - 60
-        bar_y = SCREEN_HEIGHT - 75
+        bar_y = SCREEN_HEIGHT - 50
         bar_w = 120
         bar_h = 10
         pygame.draw.rect(screen, (80, 80, 80), (bar_x, bar_y, bar_w, bar_h), border_radius=5)
@@ -263,12 +250,6 @@ def draw_hud(
         if fill_w > 0:
             bar_color = (255, 215, 0) if progress >= 1.0 else (100, 200, 100)
             pygame.draw.rect(screen, bar_color, (bar_x, bar_y, fill_w, bar_h), border_radius=5)
-        threshold_text = hint_font.render(
-            f"秘方: {focus_above_seconds:.1f}s / 5s  (需>{threshold:.0f})",
-            True,
-            (200, 200, 200),
-        )
-        screen.blit(threshold_text, (SCREEN_WIDTH // 2 - threshold_text.get_width() // 2, bar_y - 20))
 
     if free_combine and recipe_result:
         recipe_name = recipe_result["recipe_name"]

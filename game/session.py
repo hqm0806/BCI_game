@@ -21,18 +21,18 @@ from config import (
     CUP_SPEED_MIN,
     CUP_WIDTH,
     DEFAULT_GAME_MODE,
-    DIFFICULTY_BASELINE,
     FOCUS_TEAPOT_IMG,
     GAME_MODES,
     INGREDIENT_COLORS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    SECRET_RECIPE_OFFSET,
     TOP_BAR_IMG,
     TOTAL_CUPS,
 )
 from data.recipes import evaluate_recipe
 from data.score_manager import ScoreManager
-from game.cup_manager import CupManager, DifficultyAdapter
+from game.cup_manager import CupManager
 from game.font_utils import load_chinese_font
 from game.hud import FocusTeapotUI, draw_hud
 from game.ingredient_manager import IngredientManager
@@ -70,7 +70,6 @@ class GameSession:
     score_manager: ScoreManager
     ingredient_manager: IngredientManager
     cup_manager: CupManager
-    difficulty_adapter: DifficultyAdapter | None
     attention_speed_curve: AttentionToSpeedCurve
 
     bci_reader: BCIDataReader
@@ -182,9 +181,8 @@ class GameSession:
         self.attention_speed_curve = AttentionToSpeedCurve(
             speed_min=CUP_SPEED_MIN,
             speed_max=CUP_SPEED_MAX,
-            baseline=DIFFICULTY_BASELINE,
+            baseline=40.0,
         )
-        self.difficulty_adapter = DifficultyAdapter() if use_bci else None
 
     def _load_background(self) -> None:
         self.background = None
@@ -244,10 +242,8 @@ class GameSession:
         self.cup_manager.start_new_cup()
         self._current_tier = self._profile.level if self._profile else 1
 
-        calib_baseline = self._calibration.get("baseline", DIFFICULTY_BASELINE)
+        calib_baseline = self._calibration.get("baseline", 40.0)
         self.attention_speed_curve.set_baseline(calib_baseline)
-        if self.difficulty_adapter:
-            self.difficulty_adapter.baseline = calib_baseline
 
     def _print_mode_rules(self) -> None:
         logger.info("=" * 50)
@@ -300,7 +296,6 @@ class GameSession:
             self._update_attention_variance()
             self._update_cup(keys, dt_sec)
             self._update_ingredient_speed()
-            self._update_difficulty(dt_sec)
             self._check_secret_recipe(dt_sec)
             self._check_cup_end()
 
@@ -352,9 +347,9 @@ class GameSession:
         return max(0.0, min(100.0, (raw - norm_min) / (norm_max - norm_min) * 100.0))
 
     def _update_attention_variance(self) -> None:
-        if self.attention is None or self._calibration is None:
+        if self.attention is None or not self._calibration:
             return
-        baseline = self._calibration.get("baseline", 50.0)
+        baseline = self._calibration.get("baseline", 40.0)
         offset = self.attention - baseline
         self._attn_offsets.append(offset)
         if len(self._attn_offsets) > 60:
@@ -385,9 +380,10 @@ class GameSession:
 
     def _update_ingredient_speed(self) -> None:
         if self.bci_available and self.attention is not None:
-            normalized = self._normalize_attention(self.attention)
-            speed = self.attention_speed_curve.get_speed(normalized)
+            speed = self.attention_speed_curve.get_speed(self.attention)
             self.ingredient_manager.set_current_speed(speed)
+            for ing in self.ingredients:
+                ing.speed = speed
 
             speed_ratio = speed / self.mode_speed if self.mode_speed > 0 else 1.0
             adjusted = self.spawn_interval * (0.7 + 0.6 * speed_ratio)
@@ -396,12 +392,6 @@ class GameSession:
             self.ingredient_manager.set_current_speed(self.mode_speed)
             self.ingredient_manager.set_spawn_interval(self.spawn_interval)
 
-    def _update_difficulty(self, dt_sec: float) -> None:
-        if self.difficulty_adapter is not None and self.attention is not None:
-            normalized = self._normalize_attention(self.attention)
-            baseline = self.difficulty_adapter.update(normalized, dt_sec)
-            self.attention_speed_curve.set_baseline(baseline)
-
     def _check_secret_recipe(self, dt_sec: float) -> None:
         if self.cup_manager.secret_recipe_spawned:
             return
@@ -409,7 +399,8 @@ class GameSession:
             return
 
         if self.bci_available and self.attention is not None:
-            threshold = self.difficulty_adapter.get_secret_threshold() if self.difficulty_adapter else 75.0
+            calib_baseline = self._calibration.get("baseline", 40.0) if self._calibration else 40.0
+            threshold = min(88.0, calib_baseline + SECRET_RECIPE_OFFSET)
             if self.attention > threshold:
                 self.focus_above_seconds += dt_sec
             else:
@@ -533,7 +524,6 @@ class GameSession:
             creative_ingredients=self.creative_ingredients,
             attention_curve=self.attention_curve,
             bci_connected=self.bci_available,
-            difficulty_adapter=self.difficulty_adapter,
             focus_above_seconds=self.focus_above_seconds,
             raw_gyro_x=self.raw_gyro_x,
             raw_gyro_y=self.raw_gyro_y,

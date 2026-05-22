@@ -248,7 +248,7 @@ DIFFICULTY_BASELINE_MAX = 80  # 基线调节上限
 # ============================================================
 CALIBRATION_WARMUP = 3  # 校准前等待秒数（显示倒计时）
 CALIBRATION_DURATION = 30  # 校准记录总时长（秒）
-CALIBRATION_BASELINE_WINDOW = 10  # 取最后 N 秒的平均作为个人基线
+CALIBRATION_BASELINE_WINDOW = 5  # 取最后 N 秒的平均作为个人基线
 ATTENTION_ROLLING_WINDOW = 3  # 实时注意力 3 秒滑动平均窗口
 
 # ============================================================

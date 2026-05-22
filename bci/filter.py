@@ -102,9 +102,9 @@ class AttentionToSpeedCurve:
 
     规则:
         attn ∈ [0, 20]                       → speed = 0（停止）
-        attn ∈ [20, baseline-30]              → speed 从 0 线性增至 Vmax
-        attn ∈ [baseline-30, baseline+30]     → speed 从 Vmax 线性降至 Vmin
-        attn ∈ [baseline+30, 100]             → speed = Vmin（最慢，最易）
+        attn ∈ [20, baseline-20]              → speed 从 0 线性增至 Vmax
+        attn ∈ [baseline-20, baseline+20]     → speed 从 Vmax 线性降至 Vmin
+        attn ∈ [baseline+20, 100]             → speed = Vmin（最慢，最易）
 
     专注力越高 → 食材越慢 → 更易接住；专注力越低 → 食材越快甚至停止。
     """
@@ -125,8 +125,8 @@ class AttentionToSpeedCurve:
     def get_speed(self, attention: float) -> float:
         a = max(0.0, min(100.0, attention))
         b = self.baseline
-        lo = max(20.0, b - 30.0)
-        hi = min(100.0, b + 30.0)
+        lo = max(20.0, b - 20.0)
+        hi = min(100.0, b + 20.0)
 
         if a <= 20.0:
             return 0.0

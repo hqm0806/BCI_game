@@ -195,9 +195,9 @@ def draw_hud(
     screen.blit(timer_text, (SCREEN_WIDTH // 2 - 120, 50))
 
     catch_text = font.render(
-        f"接住: {cup_manager.catch_count}/{5}",
+        f"接住: {cup_manager.catch_count}",
         True,
-        (0, 0, 200) if cup_manager.catch_count >= 5 else (50, 50, 50),
+        (50, 50, 50),
     )
     screen.blit(catch_text, (SCREEN_WIDTH // 2 - 120, 90))
 

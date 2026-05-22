@@ -14,12 +14,11 @@ import time
 
 from config import (
     CUP_DURATION,
-    DIFFICULTY_ADAPT_WINDOW,
     DIFFICULTY_BASELINE,
     DIFFICULTY_BASELINE_MAX,
     DIFFICULTY_BASELINE_MIN,
+    DIFFICULTY_ADAPT_WINDOW,
     INGREDIENT_POINTS,
-    MAX_CATCHES_PER_CUP,
     SECRET_RECIPE_OFFSET,
 )
 
@@ -90,10 +89,6 @@ class CupManager:
             return True
 
         elapsed = time.time() - self.cup_start_time
-        if self.catch_count >= MAX_CATCHES_PER_CUP:
-            self.cup_ended = True
-            self.cup_ended_reason = "max_catches"
-            return True
         if elapsed >= CUP_DURATION:
             self.cup_ended = True
             self.cup_ended_reason = "timeout"

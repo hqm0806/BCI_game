@@ -96,6 +96,46 @@ class SensitivityCurve:
         return sign * self.base_sensitivity * (abs(value) ** self.exponent)
 
 
+class AttentionToSpeedCurve:
+    """
+    实时专注力 → 食材落下速度的映射曲线
+
+    公式：
+        speed = speed_max - (speed_max - speed_min) * clamp(attention_eff / 100, 0, 1)
+        attention_eff = attention * (60 / baseline)
+
+    原理：
+        - 专注力越高 → 食材越慢 → 游戏越容易 → 奖励专注状态
+        - 基线升高时（难度增加），同样的专注力对应更高的有效难度
+        - 基线降低时（难度降低），更容易获得慢速食材
+
+    参数:
+        speed_min: 专注力100时的最低速度（px/frame），默认 1.5
+        speed_max: 专注力0时的最高速度（px/frame），默认 6.0
+        baseline: 当前难度基线值，影响有效专注力计算，默认 60
+    """
+
+    def __init__(
+        self,
+        speed_min: float = 1.5,
+        speed_max: float = 6.0,
+        baseline: float = 60.0,
+    ) -> None:
+        self.speed_min = speed_min
+        self.speed_max = speed_max
+        self.baseline = baseline
+
+    def set_baseline(self, baseline: float) -> None:
+        self.baseline = max(20.0, min(100.0, baseline))
+
+    def get_speed(self, attention: float) -> float:
+        attention = max(0.0, min(100.0, attention))
+        attention_eff = attention * (60.0 / self.baseline) if self.baseline > 0 else attention
+        attention_eff = max(0.0, min(100.0, attention_eff))
+        ratio = attention_eff / 100.0
+        return self.speed_max - (self.speed_max - self.speed_min) * ratio
+
+
 class AttentionMappingCurve:
     """
     创意模式专注力映射曲线 - 将专注力转换为评分加成倍率

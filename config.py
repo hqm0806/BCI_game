@@ -121,6 +121,7 @@ INGREDIENT_POINTS = {  # 食材分值/金钱值，接到对应食材时获得的
     "椰果": 6,
     "布丁": 12,
     "仙草": 8,
+    "秘方": 0,  # 秘方本身 0 分，效果是触发当前杯收益翻倍
 }
 
 # ============================================================
@@ -135,6 +136,21 @@ FOCUS_SENSITIVITY = 30  # 焦点灵敏度：yaw每1度对应屏幕移动1像素
 BCI_CONNECTION_TIMEOUT = 5  # 连接超时时间（秒）
 
 # ============================================================
+# 一杯制配置
+# ============================================================
+CUP_DURATION = 15  # 每杯时间上限 T（秒），超时则结算
+MAX_CATCHES_PER_CUP = 5  # 每杯最多接住食材数 n，达到则提前结束本杯
+TOTAL_CUPS = 5  # 本局共需制作的奶茶杯数，游戏最大时长 = TOTAL_CUPS × CUP_DURATION
+SECRET_RECIPE_SUSTAIN = 5  # 秘方触发所需持续专注秒数 a
+SECRET_RECIPE_OFFSET = 15  # 秘方阈值偏移量 m，阈值 = 当前基线 + m
+DIFFICULTY_BASELINE = 60  # 难度基线初始值（0-100），自适应调节
+DIFFICULTY_ADAPT_WINDOW = 30  # 难度自适应窗口（秒），取此窗口内平均专注力更新基线
+CUP_SPEED_MIN = 1.5  # 专注力 100 时的最低食材速度（px/frame）
+CUP_SPEED_MAX = 6.0  # 专注力 0 时的最高食材速度（px/frame）
+DIFFICULTY_BASELINE_MIN = 40  # 基线调节下限
+DIFFICULTY_BASELINE_MAX = 80  # 基线调节上限
+
+# ============================================================
 # 游戏模式配置
 # ============================================================
 GAME_MODES = {
@@ -147,6 +163,8 @@ GAME_MODES = {
         "ingredient_speed": 3,
         "spawn_interval": 1000,
         "ui_color": (60, 160, 100),
+        "total_cups": 5,
+        "secret_recipe_cup_interval": 1,
     },
     "challenge": {
         "name": "挑战模式",
@@ -157,6 +175,8 @@ GAME_MODES = {
         "ingredient_speed": 5,
         "spawn_interval": 600,
         "ui_color": (200, 80, 60),
+        "total_cups": 5,
+        "secret_recipe_cup_interval": 1,
     },
     "creative": {
         "name": "创意模式",
@@ -167,6 +187,8 @@ GAME_MODES = {
         "ingredient_speed": 3,
         "spawn_interval": 1200,
         "ui_color": (120, 80, 200),
+        "total_cups": 5,
+        "secret_recipe_cup_interval": 1,
     },
     "bci": {
         "name": "脑机接口模式",
@@ -177,11 +199,13 @@ GAME_MODES = {
         "ingredient_speed": 3,
         "spawn_interval": 1200,
         "ui_color": (0, 150, 200),
+        "total_cups": 5,
+        "secret_recipe_cup_interval": 3,
     },
 }
 
 DEFAULT_GAME_MODE = "regular"  # 默认游戏模式
-GAME_DURATION = 120  # 一局游戏时长（秒），修改此项可改变单局时间
+GAME_DURATION = 120  # （已废弃，由一杯制 CUP_DURATION × TOTAL_CUPS 替代）
 
 # ============================================================
 # 生成间隔（毫秒）

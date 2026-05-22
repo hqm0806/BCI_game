@@ -1,5 +1,5 @@
 """
-食材管理器模块 - 控制食材的生成时机和类型
+食材管理器模块 - 控制食材的生成时机、类型和速度
 """
 
 from __future__ import annotations
@@ -21,36 +21,29 @@ class IngredientManager:
     """
 
     def __init__(self) -> None:
-        self.ingredients: list[Any] = []  # 当前活跃食材列表（未使用）
-        self.last_spawn_time = time.time()  # 上一次生成食材的时间戳
-        self.spawn_interval = INGREDIENT_SPAWN_INTERVAL / 1000.0  # 生成间隔（秒），INGREDIENT_SPAWN_INTERVAL=1000 毫秒
-        self.last_type: str | None = None  # 上一次生成的食材类型，用于避免重复
+        self.ingredients: list[Any] = []
+        self.last_spawn_time = time.time()
+        self.spawn_interval = INGREDIENT_SPAWN_INTERVAL / 1000.0
+        self.last_type: str | None = None
+        self._current_speed: float = -1.0
+        self._spawn_random_offset = 0.0
+        self._new_spawn_random_offset()
+
+    def _new_spawn_random_offset(self) -> None:
+        self._spawn_random_offset = random.uniform(-0.3, 0.3)
 
     def should_spawn(self) -> bool:
-        """
-        判断是否应该生成新食材
-
-        返回:
-            True 表示时间到达生成间隔，应生成新食材
-            False 表示还需等待
-        """
         current_time = time.time()
-        if current_time - self.last_spawn_time >= self.spawn_interval:
+        if current_time - self.last_spawn_time >= self.spawn_interval + self._spawn_random_offset:
             self.last_spawn_time = current_time
+            self._new_spawn_random_offset()
             return True
         return False
 
+    def set_current_speed(self, speed: float) -> None:
+        self._current_speed = speed
+
     def spawn_ingredient(self, required_types: list[str] | None = None) -> Ingredient:
-        """
-        生成一个新食材
-
-        参数:
-            required_types: 必接食材类型列表，如 ["红茶"]
-
-        返回:
-            Ingredient 精灵对象
-        """
-        # 避免连续掉同一食材
         available_types = [t for t in INGREDIENT_TYPES if t != self.last_type]
         if not available_types:
             available_types = INGREDIENT_TYPES
@@ -62,19 +55,12 @@ class IngredientManager:
         if required_types and ing_type in required_types:
             is_required = True
 
-        return Ingredient(ing_type, is_required)
+        return Ingredient(ing_type, is_required, self._current_speed)
+
+    def spawn_secret_recipe(self) -> Ingredient:
+        return Ingredient("秘方", is_required=False, speed=self._current_speed)
 
     def update(self, required_types: list[str] | None = None) -> Ingredient | None:
-        """
-        每帧调用，判断是否需要生成食材
-
-        参数:
-            required_types: 必接食材类型列表
-
-        返回:
-            新生成的 Ingredient 对象，或 None（不需要生成时）
-        """
         if self.should_spawn():
-            ingredient = self.spawn_ingredient(required_types)
-            return ingredient
+            return self.spawn_ingredient(required_types)
         return None

@@ -257,55 +257,67 @@ class Ingredient(pygame.sprite.Sprite):
     食材精灵（从天而降的奶茶配料）
 
     参数:
-        ing_type: 食材类型字符串，如 "红茶"、"珍珠" 等
+        ing_type: 食材类型字符串，如 "红茶"、"珍珠"、"秘方" 等
         is_required: 是否为必接食材
+        speed: 自定义下落速度，None 则使用全局默认速度
         groups: pygame 精灵组
     """
 
-    def __init__(self, ing_type: str, is_required: bool = False, *groups: Any) -> None:
+    def __init__(
+        self,
+        ing_type: str,
+        is_required: bool = False,
+        speed: float = -1.0,
+        *groups: Any,
+    ) -> None:
         super().__init__(*groups)
         self.type = ing_type
         self.is_required = is_required
-        # 尝试加载食材图片，失败则用默认圆形
+        self._is_secret = ing_type == "秘方"
+
+        size = INGREDIENT_SIZE + 10 if self._is_secret else INGREDIENT_SIZE
+
         try:
             img_path = INGREDIENT_IMGS.get(ing_type)
             if img_path:
                 self.image = pygame.image.load(img_path).convert_alpha()
-                self.image = pygame.transform.scale(
-                    self.image,
-                    (
-                        INGREDIENT_SIZE,
-                        INGREDIENT_SIZE,
-                    ),  # INGREDIENT_SIZE=40 控制食材大小
-                )
+                self.image = pygame.transform.scale(self.image, (size, size))
             else:
                 raise FileNotFoundError
         except (pygame.error, FileNotFoundError, OSError):
-            # 使用默认圆形
-            self.image = pygame.Surface((INGREDIENT_SIZE, INGREDIENT_SIZE), pygame.SRCALPHA)
+            self.image = pygame.Surface((size, size), pygame.SRCALPHA)
             color = INGREDIENT_COLORS.get(ing_type, RED)
-            pygame.draw.circle(
-                self.image,
-                color,
-                (INGREDIENT_SIZE // 2, INGREDIENT_SIZE // 2),
-                INGREDIENT_SIZE // 2,
-            )
+            pygame.draw.circle(self.image, color, (size // 2, size // 2), size // 2)
+
         self.rect = self.image.get_rect()
-        self.rect.x = random.randint(0, SCREEN_WIDTH - INGREDIENT_SIZE)
-        self.rect.y = -INGREDIENT_SIZE
-        self.speed = INGREDIENT_SPEED
+        if self._is_secret:
+            self.rect.x = random.randint(100, SCREEN_WIDTH - size - 100)
+        else:
+            self.rect.x = random.randint(0, SCREEN_WIDTH - size)
+        self.rect.y = -size
+        self.speed: float = speed if speed >= 0 else INGREDIENT_SPEED
         self._float_t = random.uniform(0, 6.28)
         self._base_centerx = self.rect.centerx
         self._orig_image = self.image.copy()
 
+        self._glow_phase = 0.0
+
     def update(self) -> None:
         self._float_t += 0.05
-        self.rect.y += self.speed
-        self.rect.centerx = int(self._base_centerx + math.sin(self._float_t) * 5)
+        self.rect.y += int(self.speed)
 
-        angle = math.cos(self._float_t) * 8
-        self.image = pygame.transform.rotate(self._orig_image, angle)
-        self.rect = self.image.get_rect(center=self.rect.center)
+        if self._is_secret:
+            self._glow_phase += 0.08
+            glow = int(128 + 127 * math.sin(self._glow_phase))
+            self._orig_image.set_alpha(glow)
+        else:
+            self.rect.centerx = int(self._base_centerx + math.sin(self._float_t) * 5)
+            angle = math.cos(self._float_t) * 8
+            self.image = pygame.transform.rotate(self._orig_image, angle)
+            self.rect = self.image.get_rect(center=self.rect.center)
+
+        if not self._is_secret:
+            self.rect = self.image.get_rect(center=self.rect.center)
 
         if self.rect.top > SCREEN_HEIGHT:
             self.kill()

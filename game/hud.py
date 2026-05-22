@@ -1,13 +1,18 @@
 """游戏 HUD 模块 - 专注力茶壶 UI + HUD 渲染逻辑"""
 
+import math
 import os
 
 import pygame
 
 from config import (
+    CUP_DURATION,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
+
+_glow_alpha = 0.0
+_glow_phase = 0.0
 
 
 class FocusTeapotUI:
@@ -30,7 +35,6 @@ class FocusTeapotUI:
                 pass
 
     def update(self, value):
-        """更新专注力数值并计算当前液体颜色"""
         self.focus_value = max(0, min(100, value))
         t = self.focus_value / 100.0
         r = int(144 + (255 - 144) * t)
@@ -39,14 +43,12 @@ class FocusTeapotUI:
         self._liquid_color = (r, g, b)
 
     def draw(self, screen):
-        """绘制茶壶 UI"""
         if self._teapot_img:
             screen.blit(self._teapot_img, (self.x, self.y))
         else:
             self._draw_fallback(screen)
 
     def _draw_fallback(self, screen):
-        """无图片时的备用绘制方案"""
         cx = self.x + self.width // 2
         cy = self.y + self.height // 2
         body_r = self.width * 0.38
@@ -108,7 +110,8 @@ def draw_hud(
     screen,
     score_manager,
     mode_name,
-    patience_bar,
+    cup_manager,
+    game_start_time,
     font,
     hint_font,
     recipe_font,
@@ -121,13 +124,52 @@ def draw_hud(
     creative_ingredients=None,
     attention_curve=None,
     bci_connected=False,
+    difficulty_adapter=None,
+    focus_above_seconds=0.0,
 ):
-    """统一绘制游戏 HUD"""
+    global _glow_alpha, _glow_phase
+    import time as time_module
+
+    current_time = time_module.time()
+    game_elapsed = current_time - game_start_time
+    total_max_time = cup_manager.total_cups * CUP_DURATION
+    game_remaining = max(0.0, total_max_time - game_elapsed)
+
+    cup_remaining = cup_manager.get_cup_remaining()
+
     score_text = font.render(f"分数: {score_manager.score}", True, (0, 0, 0))
     screen.blit(score_text, (10, 10))
 
+    money_text = font.render(f"收益: {score_manager.total_money}", True, (0, 100, 0))
+    screen.blit(money_text, (10, 50))
+
     mode_text = font.render(f"{mode_name}", True, (100, 50, 150))
-    screen.blit(mode_text, (10, 50))
+    screen.blit(mode_text, (10, 90))
+
+    cup_text = font.render(
+        f"第 {cup_manager.cup_number}/{cup_manager.total_cups} 杯",
+        True,
+        (0, 0, 0),
+    )
+    screen.blit(cup_text, (SCREEN_WIDTH // 2 - 120, 10))
+
+    timer_color = (200, 50, 50) if cup_remaining < 3 else (50, 50, 50)
+    timer_text = font.render(f"剩余: {cup_remaining:.1f}s", True, timer_color)
+    screen.blit(timer_text, (SCREEN_WIDTH // 2 - 120, 50))
+
+    catch_text = font.render(
+        f"接住: {cup_manager.catch_count}/{5}",
+        True,
+        (0, 0, 200) if cup_manager.catch_count >= 5 else (50, 50, 50),
+    )
+    screen.blit(catch_text, (SCREEN_WIDTH // 2 - 120, 90))
+
+    total_time_text = hint_font.render(
+        f"总局剩余: {int(game_remaining)}s",
+        True,
+        (80, 80, 80),
+    )
+    screen.blit(total_time_text, (10, 130))
 
     if focus_teapot:
         if attention is not None:
@@ -135,8 +177,6 @@ def draw_hud(
         else:
             focus_teapot.update(0)
         focus_teapot.draw(screen)
-
-    patience_bar.draw(screen)
 
     if bci_mode and attention is not None:
         if free_combine and attention_curve:
@@ -154,9 +194,58 @@ def draw_hud(
                 (255, 255, 255),
             )
         screen.blit(bci_text, (10, 235))
+
+        if difficulty_adapter:
+            bl = difficulty_adapter.baseline
+            bli_text = hint_font.render(
+                f"基线: {bl:.0f}  阈值: {difficulty_adapter.get_secret_threshold():.0f}",
+                True,
+                (200, 200, 200),
+            )
+            screen.blit(bli_text, (10, 260))
     elif bci_mode and attention is None:
         bci_text = hint_font.render("BCI设备未连接", True, (200, 0, 0))
         screen.blit(bci_text, (10, 235))
+
+    if cup_manager.secret_recipe_spawned and not cup_manager.secret_recipe_caught:
+        _glow_phase += 0.06
+        alpha_val = int(128 + 127 * math.sin(_glow_phase))
+        secret_surf = recipe_font.render("秘方已掉落!", True, (255, 215, 0))
+        secret_surf.set_alpha(alpha_val)
+        screen.blit(
+            secret_surf,
+            (SCREEN_WIDTH // 2 - secret_surf.get_width() // 2, SCREEN_HEIGHT - 100),
+        )
+    elif cup_manager.secret_recipe_caught:
+        _glow_phase += 0.06
+        alpha_val = int(128 + 127 * math.sin(_glow_phase))
+        double_surf = recipe_font.render("2x 收益!", True, (255, 215, 0))
+        double_surf.set_alpha(alpha_val)
+        screen.blit(
+            double_surf,
+            (SCREEN_WIDTH // 2 - double_surf.get_width() // 2, SCREEN_HEIGHT - 100),
+        )
+
+    if bci_mode and not cup_manager.secret_recipe_spawned:
+        threshold = 75.0
+        if difficulty_adapter:
+            threshold = difficulty_adapter.get_secret_threshold()
+        progress = min(1.0, focus_above_seconds / 5.0)
+        bar_x = SCREEN_WIDTH // 2 - 60
+        bar_y = SCREEN_HEIGHT - 75
+        bar_w = 120
+        bar_h = 10
+        pygame.draw.rect(screen, (80, 80, 80), (bar_x, bar_y, bar_w, bar_h), border_radius=5)
+        fill_w = int(bar_w * progress)
+        if fill_w > 0:
+            bar_color = (255, 215, 0) if progress >= 1.0 else (100, 200, 100)
+            pygame.draw.rect(screen, bar_color, (bar_x, bar_y, fill_w, bar_h), border_radius=5)
+        threshold_text = hint_font.render(
+            f"秘方: {focus_above_seconds:.1f}s / 5s  (需>{threshold:.0f})",
+            True,
+            (200, 200, 200),
+        )
+        screen.blit(threshold_text, (SCREEN_WIDTH // 2 - threshold_text.get_width() // 2, bar_y - 20))
 
     if free_combine and recipe_result:
         recipe_name = recipe_result["recipe_name"]
@@ -164,14 +253,14 @@ def draw_hud(
         total_score = recipe_result["total_score"]
 
         name_surf = recipe_font.render(f"{rating['emoji']} {recipe_name}", True, rating["color"])
-        screen.blit(name_surf, (SCREEN_WIDTH // 2 - name_surf.get_width() // 2, 10))
+        screen.blit(name_surf, (SCREEN_WIDTH // 2 - name_surf.get_width() // 2, 140))
 
         grade_surf = recipe_font.render(f"评分: {rating['name']} ({total_score})", True, rating["color"])
-        screen.blit(grade_surf, (SCREEN_WIDTH // 2 - grade_surf.get_width() // 2, 45))
+        screen.blit(grade_surf, (SCREEN_WIDTH // 2 - grade_surf.get_width() // 2, 175))
 
         if creative_ingredients:
             ing_text = hint_font.render(f"食材: {' + '.join(creative_ingredients)}", True, (80, 80, 80))
-            screen.blit(ing_text, (SCREEN_WIDTH // 2 - ing_text.get_width() // 2, 80))
+            screen.blit(ing_text, (SCREEN_WIDTH // 2 - ing_text.get_width() // 2, 210))
 
     if bci_mode:
         hint_text = "脑机接口模式 | ESC 返回"

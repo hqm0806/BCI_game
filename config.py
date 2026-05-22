@@ -70,6 +70,7 @@ BADGE_IMGS = [  # 徽章图片列表，按等级排列
     os.path.join(IMAGES_DIR, "badges", "badge4.png"),
 ]
 PATIENCE_BAR_IMG = os.path.join(IMAGES_DIR, "other", "耐心条.png")
+TOP_BAR_IMG = os.path.join(IMAGES_DIR, "other", "横.png")  # 游戏顶部背景板
 PATIENCE_BAR_SIZE = (350, 35)
 PATIENCE_BAR_TIMEOUT = 90.0  # 接住小料的超时时间（秒）
 

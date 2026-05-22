@@ -27,6 +27,7 @@ from config import (
     INGREDIENT_COLORS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    TOP_BAR_IMG,
     TOTAL_CUPS,
 )
 from data.recipes import evaluate_recipe
@@ -196,6 +197,14 @@ class GameSession:
         except Exception:
             pass
 
+        self._top_bar = None
+        if os.path.exists(TOP_BAR_IMG):
+            try:
+                self._top_bar = pygame.image.load(TOP_BAR_IMG).convert_alpha()
+                self._top_bar = pygame.transform.smoothscale(self._top_bar, (1000, 70))  #调整背景竖的大小
+            except Exception:
+                pass
+
     def _init_state(self) -> None:
         self.creative_ingredients = []
         self.recipe_result = None
@@ -267,6 +276,9 @@ class GameSession:
             self.screen.fill((255, 255, 255))
 
         self.all_sprites.draw(self.screen)
+        if self._top_bar:
+            bw = self._top_bar.get_width()
+            self.screen.blit(self._top_bar, ((SCREEN_WIDTH - bw) // 2, 0))
         mode_text = self.font.render(f"{self.mode_name}", True, (100, 50, 150))
         self.screen.blit(mode_text, (10, 10))
         pygame.display.flip()
@@ -487,6 +499,10 @@ class GameSession:
             self.screen.blit(overlay, (0, 0))
         else:
             self.screen.fill((255, 255, 255))
+
+        if self._top_bar:
+            bw = self._top_bar.get_width()
+            self.screen.blit(self._top_bar, ((SCREEN_WIDTH - bw) // 2, 0))
 
         self.all_sprites.draw(self.screen)
         self.ingredients.draw(self.screen)

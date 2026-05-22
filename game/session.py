@@ -309,8 +309,7 @@ class GameSession:
             self._update_bci_data()
             if self.use_yaw_control:
                 fx = int(self.platform_focus_x)
-                target = max(self.focus_min, min(self.focus_max, fx))
-                self.cup.rect.centerx += (target - self.cup.rect.centerx) * 0.4
+                self.cup.rect.centerx = max(self.focus_min, min(self.focus_max, fx))
 
             self._render()
 
@@ -382,8 +381,7 @@ class GameSession:
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
         if self.use_yaw_control:
             fx = int(self.platform_focus_x)
-            target = max(self.focus_min, min(self.focus_max, fx))
-            self.cup.rect.centerx = int(self.cup.rect.centerx + (target - self.cup.rect.centerx) * 0.4)
+            self.cup.rect.centerx = max(self.focus_min, min(self.focus_max, fx))
         else:
             self.cup.update(keys=keys, dt=dt_sec)
 

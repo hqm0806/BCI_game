@@ -638,6 +638,7 @@ class GameSession:
                 player_level=p_level,
                 cumulative_revenue=p_rev,
                 upgraded=is_upgraded,
+                focus_samples=self.focus_samples,
             )
             return summary.run()
 

@@ -121,7 +121,7 @@ class BCIDataReader:
                 "top": 0,
                 "width": SCREEN_WIDTH,
                 "height": SCREEN_HEIGHT,
-                "sensitivityX": 8,
+                "sensitivityX": 10,
                 "sensitivityY": 8,
             },
         }
@@ -170,61 +170,51 @@ class BCIDataReader:
     def read_data(self, verbose=False):
         """
         读取脑电数据，返回 (attention, focus_x, focus_y, gyro_x, gyro_y, gyro_z)
-
-        focus_x/focus_y: BCI 平台计算的屏幕焦点坐标（全局像素坐标）
+        每帧处理缓冲区中所有消息，只保留最新值，消除延迟
         """
         if not self.connected:
             return None, None, None, None, None, None
 
-        msg = self._recv_data()
-        if msg is None:
-            current_time = time.time()
-            if current_time - self.last_update_time > self.timeout:
-                self.connected = False
-                logger.warning("[BCI] 数据超时，连接已断开")
-            return (
-                self.attention,
-                self.focus_x,
-                self.focus_y,
-                self.raw_gyro_x,
-                self.raw_gyro_y,
-                self.raw_gyro_z,
-            )
+        msg_count = 0
+        while True:
+            msg = self._recv_data()
+            if msg is None:
+                break
+            msg_count += 1
+            try:
+                msg_type = msg.get("msg", "")
 
-        try:
-            msg_type = msg.get("msg", "")
+                if msg_type == "ipc_algorithm_test":
+                    algorithm_name = msg.get("algorithm_name", "")
+                    result_args = msg.get("result_args", {})
+                    data_content = result_args.get("data", None)
 
-            if msg_type == "ipc_algorithm_test":
-                algorithm_name = msg.get("algorithm_name", "")
-                result_args = msg.get("result_args", {})
-                data_content = result_args.get("data", None)
-
-                if algorithm_name == "attention" and data_content is not None:
-                    self.attention = int(data_content)
-                    self._record_attention(self.attention)
-                    self.last_update_time = time.time()
-
-                elif algorithm_name == "gyroscope" and data_content is not None:
-                    if isinstance(data_content, dict):
+                    if algorithm_name == "attention" and data_content is not None:
+                        self.attention = int(data_content)
+                        self._record_attention(self.attention)
                         self.last_update_time = time.time()
 
-                        fx = data_content.get("focus_x")
-                        fy = data_content.get("focus_y")
-                        if fx is not None:
-                            self.focus_x = float(fx)
-                        if fy is not None:
-                            self.focus_y = float(fy)
+                    elif algorithm_name == "gyroscope" and data_content is not None:
+                        if isinstance(data_content, dict):
+                            self.last_update_time = time.time()
 
-                        self.raw_gyro_x = float(data_content.get("gyroscope_x", 0.0))
-                        self.raw_gyro_y = float(data_content.get("gyroscope_y", 0.0))
-                        self.raw_gyro_z = float(data_content.get("gyroscope_z", 0.0))
+                            fx = data_content.get("focus_x")
+                            fy = data_content.get("focus_y")
+                            if fx is not None:
+                                self.focus_x = float(fx)
+                            if fy is not None:
+                                self.focus_y = float(fy)
 
-                elif algorithm_name == "blink":
-                    pass
+                            self.raw_gyro_x = float(data_content.get("gyroscope_x", 0.0))
+                            self.raw_gyro_y = float(data_content.get("gyroscope_y", 0.0))
+                            self.raw_gyro_z = float(data_content.get("gyroscope_z", 0.0))
 
-        except Exception as e:
-            logger.error("[BCI] 解析数据失败: %s", e)
-            return None, None, None, None, None, None
+            except Exception as e:
+                logger.error("[BCI] 解析数据失败: %s", e)
+
+        if msg_count == 0 and time.time() - self.last_update_time > self.timeout:
+            self.connected = False
+            logger.warning("[BCI] 数据超时，连接已断开")
 
         return (
             self.attention,

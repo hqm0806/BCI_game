@@ -436,6 +436,9 @@ class GameSession:
     def _render(self) -> None:
         if self.has_background and self.background:
             self.screen.blit(self.background, (0, 0))
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 10, 90))
+            self.screen.blit(overlay, (0, 0))
         else:
             self.screen.fill((255, 255, 255))
 

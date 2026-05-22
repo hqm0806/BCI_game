@@ -15,8 +15,8 @@ from config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
-from menu.bci_button import BCIModeButton
-from menu.components import Badge, MenuItem
+from menu.bci_button import GlowButton
+from menu.components import Badge
 from menu.mode_selector import ModeSelector
 from menu.particles import FloatingItem, SteamParticle
 from menu.screens.game_settings import GameSettingsScreen
@@ -50,34 +50,48 @@ class MainMenu:
         start_y = cy + 50  # 按钮 1 坐标：往上偏，数值越大整体越靠下
         # ==========================================
 
-        self.start_btn = MenuItem(
+        self.start_btn = GlowButton(
             "开始游戏",
             cx,
-            start_y,  # 按钮 1 位置
+            start_y,
             title_font,
-            (255, 140, 50),
-            (255, 170, 80),
-            (255, 255, 255),
+            title_font,
+            glow_color=(255, 160, 90),
+            bg_color=(60, 30, 15),
+            hover_color=(100, 50, 25),
+            text_color=(255, 255, 255),
         )
 
         self.mode_selector = ModeSelector(
             cx,
-            start_y + btn_spacing,  # 按钮 2 位置（按钮 1 下方 + 间距）
+            start_y + btn_spacing,
             font,
             title_font,
             mode_keys=["regular", "challenge", "creative"],
         )
 
-        self.bci_btn = BCIModeButton("脑机接口", cx, start_y + btn_spacing * 2, font, title_font)  # 按钮 3 位置
+        self.bci_btn = GlowButton(
+            "脑机接口",
+            cx,
+            start_y + btn_spacing * 2,
+            font,
+            title_font,
+            glow_color=(220, 150, 100),
+            bg_color=(50, 25, 12),
+            hover_color=(85, 40, 20),
+            text_color=(255, 255, 255),
+        )
 
-        self.settings_btn = MenuItem(
+        self.settings_btn = GlowButton(
             "游戏设置",
             cx,
-            start_y + btn_spacing * 3,  # 按钮 4 位置（按钮 1 下方 + 3倍间距）
+            start_y + btn_spacing * 3,
             title_font,
-            (60, 140, 80),
-            (90, 170, 110),
-            (255, 255, 255),
+            title_font,
+            glow_color=(255, 190, 110),
+            bg_color=(70, 35, 15),
+            hover_color=(115, 55, 25),
+            text_color=(255, 255, 255),
         )
 
         self.btn_cx = cx  # 保存按钮组水平中心，用于标题对齐

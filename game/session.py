@@ -214,6 +214,10 @@ class GameSession:
         self.platform_focus_x = float(SCREEN_WIDTH // 2)
         self.platform_focus_y = float(SCREEN_HEIGHT - 100)
 
+        self._attn_offsets: list[float] = []
+        self._attn_variance = 0.0
+        self._attn_mode = "中等模式"
+
         self.focus_min = CUP_WIDTH // 2
         self.focus_max = SCREEN_WIDTH - CUP_WIDTH // 2
 
@@ -229,6 +233,11 @@ class GameSession:
 
         self.cup_manager.start_new_cup()
         self._current_tier = self._profile.level if self._profile else 1
+
+        calib_baseline = self._calibration.get("baseline", DIFFICULTY_BASELINE)
+        self.attention_speed_curve.set_baseline(calib_baseline)
+        if self.difficulty_adapter:
+            self.difficulty_adapter.baseline = calib_baseline
 
     def _print_mode_rules(self) -> None:
         logger.info("=" * 50)
@@ -274,6 +283,7 @@ class GameSession:
                 break
 
             self._update_bci_data()
+            self._update_attention_variance()
             self._update_cup(keys, dt_sec)
             self._update_ingredient_speed()
             self._update_difficulty(dt_sec)
@@ -327,6 +337,31 @@ class GameSession:
             return raw
         return max(0.0, min(100.0, (raw - norm_min) / (norm_max - norm_min) * 100.0))
 
+    def _update_attention_variance(self) -> None:
+        if self.attention is None or self._calibration is None:
+            return
+        baseline = self._calibration.get("baseline", 50.0)
+        offset = self.attention - baseline
+        self._attn_offsets.append(offset)
+        if len(self._attn_offsets) > 60:
+            self._attn_offsets = self._attn_offsets[-60:]
+
+        if len(self._attn_offsets) >= 5:
+            mean = sum(self._attn_offsets) / len(self._attn_offsets)
+            self._attn_variance = sum((x - mean) ** 2 for x in self._attn_offsets) / len(self._attn_offsets)
+
+            if self._attn_variance < 50:
+                self._attn_mode = "简单模式"
+                prob = 0.7
+            elif self._attn_variance < 150:
+                self._attn_mode = "中等模式"
+                prob = 0.5
+            else:
+                self._attn_mode = "困难模式"
+                prob = 0.3
+
+            self.ingredient_manager.set_required_probability(prob)
+
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
         if self.use_yaw_control:
             fx = int(self.platform_focus_x)
@@ -339,8 +374,13 @@ class GameSession:
             normalized = self._normalize_attention(self.attention)
             speed = self.attention_speed_curve.get_speed(normalized)
             self.ingredient_manager.set_current_speed(speed)
+
+            speed_ratio = speed / self.mode_speed if self.mode_speed > 0 else 1.0
+            adjusted = self.spawn_interval * (0.7 + 0.6 * speed_ratio)
+            self.ingredient_manager.set_spawn_interval(max(0.3, min(3.0, adjusted)))
         else:
             self.ingredient_manager.set_current_speed(self.mode_speed)
+            self.ingredient_manager.set_spawn_interval(self.spawn_interval)
 
     def _update_difficulty(self, dt_sec: float) -> None:
         if self.difficulty_adapter is not None and self.attention is not None:
@@ -481,6 +521,8 @@ class GameSession:
             cup_x=self.cup.rect.centerx,
             cup_y=self.cup.rect.centery,
             rolling_attention=self.bci_reader.get_rolling_attention() if self.bci_available else 0.0,
+            attn_variance=self._attn_variance,
+            attn_mode=self._attn_mode,
         )
 
         pygame.display.flip()

@@ -134,6 +134,8 @@ def draw_hud(
     cup_x=0,
     cup_y=0,
     rolling_attention=0.0,
+    attn_variance=0.0,
+    attn_mode="",
 ):
     global _glow_alpha, _glow_phase
     import time as time_module
@@ -167,6 +169,9 @@ def draw_hud(
             f"杯子屏幕X: {cup_x}",
             f"杯子屏幕Y: {cup_y}",
         ]
+        if attn_mode:
+            gyro_data.append(f"--必接概率调整--")
+            gyro_data.append(f"方差: {attn_variance:.0f} | {attn_mode}")
         bg_rect = pygame.Rect(gyro_x - 8, gyro_y - 4, 290, line_h * len(gyro_data) + 8)
         bg_surf = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
         bg_surf.fill((0, 0, 0, 120))

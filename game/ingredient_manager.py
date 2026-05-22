@@ -24,6 +24,7 @@ class IngredientManager:
         self._spawn_random_offset = 0.0
         self._new_spawn_random_offset()
         self.set_tier(tier)
+        self._required_prob = 0.5
 
     def _new_spawn_random_offset(self) -> None:
         self._spawn_random_offset = random.uniform(-0.3, 0.3)
@@ -44,6 +45,12 @@ class IngredientManager:
     def set_current_speed(self, speed: float) -> None:
         self._current_speed = speed
 
+    def set_spawn_interval(self, interval: float) -> None:
+        self.spawn_interval = interval
+
+    def set_required_probability(self, prob: float) -> None:
+        self._required_prob = max(0.0, min(1.0, prob))
+
     def spawn_ingredient(self, required_types: list[str] | None = None) -> Ingredient:
         types = required_types if required_types else self._available
         available_types = [t for t in types if t != self.last_type]
@@ -53,7 +60,9 @@ class IngredientManager:
         ing_type = random.choice(available_types)
         self.last_type = ing_type
 
-        is_required = ing_type in self._required
+        is_required = False
+        if ing_type in self._required:
+            is_required = random.random() < self._required_prob
 
         return Ingredient(ing_type, is_required, self._current_speed)
 

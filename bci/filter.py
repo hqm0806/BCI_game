@@ -98,27 +98,21 @@ class SensitivityCurve:
 
 class AttentionToSpeedCurve:
     """
-    实时专注力 → 食材落下速度的映射曲线
+    实时专注力 → 食材落下速度的映射曲线（分段线性，以校准基线为参考）
 
-    公式：
-        speed = speed_max - (speed_max - speed_min) * clamp(attention_eff / 100, 0, 1)
-        attention_eff = attention * (60 / baseline)
+    规则:
+        attn ∈ [0, 20]                       → speed = 0（停止）
+        attn ∈ [20, baseline-30]              → speed 从 0 线性增至 Vmax
+        attn ∈ [baseline-30, baseline+30]     → speed 从 Vmax 线性降至 Vmin
+        attn ∈ [baseline+30, 100]             → speed = Vmin（最慢，最易）
 
-    原理：
-        - 专注力越高 → 食材越慢 → 游戏越容易 → 奖励专注状态
-        - 基线升高时（难度增加），同样的专注力对应更高的有效难度
-        - 基线降低时（难度降低），更容易获得慢速食材
-
-    参数:
-        speed_min: 专注力100时的最低速度（px/frame），默认 1.5
-        speed_max: 专注力0时的最高速度（px/frame），默认 6.0
-        baseline: 当前难度基线值，影响有效专注力计算，默认 60
+    专注力越高 → 食材越慢 → 更易接住；专注力越低 → 食材越快甚至停止。
     """
 
     def __init__(
         self,
-        speed_min: float = 1.5,
-        speed_max: float = 6.0,
+        speed_min: float = 2.0,
+        speed_max: float = 8.0,
         baseline: float = 60.0,
     ) -> None:
         self.speed_min = speed_min
@@ -126,14 +120,23 @@ class AttentionToSpeedCurve:
         self.baseline = baseline
 
     def set_baseline(self, baseline: float) -> None:
-        self.baseline = max(20.0, min(100.0, baseline))
+        self.baseline = max(25.0, min(95.0, baseline))
 
     def get_speed(self, attention: float) -> float:
-        attention = max(0.0, min(100.0, attention))
-        attention_eff = attention * (60.0 / self.baseline) if self.baseline > 0 else attention
-        attention_eff = max(0.0, min(100.0, attention_eff))
-        ratio = attention_eff / 100.0
-        return self.speed_max - (self.speed_max - self.speed_min) * ratio
+        a = max(0.0, min(100.0, attention))
+        b = self.baseline
+        lo = max(20.0, b - 30.0)
+        hi = min(100.0, b + 30.0)
+
+        if a <= 20.0:
+            return 0.0
+        if a <= lo:
+            t = (a - 20.0) / max(1.0, lo - 20.0)
+            return self.speed_max * t
+        if a <= hi:
+            t = (a - lo) / max(1.0, hi - lo)
+            return self.speed_max - (self.speed_max - self.speed_min) * t
+        return self.speed_min
 
 
 class AttentionMappingCurve:

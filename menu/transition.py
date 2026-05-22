@@ -29,13 +29,14 @@ class FallingIngredient:
         self.size = size
         self.x = random.uniform(50, SCREEN_WIDTH - 50)
         self.y = -50
-        self.speed = random.uniform(4, 8)
+        self.speed = random.uniform(3, 6)
+        self.angle = 0
+        self.rot_speed = random.uniform(-2, 2)
+        self.caught = False
 
-        # 随机选择食材
         self.type = random.choice(INGREDIENT_TYPES)
         self.color = INGREDIENT_COLORS.get(self.type, (255, 200, 0))
 
-        # 加载图片
         path = INGREDIENT_IMGS.get(self.type)
         self.image = None
         if path and os.path.exists(path):
@@ -44,10 +45,6 @@ class FallingIngredient:
                 self.image = pygame.transform.scale(self.image, (size, size))
             except (pygame.error, OSError):
                 pass
-
-        self.angle = 0
-        self.rot_speed = random.uniform(-5, 5)
-        self.caught = False
 
     def update(self) -> bool:
         if not self.caught:
@@ -77,9 +74,9 @@ class SplashEffect:
 
     def __init__(self, x: float, y: float, color: tuple[int, int, int]) -> None:
         self.particles: list[dict[str, float]] = []
-        for _ in range(10):
+        for _ in range(6):
             angle = random.uniform(-math.pi, 0)
-            speed = random.uniform(3, 8)
+            speed = random.uniform(2, 5)
             self.particles.append(
                 {
                     "x": x,
@@ -114,9 +111,9 @@ class MissEffect:
     def __init__(self, x: float, y: float, color: tuple[int, int, int]) -> None:
         self.particles: list[dict[str, float]] = []
         # 粒子向下及四周扩散
-        for _ in range(12):
-            angle = random.uniform(-0.2, math.pi + 0.2)  # 主要是下半圆
-            speed = random.uniform(2, 5)
+        for _ in range(8):
+            angle = random.uniform(-0.2, math.pi + 0.2)
+            speed = random.uniform(1, 3)
             self.particles.append(
                 {
                     "x": x,
@@ -174,11 +171,11 @@ class StartTransition:
         # 生成食材
         self.spawn_timer = 0
         # 每150ms生成一个食材，最多18个
-        self.spawn_interval = 150
+        self.spawn_interval = 200
         # 当前已生成食材数
         self.ingredient_count = 0
         # 最大生成食材数
-        self.max_ingredients = 25
+        self.max_ingredients = 12
 
         # 加载游戏背景
         self.game_background = None
@@ -259,7 +256,7 @@ class StartTransition:
         if not self.clicked:
             self.spawn_timer += dt * 1000
             if self.spawn_timer > self.spawn_interval and self.ingredient_count < self.max_ingredients:
-                self.ingredients.append(FallingIngredient(self.cup_x, self.cup_y, size=80))
+                self.ingredients.append(FallingIngredient(self.cup_x, self.cup_y, size=60))
                 self.spawn_timer = 0
                 self.ingredient_count += 1
 

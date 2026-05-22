@@ -53,7 +53,14 @@ INGREDIENT_IMGS = {  # 食材图片字典
     "脆啵啵": os.path.join(IMAGES_DIR, "ingredients", "脆波波.png"),
     "椰奶": os.path.join(IMAGES_DIR, "ingredients", "椰奶.png"),
     "草莓": os.path.join(IMAGES_DIR, "ingredients", "草莓.png"),
+    "芋泥": os.path.join(IMAGES_DIR, "ingredients", "芋泥.png"),
+    "燕麦奶": os.path.join(IMAGES_DIR, "ingredients", "燕麦奶.png"),
+    "咖啡": os.path.join(IMAGES_DIR, "ingredients", "咖啡.png"),
+    "乌龙茶": os.path.join(IMAGES_DIR, "ingredients", "乌龙茶.png"),
+    "特调稀奶油顶": os.path.join(IMAGES_DIR, "ingredients", "特调稀奶油顶.png"),
+    "米酿": os.path.join(IMAGES_DIR, "ingredients", "米酿.png"),
     "咸芝士奶盖": os.path.join(IMAGES_DIR, "ingredients", "奶盖.png"),
+    "茉莉花茶": os.path.join(IMAGES_DIR, "ingredients", "茉莉花茶.png"),
     "秘方": os.path.join(IMAGES_DIR, "ingredients", "秘方.png"),
 }
 BADGE_IMGS = [  # 徽章图片列表，按等级排列

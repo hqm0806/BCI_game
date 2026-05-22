@@ -13,8 +13,6 @@ from bci.data_reader import BCIDataReader
 from bci.filter import (
     AttentionMappingCurve,
     AttentionToSpeedCurve,
-    DeadZoneFilter,
-    ExponentialSmoothing,
 )
 from config import (
     BACKGROUND_IMG,
@@ -22,16 +20,13 @@ from config import (
     CUP_SPEED_MAX,
     CUP_SPEED_MIN,
     CUP_WIDTH,
-    DEAD_ZONE,
     DEFAULT_GAME_MODE,
     DIFFICULTY_BASELINE,
-    FOCUS_SENSITIVITY,
     FOCUS_TEAPOT_IMG,
     GAME_MODES,
     INGREDIENT_COLORS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
-    SMOOTHING_FACTOR,
     TOTAL_CUPS,
 )
 from data.recipes import evaluate_recipe
@@ -79,8 +74,6 @@ class GameSession:
 
     bci_reader: BCIDataReader
     bci_available: bool
-    dead_zone: DeadZoneFilter
-    smooth_yaw: ExponentialSmoothing
     attention_curve: AttentionMappingCurve | None
 
     background: pygame.Surface | None
@@ -97,13 +90,14 @@ class GameSession:
     focus_above_seconds: float
 
     attention: float | None
-    raw_yaw: float
-    smoothed_yaw_value: float
+    raw_gyro_x: float
+    raw_gyro_y: float
+    raw_gyro_z: float
+    platform_focus_x: float
+    platform_focus_y: float
 
     focus_teapot: FocusTeapotUI | None
 
-    focus_x: int
-    cup_target_x: int
     focus_min: int
     focus_max: int
 
@@ -167,9 +161,6 @@ class GameSession:
         if self.bci_mode:
             self.bci_available = self.bci_reader.connect()
 
-        self.dead_zone = DeadZoneFilter(threshold=DEAD_ZONE)
-        self.smooth_yaw = ExponentialSmoothing(alpha=SMOOTHING_FACTOR)
-
         self.attention_curve = None
         if self.free_combine:
             self.attention_curve = AttentionMappingCurve()
@@ -205,11 +196,12 @@ class GameSession:
         self.focus_above_seconds = 0.0
 
         self.attention = None
-        self.raw_yaw = 0
-        self.smoothed_yaw_value = 0
+        self.raw_gyro_x = 0.0
+        self.raw_gyro_y = 0.0
+        self.raw_gyro_z = 0.0
+        self.platform_focus_x = float(SCREEN_WIDTH // 2)
+        self.platform_focus_y = float(SCREEN_HEIGHT - 100)
 
-        self.focus_x = SCREEN_WIDTH // 2
-        self.cup_target_x = SCREEN_WIDTH // 2 - CUP_WIDTH // 2
         self.focus_min = CUP_WIDTH // 2
         self.focus_max = SCREEN_WIDTH - CUP_WIDTH // 2
 
@@ -298,31 +290,27 @@ class GameSession:
     def _update_bci_data(self) -> None:
         if self.bci_available:
             result = self.bci_reader.read_with_timeout()
-            if result != (None, None):
-                self.attention, self.raw_yaw = result
+            if result[0] is not None:
+                (
+                    self.attention,
+                    self.platform_focus_x,
+                    self.platform_focus_y,
+                    self.raw_gyro_x,
+                    self.raw_gyro_y,
+                    self.raw_gyro_z,
+                ) = result
             else:
                 self.attention = 50
-                self.raw_yaw = 0
         else:
             self.attention = None
-            self.raw_yaw = 0
-
-        filtered_yaw = self.dead_zone.filter(self.raw_yaw)
-        self.smoothed_yaw_value = self.smooth_yaw.smooth(filtered_yaw)
-
-        self.focus_x += int(self.smoothed_yaw_value * FOCUS_SENSITIVITY / 30)
-        self.focus_x = max(self.focus_min, min(self.focus_max, self.focus_x))
-
-        self.cup_target_x = self.focus_x - CUP_WIDTH // 2
 
         if self.attention is not None:
             self.focus_samples.append(self.attention)
 
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
         if self.use_yaw_control:
-            self.cup.rect.x = self.cup_target_x
-            self.cup.rect.left = max(0, self.cup.rect.left)
-            self.cup.rect.right = min(SCREEN_WIDTH, self.cup.rect.right)
+            fx = int(self.platform_focus_x)
+            self.cup.rect.centerx = max(self.focus_min, min(self.focus_max, fx))
         else:
             self.cup.update(keys=keys, dt=dt_sec)
 
@@ -445,7 +433,6 @@ class GameSession:
             recipe_font=self.recipe_font,
             focus_teapot=self.focus_teapot,
             attention=self.attention,
-            smoothed_yaw=self.smoothed_yaw_value,
             bci_mode=self.bci_mode,
             free_combine=self.free_combine,
             recipe_result=self.recipe_result,
@@ -454,6 +441,13 @@ class GameSession:
             bci_connected=self.bci_available,
             difficulty_adapter=self.difficulty_adapter,
             focus_above_seconds=self.focus_above_seconds,
+            raw_gyro_x=self.raw_gyro_x,
+            raw_gyro_y=self.raw_gyro_y,
+            raw_gyro_z=self.raw_gyro_z,
+            platform_focus_x=self.platform_focus_x,
+            platform_focus_y=self.platform_focus_y,
+            cup_x=self.cup.rect.centerx,
+            cup_y=self.cup.rect.centery,
         )
 
         pygame.display.flip()

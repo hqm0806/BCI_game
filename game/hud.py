@@ -126,6 +126,13 @@ def draw_hud(
     bci_connected=False,
     difficulty_adapter=None,
     focus_above_seconds=0.0,
+    raw_gyro_x=0.0,
+    raw_gyro_y=0.0,
+    raw_gyro_z=0.0,
+    platform_focus_x=640.0,
+    platform_focus_y=620.0,
+    cup_x=0,
+    cup_y=0,
 ):
     global _glow_alpha, _glow_phase
     import time as time_module
@@ -145,6 +152,30 @@ def draw_hud(
 
     mode_text = font.render(f"{mode_name}", True, (100, 50, 150))
     screen.blit(mode_text, (10, 90))
+
+    if bci_mode:
+        gyro_x = SCREEN_WIDTH - 300
+        gyro_y = 10
+        line_h = 22
+        gyro_data = [
+            f"偏航角: {raw_gyro_x:.2f}",
+            f"俯仰角: {raw_gyro_y:.2f}",
+            f"翻滚角: {raw_gyro_z:.2f}",
+            f"平台焦点X: {platform_focus_x:.0f}",
+            f"平台焦点Y: {platform_focus_y:.0f}",
+            f"杯子屏幕X: {cup_x}",
+            f"杯子屏幕Y: {cup_y}",
+        ]
+        bg_rect = pygame.Rect(gyro_x - 8, gyro_y - 4, 290, line_h * len(gyro_data) + 8)
+        bg_surf = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
+        bg_surf.fill((0, 0, 0, 120))
+        screen.blit(bg_surf, (bg_rect.x, bg_rect.y))
+        for i, line in enumerate(gyro_data):
+            color = (200, 200, 200)
+            if "平台焦点" in line:
+                color = (100, 255, 100)
+            txt = hint_font.render(line, True, color)
+            screen.blit(txt, (gyro_x, gyro_y + i * line_h))
 
     cup_text = font.render(
         f"第 {cup_manager.cup_number}/{cup_manager.total_cups} 杯",

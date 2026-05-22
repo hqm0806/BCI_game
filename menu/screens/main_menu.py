@@ -90,7 +90,7 @@ class MainMenu:
         加载背景图片
         :return: 背景图片
         """
-        path = os.path.join(IMAGES_DIR, "backgrounds", "菜单页.jpg")
+        path = os.path.join(IMAGES_DIR, "backgrounds", "吧台.png")
         if os.path.exists(path):
             img = pygame.image.load(path).convert()
             return pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))

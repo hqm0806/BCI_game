@@ -36,7 +36,7 @@ SOUNDS_DIR = os.path.join(ASSETS_DIR, "sounds")  # 音效资源目录
 # 图片资源路径
 # 新增图片时只需将文件放入 images 目录，然后在此处添加路径即可
 # ============================================================
-BACKGROUND_IMG = os.path.join(IMAGES_DIR, "backgrounds", "奶茶店2.png")  # 背景图
+BACKGROUND_IMG = os.path.join(IMAGES_DIR, "backgrounds", "吧台.png")  # 背景图
 CUP_LEVEL_IMGS = [  # 不同等级的杯子图片列表
     os.path.join(IMAGES_DIR, "cups", "cup1.png"),
     os.path.join(IMAGES_DIR, "cups", "cup2.png"),

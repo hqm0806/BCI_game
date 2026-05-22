@@ -147,10 +147,7 @@ def draw_hud(
 
     cup_remaining = cup_manager.get_cup_remaining()
 
-    score_text = font.render(f"分数: {score_manager.score}", True, (0, 0, 0))
-    screen.blit(score_text, (10, 10))
-
-    money_text = font.render(f"收益: {score_manager.total_money}", True, (0, 100, 0))
+    money_text = font.render(f"收益: {score_manager.total_money}", True, (180, 255, 180))
     screen.blit(money_text, (10, 50))
 
     mode_text = font.render(f"{mode_name}", True, (100, 50, 150))

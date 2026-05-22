@@ -81,7 +81,9 @@ class MenuState(State):
     def enter(self) -> GameState | None:
         self._audio.play_bgm("玻璃糖果园.wav", volume=0.5)
 
-        menu = MainMenu(self.screen, self.font, self.title_font)
+        profile = self._context.get("profile")
+        player_level = profile.level if profile else 1
+        menu = MainMenu(self.screen, self.font, self.title_font, player_level)
         result, mode, use_bci = menu.run()
         result = result or "quit"
         mode = mode or "regular"

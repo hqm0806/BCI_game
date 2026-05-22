@@ -267,10 +267,8 @@ class GameSession:
             self.screen.fill((255, 255, 255))
 
         self.all_sprites.draw(self.screen)
-        score_text = self.font.render(f"分数: {self.score_manager.score}", True, (0, 0, 0))
-        self.screen.blit(score_text, (10, 10))
         mode_text = self.font.render(f"{self.mode_name}", True, (100, 50, 150))
-        self.screen.blit(mode_text, (10, 50))
+        self.screen.blit(mode_text, (10, 10))
         pygame.display.flip()
 
     def run(self) -> str:
@@ -626,7 +624,7 @@ def _handle_catches(
                 recipe_result = evaluate_recipe(creative_ingredients)
 
             cup.update_level(cup_manager.catch_count)
-            logger.info("接住 %s！分数: %s", hit.type, score_manager.score)
+            logger.info("接住 %s！收益: %s", hit.type, score_manager.total_money)
 
     return creative_ingredients, recipe_result
 

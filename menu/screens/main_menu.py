@@ -24,7 +24,9 @@ from menu.screens.game_settings import GameSettingsScreen
 
 
 class MainMenu:
-    def __init__(self, screen: pygame.Surface, font: pygame.font.Font, title_font: pygame.font.Font) -> None:
+    def __init__(
+        self, screen: pygame.Surface, font: pygame.font.Font, title_font: pygame.font.Font, player_level: int = 1
+    ) -> None:
         self.screen = screen
         self.font = font
         self.title_font = title_font
@@ -36,7 +38,16 @@ class MainMenu:
         self._use_bci = False
 
         self.bg = self._load_bg()
-        self.badge = Badge(BADGE_IMGS, SCREEN_WIDTH - 85, 12, size=(80, 80))
+        self.badge = Badge(
+            BADGE_IMGS,
+            40,
+            10,
+            size=(100, 100),
+            level_text=f"Lv.{player_level}",
+            font=load_chinese_font(28),
+            text_color=(30, 30, 30),
+        )
+        self.badge.set_level(player_level - 1)
         self.floating_items = [
             FloatingItem(SCREEN_WIDTH, SCREEN_HEIGHT, c)
             for c in list(INGREDIENT_COLORS.values()) + [(255, 180, 100)] * 3

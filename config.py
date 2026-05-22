@@ -67,6 +67,7 @@ BADGE_IMGS = [  # 徽章图片列表，按等级排列
     os.path.join(IMAGES_DIR, "badges", "badge1.png"),
     os.path.join(IMAGES_DIR, "badges", "badge2.png"),
     os.path.join(IMAGES_DIR, "badges", "badge3.png"),
+    os.path.join(IMAGES_DIR, "badges", "badge4.png"),
 ]
 PATIENCE_BAR_IMG = os.path.join(IMAGES_DIR, "other", "耐心条.png")
 PATIENCE_BAR_SIZE = (350, 35)

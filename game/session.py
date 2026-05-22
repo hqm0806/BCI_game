@@ -418,6 +418,7 @@ class GameSession:
             if self.focus_above_seconds >= 5.0 and self.cup_manager.trigger_secret_recipe():
                 secret = self.ingredient_manager.spawn_secret_recipe()
                 self.ingredients.add(secret)
+                secret.set_particle_group(self.particles)
                 self.focus_above_seconds = 0.0
                 logger.info("秘方掉落！专注力持续高于阈值 %.0f 达 5 秒", threshold)
         else:
@@ -425,6 +426,7 @@ class GameSession:
                 if self.cup_manager.trigger_secret_recipe():
                     secret = self.ingredient_manager.spawn_secret_recipe()
                     self.ingredients.add(secret)
+                    secret.set_particle_group(self.particles)
                     logger.info("第 %s 杯触发秘方掉落！", self.cup_manager.cup_number)
 
     def _check_cup_end(self) -> None:

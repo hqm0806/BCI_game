@@ -170,12 +170,21 @@ def draw_hud(
     )
     screen.blit(cup_text, (bar_right - spacing - cup_text.get_width(), cy))
 
+    cup_rem = max(0, CUP_DURATION - (time_module.time() - cup_manager.cup_start_time))
+
     total_time_text = bar_font.render(
         f"总局 {int(game_remaining)}s",
         True,
         (60, 60, 60),
     )
     screen.blit(total_time_text, (SCREEN_WIDTH - total_time_text.get_width() - 12, SCREEN_HEIGHT - 36))
+
+    cup_timer_text = hint_font.render(
+        f"杯倒计时 {cup_rem:.0f}s",
+        True,
+        (20, 20, 20),
+    )
+    screen.blit(cup_timer_text, (SCREEN_WIDTH - cup_timer_text.get_width() - 12, SCREEN_HEIGHT - 60))
 
     if bci_mode:
         gyro_x = SCREEN_WIDTH - 300

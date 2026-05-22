@@ -301,6 +301,11 @@ class Ingredient(pygame.sprite.Sprite):
         self._orig_image = self.image.copy()
 
         self._glow_phase = 0.0
+        self._particle_group: pygame.sprite.Group | None = None
+        self._particle_timer = 0.0
+
+    def set_particle_group(self, group: pygame.sprite.Group) -> None:
+        self._particle_group = group
 
     def update(self) -> None:
         self._float_t += 0.05
@@ -310,6 +315,20 @@ class Ingredient(pygame.sprite.Sprite):
             self._glow_phase += 0.08
             glow = int(128 + 127 * math.sin(self._glow_phase))
             self._orig_image.set_alpha(glow)
+
+            if self._particle_group is not None:
+                self._particle_timer += 1
+                if self._particle_timer % 2 == 0:
+                    for _ in range(2):
+                        angle = random.uniform(0, 2 * math.pi)
+                        dist = random.uniform(15, 30)
+                        px = self.rect.centerx + math.cos(angle) * dist
+                        py = self.rect.centery + math.sin(angle) * dist
+                        p = Particle(int(px), int(py), (255, 215, 0))
+                        p.vx = math.cos(angle) * random.uniform(0.3, 1.0)
+                        p.vy = math.sin(angle) * random.uniform(0.3, 1.0)
+                        p.decay = 3.0
+                        self._particle_group.add(p)
         else:
             self.rect.centerx = int(self._base_centerx + math.sin(self._float_t) * 5)
             angle = math.cos(self._float_t) * 8

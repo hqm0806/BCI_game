@@ -9,7 +9,7 @@ import os
 
 import pygame
 
-from config import SCREEN_HEIGHT, SCREEN_WIDTH
+from config import IMAGES_DIR, SCREEN_HEIGHT, SCREEN_WIDTH
 from game.font_utils import load_chinese_font
 
 ACCOUNTS_FILE = "accounts.json"
@@ -50,6 +50,8 @@ class LoginScreen:
         self._message_color = (200, 200, 200)
         self._accounts = _load_accounts()
 
+        self._bg = self._load_bg()
+
         self._input_x = SCREEN_WIDTH // 2 - 160
         self._label_x = SCREEN_WIDTH // 2 - 310
         self._input_y_user = SCREEN_HEIGHT // 2 - 50
@@ -57,6 +59,16 @@ class LoginScreen:
 
         self._btn_login = pygame.Rect(SCREEN_WIDTH // 2 - 190, self._input_y_pass + 70, 170, 42)
         self._btn_register = pygame.Rect(SCREEN_WIDTH // 2 + 20, self._input_y_pass + 70, 170, 42)
+
+    def _load_bg(self) -> pygame.Surface | None:
+        path = os.path.join(IMAGES_DIR, "backgrounds", "login.png")
+        if os.path.exists(path):
+            try:
+                img = pygame.image.load(path).convert()
+                return pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+            except (pygame.error, OSError):
+                pass
+        return None
 
     def run(self) -> str | None:
         while self._result is None:
@@ -159,13 +171,19 @@ class LoginScreen:
         self._message_color = (100, 255, 100)
 
     def _draw(self) -> None:
-        self.screen.fill((25, 25, 45))
+        if self._bg:
+            self.screen.blit(self._bg, (0, 0))
+        else:
+            self.screen.fill((25, 25, 45))
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.screen.blit(overlay, (0, 0))
 
         title = self.title_font.render("疯狂奶茶杯", True, (255, 220, 150))
-        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 80))
+        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 180))
 
         sub = self.hint_font.render("登录你的账号", True, (200, 200, 220))
-        self.screen.blit(sub, (SCREEN_WIDTH // 2 - sub.get_width() // 2, 150))
+        self.screen.blit(sub, (SCREEN_WIDTH // 2 - sub.get_width() // 2, 250))  # 位置
 
         label_user = self.font.render("账号", True, (200, 200, 220))
         self.screen.blit(label_user, (self._label_x, self._input_y_user + 5))
@@ -224,11 +242,11 @@ class LoginScreen:
         h: int,
         active: bool,
     ) -> None:
-        border = (255, 220, 150) if active else (100, 100, 130)
-        pygame.draw.rect(self.screen, border, (x, y, w, h), 2, border_radius=8)
-        bg = pygame.Surface((w - 4, h - 4), pygame.SRCALPHA)
-        bg.fill((255, 255, 255, 15))
-        self.screen.blit(bg, (x + 2, y + 2))
+        border = (255, 220, 150) if active else (80, 80, 110)
+        pygame.draw.rect(self.screen, border, (x, y, w, h), 3, border_radius=8)
+        bg = pygame.Surface((w - 6, h - 6), pygame.SRCALPHA)
+        bg.fill((0, 0, 0, 80))
+        self.screen.blit(bg, (x + 3, y + 3))
 
         display_text = text
         if active and len(text) < 16:

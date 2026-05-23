@@ -535,17 +535,17 @@ class GameSession:
         else:
             self.screen.fill((255, 255, 255))
 
-        if self._top_bar:
-            self.screen.blit(self._top_bar, (0, 0))
-            mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
-            mask.fill((0, 0, 0, 60))
-            self.screen.blit(mask, (0, 0))
-
         self.all_sprites.draw(self.screen)
         self.ingredients.draw(self.screen)
         self.catch_effects.draw(self.screen)
         self.miss_effects.draw(self.screen)
         self.particles.draw(self.screen)
+
+        if self._top_bar:
+            self.screen.blit(self._top_bar, (0, 0))
+            mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
+            mask.fill((0, 0, 0, 60))
+            self.screen.blit(mask, (0, 0))
 
         draw_hud(
             screen=self.screen,

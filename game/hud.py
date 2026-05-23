@@ -9,6 +9,7 @@ from config import (
     CUP_DURATION,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    SECRET_RECIPE_SUSTAIN,
 )
 
 from game.font_utils import load_chinese_font
@@ -238,7 +239,7 @@ def draw_hud(
         screen.blit(bci_text, (10, 235))
 
     if bci_mode and not cup_manager.secret_recipe_spawned:
-        progress = min(1.0, focus_above_seconds / 5.0)
+        progress = min(1.0, focus_above_seconds / SECRET_RECIPE_SUSTAIN)
         bar_x = SCREEN_WIDTH // 2 - 60
         bar_y = SCREEN_HEIGHT - 50
         bar_w = 120

@@ -234,8 +234,8 @@ BCI_CONNECTION_TIMEOUT = 5  # 连接超时时间（秒）
 # ============================================================
 CUP_DURATION = 15  # 每杯时间上限 T（秒），超时则结算
 TOTAL_CUPS = 5  # 本局共需制作的奶茶杯数，游戏最大时长 = TOTAL_CUPS × CUP_DURATION
-SECRET_RECIPE_SUSTAIN = 5  # 秘方触发所需持续专注秒数 a
-SECRET_RECIPE_OFFSET = 10  # 秘方阈值偏移量 m，阈值 = min(基线 + m, 88)
+SECRET_RECIPE_SUSTAIN = 4  # 秘方触发所需持续专注秒数 a
+SECRET_RECIPE_OFFSET = 5  # 秘方阈值偏移量 m，阈值 = min(基线 + m, 88)
 DIFFICULTY_BASELINE = 60  # 难度基线初始值（0-100），自适应调节
 DIFFICULTY_ADAPT_WINDOW = 30  # 难度自适应窗口（秒），取此窗口内平均专注力更新基线
 CUP_SPEED_MIN = 2.0  # 专注力高时的最低食材速度（px/frame），约可接住 ≥8 个/杯

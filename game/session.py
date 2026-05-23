@@ -27,6 +27,7 @@ from config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SECRET_RECIPE_OFFSET,
+    SECRET_RECIPE_SUSTAIN,
     TOP_BAR_IMG,
     TOTAL_CUPS,
 )
@@ -446,12 +447,12 @@ class GameSession:
             else:
                 self.focus_above_seconds = 0.0
 
-            if self.focus_above_seconds >= 5.0 and self.cup_manager.trigger_secret_recipe():
+            if self.focus_above_seconds >= SECRET_RECIPE_SUSTAIN and self.cup_manager.trigger_secret_recipe():
                 secret = self.ingredient_manager.spawn_secret_recipe()
                 self.ingredients.add(secret)
                 secret.set_particle_group(self.particles)
                 self.focus_above_seconds = 0.0
-                logger.info("秘方掉落！专注力持续高于阈值 %.0f 达 5 秒", threshold)
+                logger.info("秘方掉落！专注力持续高于阈值 %.0f 达 %d 秒", threshold, SECRET_RECIPE_SUSTAIN)
         else:
             if self.cup_manager.should_force_secret_recipe() and self.cup_manager.catch_count == 0:
                 if self.cup_manager.trigger_secret_recipe():

@@ -318,17 +318,16 @@ class Ingredient(pygame.sprite.Sprite):
 
             if self._particle_group is not None:
                 self._particle_timer += 1
-                if self._particle_timer % 2 == 0:
-                    for _ in range(2):
-                        angle = random.uniform(0, 2 * math.pi)
-                        dist = random.uniform(15, 30)
-                        px = self.rect.centerx + math.cos(angle) * dist
-                        py = self.rect.centery + math.sin(angle) * dist
-                        p = Particle(int(px), int(py), (255, 215, 0))
-                        p.vx = math.cos(angle) * random.uniform(0.3, 1.0)
-                        p.vy = math.sin(angle) * random.uniform(0.3, 1.0)
-                        p.decay = 3.0
-                        self._particle_group.add(p)
+                for _ in range(4):
+                    angle = random.uniform(0, 2 * math.pi)
+                    dist = random.uniform(20, 40)
+                    px = self.rect.centerx + math.cos(angle) * dist
+                    py = self.rect.centery + math.sin(angle) * dist
+                    p = Particle(int(px), int(py), (255, 215, 0))
+                    p.vx = math.cos(angle) * random.uniform(0.5, 1.5)
+                    p.vy = math.sin(angle) * random.uniform(0.5, 1.5)
+                    p.decay = 2.5
+                    self._particle_group.add(p)
         else:
             self.rect.centerx = int(self._base_centerx + math.sin(self._float_t) * 5)
             angle = math.cos(self._float_t) * 8

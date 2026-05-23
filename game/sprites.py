@@ -312,9 +312,10 @@ class Ingredient(pygame.sprite.Sprite):
         self.rect.y += int(self.speed)
 
         if self._is_secret:
-            self._glow_phase += 0.08
-            glow = int(128 + 127 * math.sin(self._glow_phase))
-            self._orig_image.set_alpha(glow)
+            self.rect.centerx = int(self._base_centerx + math.sin(self._float_t) * 5)
+            angle = math.cos(self._float_t) * 8
+            self.image = pygame.transform.rotate(self._orig_image, angle)
+            self.rect = self.image.get_rect(center=self.rect.center)
 
             if self._particle_group is not None:
                 self._particle_timer += 1
@@ -334,8 +335,7 @@ class Ingredient(pygame.sprite.Sprite):
             self.image = pygame.transform.rotate(self._orig_image, angle)
             self.rect = self.image.get_rect(center=self.rect.center)
 
-        if not self._is_secret:
-            self.rect = self.image.get_rect(center=self.rect.center)
+        self.rect = self.image.get_rect(center=self.rect.center)
 
         if self.rect.top > SCREEN_HEIGHT:
             self.kill()

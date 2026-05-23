@@ -119,7 +119,6 @@ def draw_hud(
     recipe_font,
     focus_teapot=None,
     attention=None,
-    smoothed_yaw=0,
     bci_mode=False,
     free_combine=False,
     recipe_result=None,
@@ -233,13 +232,7 @@ def draw_hud(
                 True,
                 (255, 255, 255),
             )
-        else:
-            bci_text = hint_font.render(
-                f"头动: {smoothed_yaw:.1f}",
-                True,
-                (255, 255, 255),
-            )
-        screen.blit(bci_text, (10, 235))
+            screen.blit(bci_text, (10, 235))
     elif bci_mode and attention is None:
         bci_text = hint_font.render("BCI设备未连接", True, (200, 0, 0))
         screen.blit(bci_text, (10, 235))

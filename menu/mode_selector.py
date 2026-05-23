@@ -1,6 +1,9 @@
-"""模式选择器 - 循环切换游戏模式并显示预览"""
+"""模式选择器 - 循环切换游戏模式并显示预览（辉光粒子风格）"""
 
 from __future__ import annotations
+
+import math
+import random
 
 import pygame
 
@@ -26,9 +29,9 @@ class ModePreviewDisplay:
 
         self._mode_keys = ["regular", "challenge", "creative"]
         self._mode_colors = {
-            "regular": ((60, 160, 100), (80, 200, 120)),
-            "challenge": ((200, 80, 60), (240, 100, 80)),
-            "creative": ((120, 80, 200), (150, 110, 240)),
+            "regular": ((145, 90, 45), (180, 120, 65)),
+            "challenge": ((170, 75, 35), (210, 100, 50)),
+            "creative": ((160, 115, 55), (195, 150, 80)),
         }
 
     def update(self, dt: float = 0.016) -> None:
@@ -98,7 +101,7 @@ class ModePreviewDisplay:
 
 
 class ModeSelector(MenuItem):
-    """模式选择按钮 - 点击循环切换模式，悬停显示模式信息"""
+    """模式选择按钮 - 辉光风格，点击循环切换模式"""
 
     def __init__(
         self,
@@ -116,33 +119,39 @@ class ModeSelector(MenuItem):
         self.y = y
 
         self._mode_colors = {
-            "regular": ((60, 160, 100), (80, 200, 120)),
-            "challenge": ((200, 80, 60), (240, 100, 80)),
-            "creative": ((120, 80, 200), (150, 110, 240)),
+            "regular": ((145, 90, 45), (180, 120, 65)),
+            "challenge": ((170, 75, 35), (210, 100, 50)),
+            "creative": ((160, 115, 55), (195, 150, 80)),
         }
-
+        self._mode_glow = {
+            "regular": (255, 180, 110),
+            "challenge": (255, 140, 80),
+            "creative": (255, 210, 140),
+        }
         self._mode_icons = {
-            "regular": "🍵",
-            "challenge": "🔥",
-            "creative": "✨",
+            "regular": "\U0001f375",
+            "challenge": "\U0001f525",
+            "creative": "\u2728",
         }
 
         self.hovered = False
         self.scale_t = 0.0
         self.click_t = 0.0
         self.ripple = 0.0
+        self.pulse_t = 0.0
 
         _bg_color, _ = self._mode_colors[self.mode_keys[0]]
         padding = (50, 14)
         self.padding = padding
-        self.radius = 20
+        self.radius = 25
 
         self._text_surf = title_font.render("模式选择", True, (255, 255, 255))
         w = self._text_surf.get_width() + padding[0] * 2
         h = self._text_surf.get_height() + padding[1] * 2
         self.rect = pygame.Rect(x - w // 2, y - h // 2, w, h)
 
-        self.click_particles = []
+        self.click_particles: list[ClickParticle] = []
+        self.glow_particles: list[ClickParticle] = []
         self.info_display = ModePreviewDisplay(
             self.rect.right + 20,
             self.rect.top - 10,
@@ -166,20 +175,24 @@ class ModeSelector(MenuItem):
             mode_key,
         )
 
+    @property
+    def _glow_color(self) -> tuple[int, int, int]:
+        mode_key = self.mode_keys[self.current_index]
+        return self._mode_glow.get(mode_key, (255, 180, 100))
+
     def cycle_mode(self) -> str:
         self.current_index = (self.current_index + 1) % len(self.mode_keys)
         self.click_t = 1.0
         self.ripple = 1.0
         self._update_text()
-        mode_key = self.mode_keys[self.current_index]
-        bg, _ = self._mode_colors.get(mode_key, ((100, 100, 100), (120, 120, 120)))
+        glow = self._glow_color
 
         for _ in range(20):
-            self.click_particles.append(ClickParticle(self.rect.centerx, self.rect.centery, bg))
+            self.click_particles.append(ClickParticle(self.rect.centerx, self.rect.centery, glow))
         for _ in range(10):
             self.click_particles.append(ClickParticle(self.rect.centerx, self.rect.centery, (255, 255, 255)))
 
-        return mode_key
+        return self.mode_keys[self.current_index]
 
     def update(self, dt: float = 0.016) -> None:
         target = 1.0 if self.hovered else 0.0
@@ -189,10 +202,42 @@ class ModeSelector(MenuItem):
         if self.ripple > 0:
             self.ripple -= dt * 2
 
+        self.pulse_t += dt * 2.5
+        if self.hovered and random.random() < 0.3:
+            angle = random.uniform(0, 2 * math.pi)
+            r = random.uniform(self.rect.width / 2, self.rect.width / 2 + 8)
+            px = self.rect.centerx + math.cos(angle) * r
+            py = self.rect.centery + math.sin(angle) * r
+            self.glow_particles.append(ClickParticle(px, py, self._glow_color))
+
         self.click_particles = [p for p in self.click_particles if p.update(dt)]
+        self.glow_particles = [p for p in self.glow_particles if p.update(dt)]
         self.info_display.update(dt)
 
     def draw(self, screen: pygame.Surface) -> None:
+        pulse = math.sin(self.pulse_t) * 0.5 + 0.5
+        glow = self._glow_color
+
+        glow_alpha = int(30 + pulse * 50)
+        glow_size = int(8 + pulse * 12)
+        glow_surf = pygame.Surface(
+            (self.rect.width + glow_size * 2, self.rect.height + glow_size * 2),
+            pygame.SRCALPHA,
+        )
+        for layer in range(3):
+            layer_size = glow_size - layer * 3
+            layer_alpha = glow_alpha // (layer + 1)
+            pygame.draw.rect(
+                glow_surf,
+                (*glow, layer_alpha),
+                (0, 0, glow_surf.get_width(), glow_surf.get_height()),
+                border_radius=self.radius + layer_size,
+            )
+        screen.blit(
+            glow_surf,
+            (self.rect.x - glow_size, self.rect.y - glow_size),
+        )
+
         s = 1.0 + 0.06 * self.scale_t
         w = int(self.rect.width * s)
         h = int(self.rect.height * s)
@@ -202,11 +247,41 @@ class ModeSelector(MenuItem):
         bg_color, hover_color = self._mode_colors.get(mode_key, ((100, 100, 100), (120, 120, 120)))
         color = hover_color if self.hovered else bg_color
 
-        pygame.draw.rect(surf, color, (0, 0, w, h), border_radius=int(self.radius * s))
+        border_alpha = int(180 + pulse * 75)
+        border_color = hover_color if self.hovered else glow
+
+        for i in range(4, 0, -1):
+            thick = i * 2
+            alpha = border_alpha // (i + 1)
+            pygame.draw.rect(
+                surf,
+                (*border_color, alpha),
+                (-i, -i, w + i * 2, h + i * 2),
+                thick,
+                border_radius=int(self.radius * s + i),
+            )
+
+        pygame.draw.rect(
+            surf,
+            (*border_color, border_alpha),
+            (0, 0, w, h),
+            3,
+            border_radius=int(self.radius * s),
+        )
+
+        bg_a = 180 + (1 if self.hovered else 0) * 40
+        pygame.draw.rect(surf, (*color, bg_a), (2, 2, w - 4, h - 4), border_radius=int(self.radius * s - 1))
 
         if self.click_t > 0:
-            click_color = (*color, int(self.click_t * 100))
-            pygame.draw.rect(surf, click_color, (0, 0, w, h), border_radius=int(self.radius * s))
+            click_surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            click_alpha = int(self.click_t * 150)
+            pygame.draw.rect(
+                click_surf,
+                (*glow, click_alpha),
+                (0, 0, w, h),
+                border_radius=int(self.radius * s),
+            )
+            surf.blit(click_surf, (0, 0))
 
         if self.ripple > 0:
             ripple_r = int((1 - self.ripple) * max(w, h) * 0.3)
@@ -222,12 +297,26 @@ class ModeSelector(MenuItem):
                 (self.rect.centerx - ripple_r, self.rect.centery - ripple_r),
             )
 
-        tw = self._text_surf.get_width()
-        th = self._text_surf.get_height()
+        text_glow = self.title_font.render(
+            "模式选择",
+            True,
+            (
+                min(255, glow[0] + 60),
+                min(255, glow[1] + 40),
+                min(255, glow[2] + 30),
+            ),
+        )
+        text_glow.set_alpha(int(100 + pulse * 60))
+        tw = text_glow.get_width()
+        th = text_glow.get_height()
+        surf.blit(text_glow, ((w - tw) // 2 + 1, (h - th) // 2 + 1))
+
         surf.blit(self._text_surf, ((w - tw) // 2, (h - th) // 2))
 
         screen.blit(surf, (self.rect.centerx - w // 2, self.rect.centery - h // 2))
 
+        for p in self.glow_particles:
+            p.draw(screen)
         for p in self.click_particles:
             p.draw(screen)
 
@@ -236,7 +325,6 @@ class ModeSelector(MenuItem):
             self.info_display.draw(screen)
 
     def handle_event(self, event: pygame.event.Event) -> str | None:  # type: ignore[override]
-        """处理鼠标事件，返回模式 key 或 None"""
         if event.type == pygame.MOUSEMOTION:
             was_hovered = self.hovered
             self.hovered = self.rect.collidepoint(event.pos)

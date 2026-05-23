@@ -21,7 +21,7 @@ class AssetManager:
 
     使用方式:
         assets = AssetManager()
-        bg = assets.load_image("backgrounds/奶茶店2.png")
+        bg = assets.load_image("backgrounds/吧台.png")
         font = assets.load_font("ZCOOLKuaiLe-Regular.ttf", size=36)
     """
 

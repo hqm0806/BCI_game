@@ -36,30 +36,41 @@ SOUNDS_DIR = os.path.join(ASSETS_DIR, "sounds")  # 音效资源目录
 # 图片资源路径
 # 新增图片时只需将文件放入 images 目录，然后在此处添加路径即可
 # ============================================================
-BACKGROUND_IMG = os.path.join(IMAGES_DIR, "backgrounds", "奶茶店2.png")  # 背景图
-CUP_LEVEL_IMGS = [  # 不同等级的杯子图片列表
-    os.path.join(IMAGES_DIR, "cups", "cup1.png"),
-    os.path.join(IMAGES_DIR, "cups", "cup2.png"),
-    os.path.join(IMAGES_DIR, "cups", "cup3.png"),
+BACKGROUND_IMG = os.path.join(IMAGES_DIR, "backgrounds", "吧台.png")  # 背景图
+CUP_IMGS = [  # 杯子阶段图片：0接→1, 1接→2, 2+接→3
+    os.path.join(IMAGES_DIR, "cups", "奶茶杯1.png"),
+    os.path.join(IMAGES_DIR, "cups", "奶茶杯2.png"),
+    os.path.join(IMAGES_DIR, "cups", "奶茶杯3.png"),
 ]
-FOCUS_TEAPOT_IMG = os.path.join(
-    IMAGES_DIR, "other", "focus_teapot.png"
-)  # 专注力茶壶 UI 图片
+FOCUS_TEAPOT_IMG = os.path.join(IMAGES_DIR, "other", "focus_teapot.png")  # 专注力茶壶 UI 图片
 INGREDIENT_IMGS = {  # 食材图片字典
-    "红茶": os.path.join(IMAGES_DIR, "ingredients", "tea.png"),
-    "牛奶": os.path.join(IMAGES_DIR, "ingredients", "milk.png"),
-    "珍珠": os.path.join(IMAGES_DIR, "ingredients", "pearl.png"),
-    "椰果": os.path.join(IMAGES_DIR, "ingredients", "coconut.png"),
-    "布丁": os.path.join(IMAGES_DIR, "ingredients", "pudding.png"),
-    "仙草": os.path.join(IMAGES_DIR, "ingredients", "grass_jelly.png"),
-    "秘方": os.path.join(IMAGES_DIR, "ingredients", "secret_recipe.png"),
+    "红茶": os.path.join(IMAGES_DIR, "ingredients", "红茶.png"),
+    "绿茶": os.path.join(IMAGES_DIR, "ingredients", "绿茶.png"),
+    "牛奶": os.path.join(IMAGES_DIR, "ingredients", "牛奶.png"),
+    "珍珠": os.path.join(IMAGES_DIR, "ingredients", "珍珠.png"),
+    "椰果": os.path.join(IMAGES_DIR, "ingredients", "椰果.png"),
+    "芋圆": os.path.join(IMAGES_DIR, "ingredients", "芋圆.png"),
+    "脆啵啵": os.path.join(IMAGES_DIR, "ingredients", "脆啵啵.png"),
+    "芒果": os.path.join(IMAGES_DIR, "ingredients", "芒果.png"),
+    "椰奶": os.path.join(IMAGES_DIR, "ingredients", "椰奶.png"),
+    "草莓": os.path.join(IMAGES_DIR, "ingredients", "草莓.png"),
+    "芋泥": os.path.join(IMAGES_DIR, "ingredients", "芋泥.png"),
+    "燕麦奶": os.path.join(IMAGES_DIR, "ingredients", "燕麦奶.png"),
+    "咖啡": os.path.join(IMAGES_DIR, "ingredients", "咖啡.png"),
+    "特调稀奶油顶": os.path.join(IMAGES_DIR, "ingredients", "特调稀奶油顶.png"),
+    "米酿": os.path.join(IMAGES_DIR, "ingredients", "米酿.png"),
+    "咸芝士奶盖": os.path.join(IMAGES_DIR, "ingredients", "咸芝士奶盖.png"),
+    "茉莉花茶": os.path.join(IMAGES_DIR, "ingredients", "茉莉花茶.png"),
+    "秘方": os.path.join(IMAGES_DIR, "ingredients", "秘方.png"),
 }
 BADGE_IMGS = [  # 徽章图片列表，按等级排列
     os.path.join(IMAGES_DIR, "badges", "badge1.png"),
     os.path.join(IMAGES_DIR, "badges", "badge2.png"),
     os.path.join(IMAGES_DIR, "badges", "badge3.png"),
+    os.path.join(IMAGES_DIR, "badges", "badge4.png"),
 ]
 PATIENCE_BAR_IMG = os.path.join(IMAGES_DIR, "other", "耐心条.png")
+TOP_BAR_IMG = os.path.join(IMAGES_DIR, "other", "横.png")  # 游戏顶部背景板
 PATIENCE_BAR_SIZE = (350, 35)
 PATIENCE_BAR_TIMEOUT = 90.0  # 接住小料的超时时间（秒）
 
@@ -68,9 +79,7 @@ PATIENCE_BAR_TIMEOUT = 90.0  # 接住小料的超时时间（秒）
 # 系统会依次尝试加载，直到成功为止
 # ============================================================
 CHINESE_FONTS = [
-    os.path.join(
-        ASSETS_DIR, "fonts", "ZCOOLKuaiLe-Regular.ttf"
-    ),  # 站酷快乐体（项目内置卡通字体，优先使用）
+    os.path.join(ASSETS_DIR, "fonts", "ZCOOLKuaiLe-Regular.ttf"),  # 站酷快乐体（项目内置卡通字体，优先使用）
     "simhei.ttf",  # 黑体（Windows 系统字体）
     "simkai.ttf",  # 楷体（Windows 系统字体）
     "msyh.ttf",  # 微软雅黑（Windows 系统字体）
@@ -98,33 +107,115 @@ CUP_COLOR = BROWN  # 杯子默认颜色（无图片时使用）
 # ============================================================
 # 食材配置
 # ============================================================
-INGREDIENT_SIZE = 40  # 食材图片尺寸（像素），修改此项可同时改变所有食材大小
-INGREDIENT_SPEED = 3  # 食材下落速度（像素/帧），值越大下落越快，游戏难度越高
-INGREDIENT_TYPES = [
-    "红茶",
-    "牛奶",
+INGREDIENT_SIZE = 70  # 食材图片尺寸（像素），修改此项可同时改变所有食材大小
+INGREDIENT_SPEED = 3.5  # 食材下落速度（像素/帧），值越大下落越快，游戏难度越高
+INGREDIENT_TYPES = [  # 所有食材种类
     "珍珠",
     "椰果",
-    "布丁",
-    "仙草",
-]  # 当前关卡可掉落的食材种类列表
+    "牛奶",
+    "红茶",
+    "绿茶",
+    "芋圆",
+    "脆啵啵",
+    "芒果",
+    "椰奶",
+    "草莓",
+    "芋泥",
+    "燕麦奶",
+    "咖啡",
+    "特调稀奶油顶",
+    "米酿",
+    "咸芝士奶盖",
+    "茉莉花茶",
+]
 
 INGREDIENT_COLORS = {  # 食材默认颜色（无图片时使用，RGB 格式）
-    "红茶": (160, 82, 45),
-    "牛奶": (255, 250, 240),
-    "珍珠": (105, 105, 105),
+    "珍珠": (60, 50, 40),
     "椰果": (240, 230, 140),
-    "布丁": (255, 200, 100),
-    "仙草": (50, 50, 50),
+    "牛奶": (255, 250, 240),
+    "红茶": (160, 82, 45),
+    "绿茶": (120, 180, 80),
+    "芋圆": (180, 140, 100),
+    "脆啵啵": (200, 180, 220),
+    "芒果": (140, 100, 60),
+    "椰奶": (255, 245, 230),
+    "草莓": (220, 50, 80),
+    "芋泥": (170, 120, 160),
+    "燕麦奶": (230, 210, 170),
+    "咖啡": (90, 60, 40),
+    "特调稀奶油顶": (255, 245, 200),
+    "米酿": (240, 220, 160),
+    "咸芝士奶盖": (250, 240, 180),
+    "茉莉花茶": (180, 210, 100),
 }
 
-INGREDIENT_POINTS = {  # 食材分值/金钱值，接到对应食材时获得的分数
-    "红茶": 8,
+INGREDIENT_POINTS = {  # 食材分值/金钱值，接到对应食材时获得的价格（元）
+    "珍珠": 3,
+    "椰果": 3,
     "牛奶": 5,
-    "珍珠": 10,
-    "椰果": 6,
-    "布丁": 12,
-    "仙草": 8,
+    "红茶": 5,
+    "绿茶": 5,
+    "芋圆": 8,
+    "脆啵啵": 8,
+    "芒果": 10,
+    "椰奶": 10,
+    "草莓": 12,
+    "芋泥": 12,
+    "燕麦奶": 15,
+    "咖啡": 15,
+    "特调稀奶油顶": 20,
+    "米酿": 20,
+    "咸芝士奶盖": 20,
+    "茉莉花茶": 20,
+    "秘方": 0,
+}
+
+INGREDIENT_TIERS = {  # 等级系统：每个等级的可用食材和必接食材（含之前等级所有食材）
+    1: {"available": ["珍珠", "椰果", "牛奶", "红茶", "绿茶"], "required": ["牛奶", "红茶", "绿茶"]},
+    2: {
+        "available": ["珍珠", "椰果", "牛奶", "红茶", "绿茶", "芋圆", "脆啵啵", "芒果", "椰奶"],
+        "required": ["牛奶", "红茶", "绿茶", "芒果", "椰奶"],
+    },
+    3: {
+        "available": [
+            "珍珠",
+            "椰果",
+            "牛奶",
+            "红茶",
+            "绿茶",
+            "芋圆",
+            "脆啵啵",
+            "芒果",
+            "椰奶",
+            "草莓",
+            "芋泥",
+            "燕麦奶",
+            "咖啡",
+        ],
+        "required": ["牛奶", "红茶", "绿茶", "芒果", "椰奶", "燕麦奶", "咖啡"],
+    },
+    4: {
+        "available": [
+            "珍珠",
+            "椰果",
+            "牛奶",
+            "红茶",
+            "绿茶",
+            "芋圆",
+            "脆啵啵",
+            "芒果",
+            "椰奶",
+            "草莓",
+            "芋泥",
+            "燕麦奶",
+            "咖啡",
+            "特调稀奶油顶",
+            "米酿",
+            "咸芝士奶盖",
+            "茉莉花茶",
+        ],
+        "required": ["牛奶", "红茶", "绿茶", "芒果", "椰奶", "燕麦奶", "咖啡", "茉莉花茶"],
+    },
 }
 
 # ============================================================
@@ -132,16 +223,33 @@ INGREDIENT_POINTS = {  # 食材分值/金钱值，接到对应食材时获得的
 # 注意：BCI服务器IP和端口请在游戏中点击"BCI设置"按钮进行配置
 # 配置文件保存在 bci_config.json
 # ============================================================
-DEFAULT_ATTENTION = 50  # 默认专注力值（0-100），模拟数据基准值
-DEAD_ZONE = 10  # 死区阈值，头动信号绝对值小于此值时视为静止（防抖动）
-SMOOTHING_FACTOR = (
-    0.3  # 指数平滑因子（0-1），值越大响应越快但越抖动，值越小越平滑但延迟越大
-)
-YAW_SCALE = 0.1  # 头动偏航角缩放系数，控制头部转动映射到杯子移动的距离（相对模式）
-YAW_MAPPING_MODE = "absolute"  # 映射模式："relative"(相对位移) 或 "absolute"(绝对位置映射)
-YAW_MIN = -30.0  # 头动偏航角最小值（度）
-YAW_MAX = 30.0   # 头动偏航角最大值（度）
+DEFAULT_ATTENTION = 50  # 默认专注力值（0-100）
+DEAD_ZONE = 2  # 死区阈值，头动信号绝对值小于此值时视为静止（防抖动）
+SMOOTHING_FACTOR = 0.15  # 指数平滑因子（0-1），值越大响应越快但越抖动
+FOCUS_SENSITIVITY = 100  # 焦点灵敏度：头动 yaw 到像素的映射强度，越大杯子移动越快
 BCI_CONNECTION_TIMEOUT = 5  # 连接超时时间（秒）
+
+# ============================================================
+# 一杯制配置
+# ============================================================
+CUP_DURATION = 15  # 每杯时间上限 T（秒），超时则结算
+TOTAL_CUPS = 5  # 本局共需制作的奶茶杯数，游戏最大时长 = TOTAL_CUPS × CUP_DURATION
+SECRET_RECIPE_SUSTAIN = 5  # 秘方触发所需持续专注秒数 a
+SECRET_RECIPE_OFFSET = 10  # 秘方阈值偏移量 m，阈值 = min(基线 + m, 88)
+DIFFICULTY_BASELINE = 60  # 难度基线初始值（0-100），自适应调节
+DIFFICULTY_ADAPT_WINDOW = 30  # 难度自适应窗口（秒），取此窗口内平均专注力更新基线
+CUP_SPEED_MIN = 2.0  # 专注力高时的最低食材速度（px/frame），约可接住 ≥8 个/杯
+CUP_SPEED_MAX = 5.0  # 专注力低时的最高食材速度（px/frame），约可接住 ≤6 个/杯
+DIFFICULTY_BASELINE_MIN = 40  # 基线调节下限
+DIFFICULTY_BASELINE_MAX = 80  # 基线调节上限
+
+# ============================================================
+# BCI 专注力校准配置
+# ============================================================
+CALIBRATION_WARMUP = 3  # 校准前等待秒数（显示倒计时）
+CALIBRATION_DURATION = 30  # 校准记录总时长（秒）
+CALIBRATION_BASELINE_WINDOW = 5  # 取最后 N 秒的平均作为个人基线
+ATTENTION_ROLLING_WINDOW = 3  # 实时注意力 3 秒滑动平均窗口
 
 # ============================================================
 # 游戏模式配置
@@ -156,6 +264,8 @@ GAME_MODES = {
         "ingredient_speed": 3,
         "spawn_interval": 1000,
         "ui_color": (60, 160, 100),
+        "total_cups": 5,
+        "secret_recipe_cup_interval": 1,
     },
     "challenge": {
         "name": "挑战模式",
@@ -166,6 +276,8 @@ GAME_MODES = {
         "ingredient_speed": 5,
         "spawn_interval": 600,
         "ui_color": (200, 80, 60),
+        "total_cups": 5,
+        "secret_recipe_cup_interval": 1,
     },
     "creative": {
         "name": "创意模式",
@@ -176,6 +288,8 @@ GAME_MODES = {
         "ingredient_speed": 3,
         "spawn_interval": 1200,
         "ui_color": (120, 80, 200),
+        "total_cups": 5,
+        "secret_recipe_cup_interval": 1,
     },
     "bci": {
         "name": "脑机接口模式",
@@ -186,11 +300,13 @@ GAME_MODES = {
         "ingredient_speed": 3,
         "spawn_interval": 1200,
         "ui_color": (0, 150, 200),
+        "total_cups": 5,
+        "secret_recipe_cup_interval": 3,
     },
 }
 
 DEFAULT_GAME_MODE = "regular"  # 默认游戏模式
-GAME_DURATION = 120  # 一局游戏时长（秒），修改此项可改变单局时间
+GAME_DURATION = 120  # （已废弃，由一杯制 CUP_DURATION × TOTAL_CUPS 替代）
 
 # ============================================================
 # 生成间隔（毫秒）

@@ -11,7 +11,7 @@ import pygame
 
 from config import (
     BACKGROUND_IMG,
-    IMAGES_DIR,
+    CUP_IMGS,
     INGREDIENT_COLORS,
     INGREDIENT_IMGS,
     INGREDIENT_TYPES,
@@ -29,13 +29,14 @@ class FallingIngredient:
         self.size = size
         self.x = random.uniform(50, SCREEN_WIDTH - 50)
         self.y = -50
-        self.speed = random.uniform(4, 8)
+        self.speed = random.uniform(3, 6)
+        self.angle = 0
+        self.rot_speed = random.uniform(-2, 2)
+        self.caught = False
 
-        # 随机选择食材
         self.type = random.choice(INGREDIENT_TYPES)
         self.color = INGREDIENT_COLORS.get(self.type, (255, 200, 0))
 
-        # 加载图片
         path = INGREDIENT_IMGS.get(self.type)
         self.image = None
         if path and os.path.exists(path):
@@ -44,10 +45,6 @@ class FallingIngredient:
                 self.image = pygame.transform.scale(self.image, (size, size))
             except (pygame.error, OSError):
                 pass
-
-        self.angle = 0
-        self.rot_speed = random.uniform(-5, 5)
-        self.caught = False
 
     def update(self) -> bool:
         if not self.caught:
@@ -77,9 +74,9 @@ class SplashEffect:
 
     def __init__(self, x: float, y: float, color: tuple[int, int, int]) -> None:
         self.particles: list[dict[str, float]] = []
-        for _ in range(10):
+        for _ in range(6):
             angle = random.uniform(-math.pi, 0)
-            speed = random.uniform(3, 8)
+            speed = random.uniform(2, 5)
             self.particles.append(
                 {
                     "x": x,
@@ -114,9 +111,9 @@ class MissEffect:
     def __init__(self, x: float, y: float, color: tuple[int, int, int]) -> None:
         self.particles: list[dict[str, float]] = []
         # 粒子向下及四周扩散
-        for _ in range(12):
-            angle = random.uniform(-0.2, math.pi + 0.2)  # 主要是下半圆
-            speed = random.uniform(2, 5)
+        for _ in range(8):
+            angle = random.uniform(-0.2, math.pi + 0.2)
+            speed = random.uniform(1, 3)
             self.particles.append(
                 {
                     "x": x,
@@ -157,28 +154,28 @@ class StartTransition:
         self.cup_img = None
         self.orig_cup_img = None
 
-        # 初始位置：上移 (SCREEN_HEIGHT - 150)，确保完全显示
+        # 初始位置
         self.cup_x = SCREEN_WIDTH // 2
-        self.cup_y = SCREEN_HEIGHT - 150
+        self.cup_y = SCREEN_HEIGHT - 100
 
-        # 加载杯子图片
-        cup_path = os.path.join(IMAGES_DIR, "cups", "cup1.png")
+        # 加载杯子图片（使用奶茶杯1）
+        cup_path = CUP_IMGS[0]
         if os.path.exists(cup_path):
             try:
                 loaded_img = pygame.image.load(cup_path).convert_alpha()
                 self.orig_cup_img = loaded_img
-                self.cup_img = pygame.transform.scale(loaded_img, (160, 200))
+                self.cup_img = pygame.transform.scale(loaded_img, (100, 125))
             except (pygame.error, OSError):
                 pass
 
         # 生成食材
         self.spawn_timer = 0
         # 每150ms生成一个食材，最多18个
-        self.spawn_interval = 150
+        self.spawn_interval = 200
         # 当前已生成食材数
         self.ingredient_count = 0
         # 最大生成食材数
-        self.max_ingredients = 25
+        self.max_ingredients = 12
 
         # 加载游戏背景
         self.game_background = None
@@ -193,9 +190,11 @@ class StartTransition:
         self.phase = "falling"  # falling -> returning -> flashing -> done
         self.return_start_time = 0
         self.flash_start_time = 0
-        self.flash_duration = 500  # 闪黑持续 0.5 秒
-        self.miss_effects = []  # 失败特效列表
-        self.clicked = False  # 是否已点击触发失败动画
+        self.miss_effects = []
+        self.clicked = False
+
+        self._auto_timer = 0.0
+        self._auto_dir = 1.0
 
     def run(self) -> None:
         while True:
@@ -210,18 +209,8 @@ class StartTransition:
                 if event.type == pygame.MOUSEBUTTONDOWN and self.phase == "falling":
                     self._trigger_all_miss()
 
-            # 获取鼠标位置用于移动
-            keys = pygame.key.get_pressed()
-            mouse_x, _ = pygame.mouse.get_pos()
-            target_x = mouse_x
-            if keys[pygame.K_LEFT]:
-                target_x = self.cup_x - 20
-            elif keys[pygame.K_RIGHT]:
-                target_x = self.cup_x + 20
-
-            # === 状态机 ===
             if self.phase == "falling":
-                self._update_falling(dt, target_x)
+                self._update_falling(dt)
             elif self.phase == "returning":
                 done = self._update_returning()
                 if done:
@@ -244,13 +233,22 @@ class StartTransition:
         self.ingredients.clear()
         self.ingredient_count = self.max_ingredients
 
-    def _update_falling(self, dt: float, target_x: float) -> None:
-        """掉落阶段"""
-        # 桃色背景
+    def _update_falling(self, dt: float) -> None:
         self.screen.fill((255, 228, 181))
 
-        # 杯子跟随鼠标
-        self.cup_x += (target_x - self.cup_x) * 0.2
+        self._auto_timer += dt
+        if self._auto_timer > 1.5:
+            self._auto_timer = 0.0
+            self._auto_dir *= -1.0
+        self.cup_x += self._auto_dir * 300 * dt
+
+        if self.cup_x < 150:
+            self.cup_x = 150
+            self._auto_dir = 1.0
+        elif self.cup_x > SCREEN_WIDTH - 150:
+            self.cup_x = SCREEN_WIDTH - 150
+            self._auto_dir = -1.0
+
         for ing in self.ingredients:
             ing.target_x = self.cup_x
 
@@ -258,17 +256,17 @@ class StartTransition:
         if not self.clicked:
             self.spawn_timer += dt * 1000
             if self.spawn_timer > self.spawn_interval and self.ingredient_count < self.max_ingredients:
-                self.ingredients.append(FallingIngredient(self.cup_x, self.cup_y, size=80))
+                self.ingredients.append(FallingIngredient(self.cup_x, self.cup_y, size=60))
                 self.spawn_timer = 0
                 self.ingredient_count += 1
 
         # 更新食材和溅射效果
         # 判定线：杯子高度的 4/5 处
-        cup_h = self.cup_img.get_height() if self.cup_img else 200
+        cup_h = self.cup_img.get_height() if self.cup_img else 125
         threshold_y = self.cup_y + cup_h * 0.3  # 中心 + 0.3高度 = 顶部 + 0.8高度
 
         # 判定宽度：杯子宽度
-        cup_w = self.cup_img.get_width() if self.cup_img else 160
+        cup_w = self.cup_img.get_width() if self.cup_img else 100
 
         caught_list = []
         for ing in self.ingredients:
@@ -328,10 +326,11 @@ class StartTransition:
         curr_x = self.cup_x + (game_cup_x - self.cup_x) * ease
         curr_y = self.cup_y + (game_cup_y - self.cup_y) * ease
 
-        # 缩小比例：从2.0缩到1.0
-        current_scale = 2.0 - (1.0 * ease)
-        w = int(160 * (current_scale / 2.0))
-        h = int(200 * (current_scale / 2.0))
+        # 缩小比例：从过渡用的(100,125)缩到游戏用的(80,100)
+        start_w, start_h = 100, 125
+        end_w, end_h = 80, 100
+        w = int(start_w + (end_w - start_w) * ease)
+        h = int(start_h + (end_h - start_h) * ease)
 
         # 绘制桃色背景 (保持不变，不渐变到游戏背景)
         self.screen.fill((255, 228, 181))

@@ -1,6 +1,7 @@
 """
 BCI 脑电数据读取模块
 通过 TCP Socket 连接到科创平台，获取专注力和头动数据
+连接后发送 ipc_algorithm_start_test 启动陀螺仪焦点算法
 """
 
 import json
@@ -10,103 +11,88 @@ import struct
 import time
 
 from bci.config import load_bci_config
-from config import BCI_CONNECTION_TIMEOUT
+from config import BCI_CONNECTION_TIMEOUT, SCREEN_HEIGHT, SCREEN_WIDTH
 
 logger = logging.getLogger(__name__)
 
 
 class BCIDataReader:
-    """
-    脑电数据读取器
-
-    功能:
-        - 通过 TCP 连接到科创平台获取专注力和头动数据
-        - 支持超时检测和数据滤波
-        - 支持自定义服务器IP和端口
-    """
+    """脑电数据读取器 - 通过科创平台获取专注力和头动焦点坐标"""
 
     def __init__(self, ip=None, port=None):
         bci_config = load_bci_config()
         self.server_ip = ip or bci_config["server_ip"]
         self.server_port = port or bci_config["server_port"]
 
-        self.attention = 50  # 专注力值（0-100），初始值 50
-        self.yaw = 0  # 头动偏航角（度），正负表示左右
-        self.last_update_time = time.time()  # 上一次成功读取的时间戳
-        self.timeout = 2.0  # 超时阈值（秒），2秒内无新数据视为连接断开
+        self.attention = 50
+        self.focus_x = SCREEN_WIDTH // 2
+        self.focus_y = SCREEN_HEIGHT - 100
+        self.raw_gyro_x = 0.0
+        self.raw_gyro_y = 0.0
+        self.raw_gyro_z = 0.0
+        self.last_update_time = time.time()
+        self.timeout = 2.0
 
         self.socket = None
         self.connected = False
         self.recv_buffer = b""
-        self.last_print_time = 0
-        self.print_interval = 2.0
-        self.heartbeat_interval = 5.0  # 心跳间隔（秒）
-        self.last_heartbeat_time = 0
+
+        self._attention_history: list[tuple[float, float]] = []
+        self._rolling_avg = 50.0
+
+    def get_rolling_attention(self) -> float:
+        now = time.time()
+        self._attention_history = [(t, v) for t, v in self._attention_history if now - t <= 3.0]
+        if self._attention_history:
+            self._rolling_avg = sum(v for _, v in self._attention_history) / len(self._attention_history)
+        return self._rolling_avg
+
+    def _record_attention(self, value: int) -> None:
+        self._attention_history.append((time.time(), float(value)))
 
     def connect(self, ip=None, port=None):
-        """
-        连接BCI设备（科创平台TCP服务器）
- 
-        参数:
-            ip: 服务器IP地址，默认使用 config.py 中的配置
-            port: 服务器端口号，默认使用 config.py 中的配置
- 
-        返回:
-            bool: 连接是否成功
-        """
+        """连接 BCI 设备并启动陀螺仪算法"""
         if ip:
             self.server_ip = ip
         if port:
             self.server_port = port
- 
+
         logger.info("[BCI] 尝试连接到 %s:%s...", self.server_ip, self.server_port)
- 
+
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.settimeout(BCI_CONNECTION_TIMEOUT)
             self.socket.connect((self.server_ip, self.server_port))
-            
-            # 启用TCP Keepalive，防止平台认为连接断开
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            
-            self.socket.settimeout(0)  # 连接成功后设为非阻塞模式
+            self.socket.settimeout(0)
             self.connected = True
             self.recv_buffer = b""
             self.last_update_time = time.time()
-            self.last_heartbeat_time = time.time()
             logger.info("[BCI] 已连接到科创平台 %s:%s", self.server_ip, self.server_port)
-            
-            # 发送简单的订阅/就绪消息（如果协议需要）
-            # 根据HybridBCI平台文档，可能需要发送订阅消息来接收数据
-            try:
-                # 尝试发送简单的就绪消息（JSON格式）
-                ready_msg = json.dumps({"type": "ready", "client": "crazy_milk_tea_cup"}).encode("utf-8")
-                ready_packet = struct.pack(">I", len(ready_msg)) + ready_msg
-                self.socket.sendall(ready_packet)
-                logger.info("[BCI] 已发送就绪消息到平台")
-            except Exception as e:
-                logger.warning("[BCI] 发送就绪消息失败（可能不需要）: %s", e)
-            
+
+            self._send_ready()
+            self._start_gyroscope_algorithm()
+
             return True
         except socket.timeout:
-            logger.warning("[BCI] 连接超时（%s秒）", BCI_CONNECTION_TIMEOUT)
+            logger.warning("[BCI] 连接超时（%s 秒）", BCI_CONNECTION_TIMEOUT)
             self.connected = False
         except ConnectionRefusedError:
-            logger.error(
-                "[BCI] 连接被拒绝，请检查科创平台是否已启动（%s:%s）",
-                self.server_ip,
-                self.server_port,
-            )
+            logger.error("[BCI] 连接被拒绝，请检查科创平台是否已启动（%s:%s）", self.server_ip, self.server_port)
             self.connected = False
         except Exception as e:
             logger.error("[BCI] 连接失败: %s", e)
             self.connected = False
- 
+
         return False
 
     def disconnect(self):
-        """断开BCI连接"""
+        """断开 BCI 连接"""
         if self.socket:
+            try:
+                self._send({"msg": "ipc_algorithm_stop_test"})
+            except Exception:
+                pass
             try:
                 self.socket.close()
             except Exception:
@@ -115,125 +101,130 @@ class BCIDataReader:
         self.connected = False
         logger.info("[BCI] 已断开连接")
 
+    def _send(self, data: dict) -> None:
+        if not self.socket or not self.connected:
+            return
+        msg = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        packet = struct.pack(">I", len(msg)) + msg
+        self.socket.sendall(packet)
+
+    def _send_ready(self) -> None:
+        self._send({"type": "ready", "client": "crazy_milk_tea_cup"})
+        logger.info("[BCI] 已发送就绪消息")
+
+    def _start_gyroscope_algorithm(self) -> None:
+        data = {
+            "msg": "ipc_algorithm_start_test",
+            "algorithm_name": "gyroscope",
+            "algorithm_args": {
+                "left": 0,
+                "top": 0,
+                "width": SCREEN_WIDTH,
+                "height": SCREEN_HEIGHT,
+                "sensitivityX": 8,
+                "sensitivityY": 8,
+            },
+        }
+        self._send(data)
+        logger.info("[BCI] 已启动陀螺仪焦点算法（区域: %sx%s, 灵敏度: 8x8）", SCREEN_WIDTH, SCREEN_HEIGHT)
+
     def _recv_data(self):
-        """
-        接收TCP数据并解析JSON
- 
-        返回:
-            dict: 解析后的JSON数据，如果无数据或解析失败返回 None
-        """
+        """接收 TCP 数据并解析为单条 JSON 消息"""
         if not self.socket or not self.connected:
             return None
- 
+
         try:
-            data = self.socket.recv(4096)
+            data = self.socket.recv(16384)
             if not data:
-                # 连接被对端关闭
-                logger.warning("[BCI] 连接被平台关闭（收到空数据）")
+                logger.warning("[BCI] 连接被平台关闭")
                 self.connected = False
                 return None
             self.recv_buffer += data
-            logger.debug("[BCI] 收到 %d 字节数据，缓冲区共 %d 字节", len(data), len(self.recv_buffer))
         except BlockingIOError:
-            # 非阻塞模式下无数据可读，这是正常的
-            return None
-        except ConnectionResetError:
-            logger.error("[BCI] 连接被平台重置（ConnectionResetError）")
+            pass
+        except (ConnectionResetError, ConnectionAbortedError):
+            logger.error("[BCI] 连接被重置")
             self.connected = False
             return None
         except Exception as e:
-            logger.error("[BCI] 接收数据失败: %s", e)
+            logger.error("[BCI] 接收失败: %s", e)
             self.connected = False
             return None
- 
+
         while len(self.recv_buffer) >= 4:
             payload_len = struct.unpack(">I", self.recv_buffer[:4])[0]
             total_len = 4 + payload_len
- 
             if len(self.recv_buffer) < total_len:
                 break
- 
+
             payload = self.recv_buffer[4:total_len]
             self.recv_buffer = self.recv_buffer[total_len:]
- 
+
             try:
-                msg = json.loads(payload.decode("utf-8"))
-                self.last_update_time = time.time()
-                logger.debug("[BCI] 解析到消息: %s", msg.get("msg", "unknown"))
-                return msg
+                return json.loads(payload.decode("utf-8"))
             except json.JSONDecodeError:
-                logger.warning("[BCI] JSON解析失败，跳过 %d 字节", payload_len)
                 continue
- 
+
         return None
 
     def read_data(self, verbose=False):
         """
-        读取脑电数据
-
-        参数:
-            verbose: 是否打印数据到终端，默认 False
-
-        返回:
-            (attention, yaw) 元组，如果设备未连接则返回 (None, None)
-                attention: 专注力值（0-100）
-                yaw: 头动偏航角（-30 ~ 30）
+        读取脑电数据，返回 (attention, focus_x, focus_y, gyro_x, gyro_y, gyro_z)
+        每帧处理缓冲区中所有消息，只保留最新值，消除延迟
         """
         if not self.connected:
-            return None, None
+            return None, None, None, None, None, None
 
-        msg = self._recv_data()
-        if msg is None:
-            current_time = time.time()
-            if current_time - self.last_update_time > self.timeout:
-                self.connected = False
-                logger.warning("[BCI] 数据超时，连接可能已断开")
-            return self.attention, self.yaw
+        msg_count = 0
+        while True:
+            msg = self._recv_data()
+            if msg is None:
+                break
+            msg_count += 1
+            try:
+                msg_type = msg.get("msg", "")
 
-        try:
-            msg_type = msg.get("msg", "")
+                if msg_type == "ipc_algorithm_test":
+                    algorithm_name = msg.get("algorithm_name", "")
+                    result_args = msg.get("result_args", {})
+                    data_content = result_args.get("data", None)
 
-            if msg_type == "ipc_algorithm_test":
-                algorithm_name = msg.get("algorithm_name", "")
-                result_args = msg.get("result_args", {})
-                data_content = result_args.get("data", None)
-
-                if algorithm_name == "attention" and data_content is not None:
-                    self.attention = int(data_content)
-                    self.last_update_time = time.time()
-                    if (
-                        verbose
-                        and time.time() - self.last_print_time >= self.print_interval
-                    ):
-                        logger.debug("[BCI] 专注力: %s", self.attention)
-                        self.last_print_time = time.time()
-
-                elif algorithm_name == "gyroscope" and data_content is not None:
-                    if isinstance(data_content, dict):
-                        self.yaw = float(data_content.get("gyroscope_x", 0.0))
+                    if algorithm_name == "attention" and data_content is not None:
+                        self.attention = int(data_content)
+                        self._record_attention(self.attention)
                         self.last_update_time = time.time()
-                    if (
-                        verbose
-                        and time.time() - self.last_print_time >= self.print_interval
-                    ):
-                        logger.debug("[BCI] Yaw: %.2f", self.yaw)
-                        self.last_print_time = time.time()
 
-                elif algorithm_name == "blink":
-                    if verbose:
-                        logger.debug("[BCI] 眨眼: %s", data_content)
+                    elif algorithm_name == "gyroscope" and data_content is not None:
+                        if isinstance(data_content, dict):
+                            self.last_update_time = time.time()
 
-        except Exception as e:
-            logger.error("[BCI] 解析数据失败: %s", e)
-            return None, None
+                            fx = data_content.get("focus_x")
+                            fy = data_content.get("focus_y")
+                            if fx is not None:
+                                self.focus_x = float(fx)
+                            if fy is not None:
+                                self.focus_y = float(fy)
 
-        return self.attention, self.yaw
+                            self.raw_gyro_x = float(data_content.get("gyroscope_x", 0.0))
+                            self.raw_gyro_y = float(data_content.get("gyroscope_y", 0.0))
+                            self.raw_gyro_z = float(data_content.get("gyroscope_z", 0.0))
+
+            except Exception as e:
+                logger.error("[BCI] 解析数据失败: %s", e)
+
+        if msg_count == 0 and time.time() - self.last_update_time > self.timeout:
+            self.connected = False
+            logger.warning("[BCI] 数据超时，连接已断开")
+
+        return (
+            self.attention,
+            self.focus_x,
+            self.focus_y,
+            self.raw_gyro_x,
+            self.raw_gyro_y,
+            self.raw_gyro_z,
+        )
 
     def read_with_timeout(self):
-        """
-        带超时的数据读取
-
-        返回:
-            (attention, yaw) 元组，如果设备未连接或超时则返回 (None, None)
-        """
+        """带超时的数据读取"""
         return self.read_data(verbose=True)

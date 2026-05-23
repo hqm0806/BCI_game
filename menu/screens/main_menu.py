@@ -15,25 +15,46 @@ from config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
-from menu.bci_button import BCIModeButton
-from menu.components import Badge, MenuItem
+from game.font_utils import load_chinese_font
+from menu.bci_button import GlowButton
+from menu.components import Badge
+from menu.history import HistoryScreen
 from menu.mode_selector import ModeSelector
 from menu.particles import FloatingItem, SteamParticle
 from menu.screens.game_settings import GameSettingsScreen
 
 
 class MainMenu:
-    def __init__(self, screen: pygame.Surface, font: pygame.font.Font, title_font: pygame.font.Font) -> None:
+    def __init__(
+        self,
+        screen: pygame.Surface,
+        font: pygame.font.Font,
+        title_font: pygame.font.Font,
+        player_level: int = 1,
+        history_games: list | None = None,
+    ) -> None:
         self.screen = screen
         self.font = font
         self.title_font = title_font
+        self.big_title_font = load_chinese_font(64)
         self.clock = pygame.time.Clock()
         self.running = True
         self.result = None
         self.current_mode = "regular"
+        self._use_bci = False
+        self._history_games = history_games or []
 
         self.bg = self._load_bg()
-        self.badge = Badge(BADGE_IMGS, SCREEN_WIDTH - 85, 12, size=(80, 80))
+        self.badge = Badge(
+            BADGE_IMGS,
+            40,
+            10,
+            size=(100, 100),
+            level_text=f"Lv.{player_level}",
+            font=load_chinese_font(28),
+            text_color=(30, 30, 30),
+        )
+        self.badge.set_level(player_level - 1)
         self.floating_items = [
             FloatingItem(SCREEN_WIDTH, SCREEN_HEIGHT, c)
             for c in list(INGREDIENT_COLORS.values()) + [(255, 180, 100)] * 3
@@ -44,45 +65,59 @@ class MainMenu:
         # ==========================================
         # 按键布局参数
         # ==========================================
-        cx = SCREEN_WIDTH // 2 - 400  # 按钮组水平中心：往左偏 100 像素
-        cy = SCREEN_HEIGHT // 4  # 屏幕垂直中心
-        btn_spacing = 95  # 按钮垂直间距（像素），数值越大按钮间距越大
-        start_y = cy + 50  # 按钮 1 坐标：往上偏，数值越大整体越靠下
+        cx = SCREEN_WIDTH // 2  # 按钮组水平中心：屏幕正中央
+        cy = SCREEN_HEIGHT // 2  # 屏幕垂直中心
+        btn_spacing = 105  # 按钮垂直间距（像素），数值越大按钮间距越大
+        start_y = cy - 100  # 按钮 1 坐标：从中心往上偏移，让整体按钮组居中（已下调）
         # ==========================================
 
-        self.start_btn = MenuItem(
+        self.start_btn = GlowButton(
             "开始游戏",
             cx,
-            start_y,  # 按钮 1 位置
+            start_y,
             title_font,
-            (255, 140, 50),
-            (255, 170, 80),
-            (255, 255, 255),
+            title_font,
+            glow_color=(255, 160, 90),
+            bg_color=(60, 30, 15),
+            hover_color=(100, 50, 25),
+            text_color=(255, 255, 255),
         )
 
         self.mode_selector = ModeSelector(
             cx,
-            start_y + btn_spacing,  # 按钮 2 位置（按钮 1 下方 + 间距）
+            start_y + btn_spacing,
             font,
             title_font,
             mode_keys=["regular", "challenge", "creative"],
         )
 
-        self.bci_btn = BCIModeButton("脑机接口", cx, start_y + btn_spacing * 2, font, title_font)  # 按钮 3 位置
+        self.bci_btn = GlowButton(
+            "脑机接口",
+            cx,
+            start_y + btn_spacing * 2,
+            font,
+            title_font,
+            glow_color=(220, 150, 100),
+            bg_color=(50, 25, 12),
+            hover_color=(85, 40, 20),
+            text_color=(255, 255, 255),
+        )
 
-        self.settings_btn = MenuItem(
+        self.settings_btn = GlowButton(
             "游戏设置",
             cx,
-            start_y + btn_spacing * 3,  # 按钮 4 位置（按钮 1 下方 + 3倍间距）
+            start_y + btn_spacing * 3,
             title_font,
-            (60, 140, 80),
-            (90, 170, 110),
-            (255, 255, 255),
+            title_font,
+            glow_color=(255, 190, 110),
+            bg_color=(70, 35, 15),
+            hover_color=(115, 55, 25),
+            text_color=(255, 255, 255),
         )
 
         self.btn_cx = cx  # 保存按钮组水平中心，用于标题对齐
 
-        self.title_y = start_y - 150  # 标题 Y 坐标：固定在第一个按钮上方 xx 像素处
+        self.title_y = start_y - 175
         self.title_phase = 0.0
 
     def _load_bg(self) -> pygame.Surface | None:
@@ -90,7 +125,7 @@ class MainMenu:
         加载背景图片
         :return: 背景图片
         """
-        path = os.path.join(IMAGES_DIR, "backgrounds", "菜单页.jpg")
+        path = os.path.join(IMAGES_DIR, "backgrounds", "吧台.png")
         if os.path.exists(path):
             img = pygame.image.load(path).convert()
             return pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -118,10 +153,10 @@ class MainMenu:
                     elif event.key == pygame.K_3:
                         self.settings_btn.trigger_click()
                         self.result = "settings"
-                        click_frames = 15  # 等粒子播完再打开设置页
+                        click_frames = 15
                 else:
                     if self.badge.handle_event(event):
-                        pass
+                        HistoryScreen(self.screen, self._history_games).run()
                     if self.start_btn.handle_event(event):
                         self.result = "start"
                         click_frames = 15
@@ -130,7 +165,8 @@ class MainMenu:
                         self.current_mode = mode
                     if self.bci_btn.handle_event(event):
                         self.result = "start"
-                        self.current_mode = "bci"
+                        self.current_mode = "regular"
+                        self._use_bci = True
                         click_frames = 15
                     if self.settings_btn.handle_event(event):
                         self.settings_btn.trigger_click()
@@ -152,7 +188,7 @@ class MainMenu:
                     else:
                         self.running = False
 
-        return self.result, self.current_mode
+        return self.result, self.current_mode, self._use_bci
 
     def _update(self, dt: float) -> None:
         self.badge.update(dt)
@@ -198,14 +234,19 @@ class MainMenu:
             item.draw(self.screen)
 
         title_offset = math.sin(self.title_phase) * 8
-        title_surf = self.title_font.render("疯狂奶茶杯", True, (255, 220, 150))
-        title_shadow = self.title_font.render("疯狂奶茶杯", True, (80, 40, 10))
+        title_chars = list("疯狂奶茶杯")
+        char_spacing = 15
+        char_surfs = [self.big_title_font.render(c, True, (255, 220, 150)) for c in title_chars]
+        char_shadows = [self.big_title_font.render(c, True, (80, 40, 10)) for c in title_chars]
+        total_w = sum(s.get_width() for s in char_surfs) + char_spacing * (len(char_surfs) - 1)
 
-        tw = title_surf.get_width()
-        tx = self.btn_cx - tw // 2  # 标题水平对齐到按钮组
+        tx = self.btn_cx - total_w // 2
         ty = self.title_y + title_offset - 3
-        self.screen.blit(title_shadow, (tx + 3, ty + 3))
-        self.screen.blit(title_surf, (tx, ty))
+        cx = tx
+        for surf, shadow in zip(char_surfs, char_shadows):
+            self.screen.blit(shadow, (cx + 3, ty + 3))
+            self.screen.blit(surf, (cx, ty))
+            cx += surf.get_width() + char_spacing
 
         sub_surf = self.font.render("接住食材 · 制作属于你的美味奶茶", True, (220, 200, 170))
         sw = sub_surf.get_width()

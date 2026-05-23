@@ -13,8 +13,10 @@ class GameState(Enum):
     """游戏状态枚举"""
 
     SPLASH = auto()
+    LOGIN = auto()
     MENU = auto()
     SETTINGS = auto()
+    CALIBRATION = auto()
     TRANSITION = auto()
     GAME = auto()
     QUIT = auto()

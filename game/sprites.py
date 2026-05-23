@@ -12,12 +12,12 @@ from typing import Any
 import pygame
 
 from config import (
+    BROWN,
     CUP_COLOR,
     CUP_HEIGHT,
-    CUP_LEVEL_IMGS,
+    CUP_IMGS,
     CUP_SPEED,
     CUP_WIDTH,
-    DEAD_ZONE,
     INGREDIENT_COLORS,
     INGREDIENT_IMGS,
     INGREDIENT_SIZE,
@@ -26,10 +26,6 @@ from config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     WHITE,
-    YAW_SCALE,
-    YAW_MAPPING_MODE,
-    YAW_MIN,
-    YAW_MAX,
 )
 
 
@@ -48,7 +44,7 @@ class Cup(pygame.sprite.Sprite):
         self._current_level = 0
 
         # 加载所有等级的杯子图片
-        for path in CUP_LEVEL_IMGS:
+        for path in CUP_IMGS:
             try:
                 img = pygame.image.load(path).convert_alpha()
                 img = pygame.transform.scale(img, (CUP_WIDTH, CUP_HEIGHT))
@@ -79,11 +75,10 @@ class Cup(pygame.sprite.Sprite):
         self._bounce_t = -1.0  # 弹跳进度 (0~1)，-1 表示无弹跳动画
         self._bounce_dur = 0.2  # 弹跳持续时间（秒），值越小弹跳越快
 
-    def update_level(self, score: int) -> None:
-        """根据分数切换杯子等级图片"""
-        if score >= 100:
+    def update_level(self, catch_count: int) -> None:
+        if catch_count >= 3:
             new_level = 2
-        elif score >= 50:
+        elif catch_count >= 1:
             new_level = 1
         else:
             new_level = 0
@@ -102,28 +97,12 @@ class Cup(pygame.sprite.Sprite):
 
         参数:
             keys: 按键状态字典（pygame.key.get_pressed() 返回值），键盘控制时使用
-            yaw: 头动偏航角（浮点数），头动控制时使用
+            yaw: 头动偏航角（浮点数），头动控制时使用（已弃用，杯子位置由session控制）
             dt: 帧间隔时间（秒），用于动画计算
         """
-        move_dir = 0  # 移动方向：-1 左，0 停，1 右
+        move_dir = 0
 
-        if self.yaw_control and yaw is not None:
-            # 头动控制模式
-            if abs(yaw) > DEAD_ZONE:  # DEAD_ZONE，死区阈值，防抖动
-                if YAW_MAPPING_MODE == "absolute":
-                    # 绝对位置映射：将yaw [YAW_MIN, YAW_MAX] 映射到屏幕 [0, SCREEN_WIDTH-CUP_WIDTH]
-                    normalized = (yaw - YAW_MIN) / (YAW_MAX - YAW_MIN)  # 归一化到 [0, 1]
-                    normalized = max(0.0, min(1.0, normalized))  # 限制在 [0, 1]
-                    target_x = int(normalized * (SCREEN_WIDTH - CUP_WIDTH))
-                    self.rect.x = target_x
-                    print(f"[DEBUG] yaw={yaw:.2f}, normalized={normalized:.3f}, cup.x={self.rect.x}")
-                else:
-                    # 相对位移模式（原始方式）
-                    self.rect.x += yaw * YAW_SCALE
-                    print(f"[DEBUG] yaw={yaw:.2f}, delta_x={yaw * YAW_SCALE:.2f}, cup.x={self.rect.x}")
-                move_dir = -1 if yaw < 0 else 1
-        elif keys:
-            # 键盘控制模式
+        if keys:
             if keys[pygame.K_LEFT]:
                 self.rect.x -= self.speed
                 move_dir = -1
@@ -131,25 +110,21 @@ class Cup(pygame.sprite.Sprite):
                 self.rect.x += self.speed
                 move_dir = 1
 
-        # 限制杯子不超出屏幕左右边界
         self.rect.left = max(0, self.rect.left)
         self.rect.right = min(SCREEN_WIDTH, self.rect.right)
 
-        # 更新倾斜：目标角度 ±12°（5.0 为最大倾斜角度），0.2 为平滑过渡系数
         target_tilt = move_dir * 12.0
         self._tilt += (target_tilt - self._tilt) * 0.2
 
-        # 更新弹跳动画
         if self._bounce_t >= 0:
             self._bounce_t += dt / self._bounce_dur
             if self._bounce_t >= 1.0:
                 self._bounce_t = -1.0
 
-        # 应用变换（旋转 + 缩放）
         scale = 1.0
         if self._bounce_t >= 0:
             bounce_phase = math.sin(self._bounce_t * math.pi)
-            scale = 1.0 + 0.1 * bounce_phase  # 0.1 为最大缩放幅度（10%）
+            scale = 1.0 + 0.1 * bounce_phase
 
         rotated = pygame.transform.rotozoom(self._orig_image, -self._tilt, scale)
         new_rect = rotated.get_rect(center=(self.rect.centerx, self.rect.centery))
@@ -282,55 +257,86 @@ class Ingredient(pygame.sprite.Sprite):
     食材精灵（从天而降的奶茶配料）
 
     参数:
-        ing_type: 食材类型字符串，如 "红茶"、"珍珠" 等
+        ing_type: 食材类型字符串，如 "红茶"、"珍珠"、"秘方" 等
         is_required: 是否为必接食材
+        speed: 自定义下落速度，None 则使用全局默认速度
         groups: pygame 精灵组
     """
 
-    def __init__(self, ing_type: str, is_required: bool = False, *groups: Any) -> None:
+    def __init__(
+        self,
+        ing_type: str,
+        is_required: bool = False,
+        speed: float = -1.0,
+        *groups: Any,
+    ) -> None:
         super().__init__(*groups)
         self.type = ing_type
         self.is_required = is_required
-        # 尝试加载食材图片，失败则用默认圆形
+        self._is_secret = ing_type == "秘方"
+
+        size = INGREDIENT_SIZE + 10 if self._is_secret else INGREDIENT_SIZE
+
         try:
             img_path = INGREDIENT_IMGS.get(ing_type)
             if img_path:
                 self.image = pygame.image.load(img_path).convert_alpha()
-                self.image = pygame.transform.scale(
-                    self.image,
-                    (
-                        INGREDIENT_SIZE,
-                        INGREDIENT_SIZE,
-                    ),  # INGREDIENT_SIZE=40 控制食材大小
-                )
+                self.image = pygame.transform.scale(self.image, (size, size))
             else:
                 raise FileNotFoundError
         except (pygame.error, FileNotFoundError, OSError):
-            # 使用默认圆形
-            self.image = pygame.Surface((INGREDIENT_SIZE, INGREDIENT_SIZE), pygame.SRCALPHA)
+            self.image = pygame.Surface((size, size), pygame.SRCALPHA)
             color = INGREDIENT_COLORS.get(ing_type, RED)
-            pygame.draw.circle(
-                self.image,
-                color,
-                (INGREDIENT_SIZE // 2, INGREDIENT_SIZE // 2),
-                INGREDIENT_SIZE // 2,
-            )
+            pygame.draw.circle(self.image, color, (size // 2, size // 2), size // 2)
+
         self.rect = self.image.get_rect()
-        self.rect.x = random.randint(0, SCREEN_WIDTH - INGREDIENT_SIZE)
-        self.rect.y = -INGREDIENT_SIZE
-        self.speed = INGREDIENT_SPEED
+        if self._is_secret:
+            self.rect.x = random.randint(100, SCREEN_WIDTH - size - 100)
+        else:
+            self.rect.x = random.randint(0, SCREEN_WIDTH - size)
+        self.rect.y = -size
+        self.speed: float = speed if speed >= 0 else INGREDIENT_SPEED
         self._float_t = random.uniform(0, 6.28)
         self._base_centerx = self.rect.centerx
         self._orig_image = self.image.copy()
 
+        self._glow_phase = 0.0
+        self._particle_group: pygame.sprite.Group | None = None
+        self._particle_timer = 0.0
+
+    def set_particle_group(self, group: pygame.sprite.Group) -> None:
+        self._particle_group = group
+
     def update(self) -> None:
         self._float_t += 0.05
-        self.rect.y += self.speed
-        self.rect.centerx = int(self._base_centerx + math.sin(self._float_t) * 5)
+        self.rect.y += int(self.speed)
 
-        angle = math.cos(self._float_t) * 8
-        self.image = pygame.transform.rotate(self._orig_image, angle)
-        self.rect = self.image.get_rect(center=self.rect.center)
+        if self._is_secret:
+            self._glow_phase += 0.08
+            glow = int(128 + 127 * math.sin(self._glow_phase))
+            self._orig_image.set_alpha(glow)
+
+            if self._particle_group is not None:
+                self._particle_timer += 1
+                if self._particle_timer % 2 == 0:
+                    for _ in range(2):
+                        angle = random.uniform(0, 2 * math.pi)
+                        dist = random.uniform(15, 30)
+                        px = self.rect.centerx + math.cos(angle) * dist
+                        py = self.rect.centery + math.sin(angle) * dist
+                        p = Particle(int(px), int(py), (255, 215, 0))
+                        p.vx = math.cos(angle) * random.uniform(0.3, 1.0)
+                        p.vy = math.sin(angle) * random.uniform(0.3, 1.0)
+                        p.decay = 3.0
+                        self._particle_group.add(p)
+        else:
+            self.rect.centerx = int(self._base_centerx + math.sin(self._float_t) * 5)
+            angle = math.cos(self._float_t) * 8
+            self.image = pygame.transform.rotate(self._orig_image, angle)
+            self.rect = self.image.get_rect(center=self.rect.center)
+
+        if not self._is_secret:
+            self.rect = self.image.get_rect(center=self.rect.center)
 
         if self.rect.top > SCREEN_HEIGHT:
             self.kill()

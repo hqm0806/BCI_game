@@ -10,14 +10,17 @@ import sys
 
 import pygame
 
-from config import IMAGES_DIR, SCREEN_HEIGHT, SCREEN_WIDTH
+from bci.data_reader import BCIDataReader
+from config import IMAGES_DIR
 from core.audio_manager import AudioManager
 from core.state_machine import GameEvent, GameState, State, StateMachine
+from data.player_profile import PlayerProfile
 from game.font_utils import load_chinese_font
 from game.session import run_game
 from menu import GameSettingsScreen, MainMenu
+from menu.calibration import CalibrationScreen
+from menu.login import LoginScreen
 from menu.splash import SplashScreen
-from menu.transition import StartTransition
 from utils.logging_config import get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -33,6 +36,29 @@ class SplashState(State):
 
     def enter(self) -> GameState | None:
         self.splash.run()
+        return GameState.LOGIN
+
+    def handle_event(self, event: GameEvent) -> GameState | None:
+        return None
+
+    def update(self) -> None:
+        pass
+
+
+class LoginState(State):
+    """登录状态"""
+
+    def __init__(self, screen: pygame.Surface, context: dict) -> None:
+        self.screen = screen
+        self._context = context
+
+    def enter(self) -> GameState | None:
+        login = LoginScreen(self.screen)
+        username = login.run()
+        if username is None or username == "quit":
+            return GameState.QUIT
+        self._context["username"] = username
+        self._context["profile"] = PlayerProfile.load_for_user(username)
         return GameState.MENU
 
     def handle_event(self, event: GameEvent) -> GameState | None:
@@ -55,17 +81,23 @@ class MenuState(State):
     def enter(self) -> GameState | None:
         self._audio.play_bgm("玻璃糖果园.wav", volume=0.5)
 
-        menu = MainMenu(self.screen, self.font, self.title_font)
-        result, mode = menu.run()
+        profile = self._context.get("profile")
+        player_level = profile.level if profile else 1
+        history_games = profile.games_history if profile else []
+        menu = MainMenu(self.screen, self.font, self.title_font, player_level, history_games)
+        result, mode, use_bci = menu.run()
         result = result or "quit"
         mode = mode or "regular"
         self._context["game_mode"] = mode
+        self._context["use_bci"] = use_bci
 
         if result == "quit":
             return GameState.QUIT
         if result == "settings":
             return GameState.SETTINGS
         if result == "start":
+            if self._context.get("use_bci"):
+                return GameState.CALIBRATION
             return GameState.TRANSITION
         return None
 
@@ -109,6 +141,39 @@ class SettingsState(State):
         pass
 
 
+class CalibrationState(State):
+    """BCI 专注力校准状态"""
+
+    def __init__(self, screen: pygame.Surface, context: dict, audio: AudioManager) -> None:
+        self.screen = screen
+        self._context = context
+        self._audio = audio
+
+    def enter(self) -> GameState | None:
+        bci_reader = BCIDataReader()
+        if not bci_reader.connect():
+            bci_reader = None
+
+        if bci_reader is not None:
+            cal = CalibrationScreen(self.screen, bci_reader)
+            result = cal.run()
+            if result is not None:
+                self._context["calibration"] = result
+            else:
+                self._context["calibration"] = {"baseline": 40.0, "norm_min": 0.0, "norm_max": 100.0}
+            bci_reader.disconnect()
+
+        self._audio.play_bgm("晨光木盒.wav", volume=0.5)
+        SplashScreen(self.screen, load_chinese_font(110)).run()
+        return GameState.GAME
+
+    def handle_event(self, event: GameEvent) -> GameState | None:
+        return None
+
+    def update(self) -> None:
+        pass
+
+
 class TransitionState(State):
     """过场动画状态"""
 
@@ -118,7 +183,7 @@ class TransitionState(State):
 
     def enter(self) -> GameState | None:
         self._audio.play_bgm("晨光木盒.wav", volume=0.5)
-        StartTransition(self.screen).run()
+        SplashScreen(self.screen, load_chinese_font(110)).run()
         return GameState.GAME
 
     def handle_event(self, event: GameEvent) -> GameState | None:
@@ -138,7 +203,11 @@ class GameStateImpl(State):
 
     def enter(self) -> GameState | None:
         mode = self._context.get("game_mode", "regular")
-        game_result = run_game(self.screen, self.clock, game_mode=mode)
+        calib = self._context.get("calibration", None)
+        profile = self._context.get("profile")
+        game_result = run_game(self.screen, self.clock, game_mode=mode, calibration=calib, profile=profile)
+        if profile:
+            profile.save()
         if game_result == "quit":
             return GameState.QUIT
         return GameState.MENU
@@ -156,8 +225,8 @@ def main() -> None:
     logger.info("游戏启动")
 
     pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("疯狂奶茶杯 ")
+    screen = pygame.display.set_mode((1280, 720), pygame.SCALED | pygame.RESIZABLE)
+    pygame.display.set_caption("疯狂奶茶杯")
     icon_path = os.path.join(IMAGES_DIR, "other", "游戏图标.png")
     if os.path.exists(icon_path):
         pygame.display.set_icon(pygame.image.load(icon_path))
@@ -169,8 +238,10 @@ def main() -> None:
 
     sm = StateMachine()
     sm.register(GameState.SPLASH, SplashState(screen, load_chinese_font(110)))
+    sm.register(GameState.LOGIN, LoginState(screen, context))
     sm.register(GameState.MENU, MenuState(screen, context, audio))
     sm.register(GameState.SETTINGS, SettingsState(screen))
+    sm.register(GameState.CALIBRATION, CalibrationState(screen, context, audio))
     sm.register(GameState.TRANSITION, TransitionState(screen, audio))
     sm.register(GameState.GAME, GameStateImpl(screen, clock, context))
     sm.register(GameState.QUIT, QuitState())

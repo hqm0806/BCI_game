@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import time as time_module
+from collections import deque
 from typing import Any
 
 import pygame
@@ -22,6 +23,8 @@ from config import (
     CUP_WIDTH,
     DEFAULT_GAME_MODE,
     FOCUS_TEAPOT_IMG,
+    FORMAL_SPEED_MAX,
+    FORMAL_SPEED_MIN,
     GAME_MODES,
     INGREDIENT_COLORS,
     SCREEN_HEIGHT,
@@ -30,6 +33,13 @@ from config import (
     SECRET_RECIPE_SUSTAIN,
     TOP_BAR_IMG,
     TOTAL_CUPS,
+    WARMUP_DURATION,
+    WARMUP_FREEZE_TIME,
+    WARMUP_LOW_THRESHOLD,
+    WARMUP_RESUME_TIME,
+    WARMUP_SMOOTH_WINDOW,
+    WARMUP_SPEED_MAX,
+    WARMUP_SPEED_MIN,
 )
 from data.recipes import evaluate_recipe
 from data.score_manager import ScoreManager
@@ -101,6 +111,17 @@ class GameSession:
 
     focus_min: int
     focus_max: int
+
+    phase: str  # "warmup" | "formal"
+    warmup_start_time: float
+    warmup_elapsed: float
+    warmup_paused: bool
+    warmup_low_timer: float
+    warmup_high_timer: float
+    warmup_attn_buffer: deque
+    warmup_all_attn: list[float]
+    normalization_lower: float
+    normalization_upper: float
 
     def __init__(
         self,
@@ -246,16 +267,29 @@ class GameSession:
             self.use_yaw_control = False
             self.cup.yaw_control = False
 
-        self.cup_manager.start_new_cup()
         self._current_tier = self._profile.level if self._profile else 1
 
         calib_baseline = self._calibration.get("baseline", 40.0)
         self.attention_speed_curve.set_baseline(calib_baseline)
 
+        # 热身阶段状态初始化
+        self.phase = "warmup"
+        self.warmup_start_time = time_module.time()
+        self.warmup_elapsed = 0.0
+        self.warmup_paused = False
+        self.warmup_low_timer = 0.0
+        self.warmup_high_timer = 0.0
+        self.warmup_attn_buffer = deque(maxlen=int(WARMUP_SMOOTH_WINDOW * 60))
+        self.warmup_all_attn = []
+        self.normalization_lower = 0.0
+        self.normalization_upper = 100.0
+
     def _print_mode_rules(self) -> None:
         logger.info("=" * 50)
         logger.info("疯狂奶茶杯 - %s（一杯制）", self.mode_name)
         logger.info("=" * 50)
+        logger.info("热身阶段 %s 秒，收集注意力数据用于归一化", WARMUP_DURATION)
+        logger.info("  热身结束后自动进入正式游戏")
         if self.bci_mode:
             logger.info("脑机接口模式规则：")
             logger.info("  共 %s 杯，每杯最多 %s 秒", self._mode_total_cups, CUP_DURATION)
@@ -287,6 +321,160 @@ class GameSession:
         mode_text = self.font.render(f"{self.mode_name}", True, (100, 50, 150))
         self.screen.blit(mode_text, (10, 10))
         pygame.display.flip()
+
+    def _update_warmup_timer(self, dt_sec: float) -> None:
+        self.warmup_elapsed += dt_sec
+        if self.warmup_elapsed >= WARMUP_DURATION:
+            self._transition_to_formal()
+
+    def _get_warmup_smoothed_attn(self) -> float:
+        if not self.warmup_attn_buffer:
+            return 50.0
+        return sum(self.warmup_attn_buffer) / len(self.warmup_attn_buffer)
+
+    def _update_warmup_speed(self) -> None:
+        smoothed = self._get_warmup_smoothed_attn()
+        if smoothed < WARMUP_LOW_THRESHOLD:
+            speed = WARMUP_SPEED_MAX
+        elif smoothed < 47:
+            speed = WARMUP_SPEED_MAX
+        elif smoothed < 73:
+            speed = (WARMUP_SPEED_MAX + WARMUP_SPEED_MIN) / 2.0
+        else:
+            speed = WARMUP_SPEED_MIN
+
+        self.ingredient_manager.set_current_speed(speed)
+        for ing in self.ingredients:
+            ing.speed = speed
+
+        speed_ratio = speed / self.mode_speed if self.mode_speed > 0 else 1.0
+        adjusted = self.spawn_interval * (0.7 + 0.6 * speed_ratio)
+        self.ingredient_manager.set_spawn_interval(max(0.3, min(3.0, adjusted)))
+
+    def _check_warmup_freeze(self, dt_sec: float) -> None:
+        if self.attention is None:
+            return
+
+        if self.attention <= WARMUP_LOW_THRESHOLD:
+            self.warmup_low_timer += dt_sec
+            self.warmup_high_timer = 0.0
+        elif self.attention > WARMUP_LOW_THRESHOLD:
+            self.warmup_high_timer += dt_sec
+            self.warmup_low_timer = 0.0
+
+        if not self.warmup_paused and self.warmup_low_timer >= WARMUP_FREEZE_TIME:
+            self.warmup_paused = True
+            self.warmup_low_timer = 0.0
+            self.warmup_high_timer = 0.0
+            logger.info("热身冻结：注意力连续 %.0f 秒低于 %d", WARMUP_FREEZE_TIME, WARMUP_LOW_THRESHOLD)
+        elif self.warmup_paused and self.warmup_high_timer >= WARMUP_RESUME_TIME:
+            self.warmup_paused = False
+            self.warmup_low_timer = 0.0
+            self.warmup_high_timer = 0.0
+            self.ingredient_manager.reset_spawn_timer()
+            logger.info("热身恢复：注意力连续 %.0f 秒高于 %d", WARMUP_RESUME_TIME, WARMUP_LOW_THRESHOLD)
+
+    def _transition_to_formal(self) -> None:
+        warmup_last_30s_frames = int(30 * 60)
+        last_30s = (
+            self.warmup_all_attn[-warmup_last_30s_frames:]
+            if len(self.warmup_all_attn) >= warmup_last_30s_frames
+            else self.warmup_all_attn
+        )
+        if last_30s:
+            max_attn = max(last_30s)
+            avg_attn = sum(last_30s) / len(last_30s)
+            self.normalization_lower = max(avg_attn - 10.0, 0.0)
+            self.normalization_upper = min(max_attn, 100.0)
+            if self.normalization_upper - self.normalization_lower < 10.0:
+                mid = (self.normalization_upper + self.normalization_lower) / 2.0
+                self.normalization_lower = max(mid - 5.0, 0.0)
+                self.normalization_upper = min(mid + 5.0, 100.0)
+        else:
+            self.normalization_lower = 30.0
+            self.normalization_upper = 70.0
+
+        logger.info(
+            "热身阶段结束！归一化范围: [%.1f, %.1f]（max=%.1f, avg=%.1f）",
+            self.normalization_lower,
+            self.normalization_upper,
+            max(last_30s) if last_30s else 0,
+            (sum(last_30s) / len(last_30s)) if last_30s else 0,
+        )
+
+        self.phase = "formal"
+        self.game_start_time = time_module.time()
+        self.ingredients.empty()
+        self.catch_effects.empty()
+        self.miss_effects.empty()
+        self.particles.empty()
+        self.focus_samples = []
+        self.cup_manager.start_new_cup()
+        self.ingredient_manager.reset_spawn_timer()
+
+    def _normalize_to_range(self, attention: float) -> float:
+        if self.normalization_upper - self.normalization_lower < 1.0:
+            return 50.0
+        normalized = (
+            (attention - self.normalization_lower)
+            / (self.normalization_upper - self.normalization_lower)
+            * 99.0
+            + 1.0
+        )
+        return max(1.0, min(100.0, normalized))
+
+    def _update_formal_speed(self) -> None:
+        if self.bci_available and self.attention is not None:
+            norm = self._normalize_to_range(self.attention)
+            speed = FORMAL_SPEED_MAX - (norm - 1.0) / 99.0 * (FORMAL_SPEED_MAX - FORMAL_SPEED_MIN)
+            self.ingredient_manager.set_current_speed(speed)
+            for ing in self.ingredients:
+                ing.speed = speed
+
+            speed_ratio = speed / self.mode_speed if self.mode_speed > 0 else 1.0
+            adjusted = self.spawn_interval * (0.7 + 0.6 * speed_ratio)
+            self.ingredient_manager.set_spawn_interval(max(0.3, min(3.0, adjusted)))
+        else:
+            self.ingredient_manager.set_current_speed(self.mode_speed)
+            self.ingredient_manager.set_spawn_interval(self.spawn_interval)
+
+    def _handle_collisions_warmup(self) -> None:
+        threshold_y = self.cup.rect.top + self.cup.rect.height * 0.8
+        hits = pygame.sprite.spritecollide(self.cup, self.ingredients, False)
+
+        for hit in hits:
+            if hit.rect.bottom > threshold_y:
+                hit.rect.bottom = int(threshold_y)
+                self.miss_effects.add(MissEffect(hit))
+                color = INGREDIENT_COLORS.get(hit.type, (200, 200, 200))
+                for _ in range(4):
+                    p = Particle(hit.rect.centerx, int(threshold_y), color)
+                    p.vx *= 0.4
+                    p.vy *= 0.4
+                    p.decay *= 1.5
+                    self.particles.add(p)
+                self.ingredients.remove(hit)
+            else:
+                self.ingredients.remove(hit)
+                effect = CatchEffect(hit, self.cup.rect)
+                self.catch_effects.add(effect)
+                for _ in range(8):
+                    color = INGREDIENT_COLORS.get(hit.type, (255, 200, 0))
+                    self.particles.add(Particle(hit.rect.centerx, hit.rect.centery, color))
+                self.cup.trigger_bounce()
+
+        for ing in self.ingredients.sprites():
+            if ing.rect.bottom > threshold_y:
+                ing.rect.bottom = int(threshold_y)
+                self.miss_effects.add(MissEffect(ing))
+                color = INGREDIENT_COLORS.get(ing.type, (200, 200, 200))
+                for _ in range(4):
+                    p = Particle(ing.rect.centerx, int(threshold_y), color)
+                    p.vx *= 0.4
+                    p.vy *= 0.4
+                    p.decay *= 1.5
+                    self.particles.add(p)
+                self.ingredients.remove(ing)
 
     def _update_pause_state(self, dt_sec: float) -> None:
         if self.attention is None:
@@ -324,21 +512,37 @@ class GameSession:
                 break
 
             self._update_bci_data()
-            self._update_cup(keys, dt_sec)
-            self._update_pause_state(dt_sec)
 
-            if not self._paused:
-                self._update_attention_variance()
-                self._update_ingredient_speed()
-                self._check_secret_recipe(dt_sec)
-                self._check_cup_end()
+            if self.phase == "warmup":
+                self._update_cup(keys, dt_sec)
 
-            if not self.running:
-                break
+                if self.attention is not None:
+                    self.warmup_attn_buffer.append(self.attention)
+                    self.warmup_all_attn.append(self.attention)
 
-            if not self._paused:
-                self._update_game_objects(dt_sec)
-                self._handle_collisions()
+                self._check_warmup_freeze(dt_sec)
+
+                if not self.warmup_paused:
+                    self._update_warmup_timer(dt_sec)
+                    self._update_warmup_speed()
+                    self._update_game_objects(dt_sec)
+                    self._handle_collisions_warmup()
+            else:
+                self._update_cup(keys, dt_sec)
+                self._update_pause_state(dt_sec)
+
+                if not self._paused:
+                    self._update_attention_variance()
+                    self._update_formal_speed()
+                    self._check_secret_recipe(dt_sec)
+                    self._check_cup_end()
+
+                if not self.running:
+                    break
+
+                if not self._paused:
+                    self._update_game_objects(dt_sec)
+                    self._handle_collisions()
 
             self._update_bci_data()
             if self.use_yaw_control:
@@ -542,6 +746,66 @@ class GameSession:
         self.miss_effects.draw(self.screen)
         self.particles.draw(self.screen)
 
+        if self.phase == "warmup":
+            self._render_warmup_hud()
+        else:
+            self._render_formal_hud()
+
+        pygame.display.flip()
+
+    def _render_warmup_hud(self) -> None:
+        if self._top_bar:
+            self.screen.blit(self._top_bar, (0, 0))
+            mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
+            mask.fill((0, 0, 0, 60))
+            self.screen.blit(mask, (0, 0))
+
+        remaining = max(0.0, WARMUP_DURATION - self.warmup_elapsed)
+        min_rem = int(remaining // 60)
+        sec_rem = int(remaining % 60)
+        timer_text = self.font.render(f"热身阶段 {min_rem:02d}:{sec_rem:02d}", True, (255, 255, 255))
+        self.screen.blit(
+            timer_text,
+            (SCREEN_WIDTH // 2 - timer_text.get_width() // 2, 12),
+        )
+
+        if self.focus_teapot and self.attention is not None:
+            self.focus_teapot.update(self.attention)
+            self.focus_teapot.draw(self.screen)
+
+        attn_display = self.attention if self.attention is not None else 0
+        attn_text = self.font.render(f"注意力: {int(attn_display)}", True, (255, 255, 255))
+        self.screen.blit(attn_text, (10, 235))
+
+        hint = self.hint_font.render(
+            "方向键: 左右移动 | ESC: 返回",
+            True,
+            (50, 50, 50),
+        )
+        self.screen.blit(hint, (10, SCREEN_HEIGHT - 40))
+
+        if self.warmup_paused:
+            freeze_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            freeze_overlay.fill((0, 0, 0, 180))
+            self.screen.blit(freeze_overlay, (0, 0))
+
+            freeze_text = self.pause_font.render("注意力过低，请调整状态", True, (255, 255, 255))
+            self.screen.blit(
+                freeze_text,
+                (SCREEN_WIDTH // 2 - freeze_text.get_width() // 2, SCREEN_HEIGHT // 2 - 60),
+            )
+            resume_remain = max(0.0, WARMUP_RESUME_TIME - self.warmup_high_timer)
+            sub_text = self.hint_font.render(
+                f"保持专注力 >{WARMUP_LOW_THRESHOLD} 持续 {resume_remain:.0f}s 恢复",
+                True,
+                (200, 200, 200),
+            )
+            self.screen.blit(
+                sub_text,
+                (SCREEN_WIDTH // 2 - sub_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20),
+            )
+
+    def _render_formal_hud(self) -> None:
         if self._top_bar:
             self.screen.blit(self._top_bar, (0, 0))
             mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
@@ -599,8 +863,6 @@ class GameSession:
                     sub_text,
                     (SCREEN_WIDTH // 2 - sub_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20),
                 )
-
-        pygame.display.flip()
 
     def _end_game(self) -> str:
         if self.show_summary:

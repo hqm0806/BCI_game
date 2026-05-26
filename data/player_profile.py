@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-LEVEL_THRESHOLDS = [0, 35, 100, 300]
+LEVEL_THRESHOLDS = [0, 80, 250, 600]
 PROFILES_DIR = "profiles"
 
 

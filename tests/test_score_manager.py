@@ -28,7 +28,7 @@ class TestScoreManager:
         sm.set_required_ingredient("红茶")
         sm.add_ingredient("红茶", is_required=True)
         assert sm.has_required is True
-        assert sm.money == 5
+        assert sm.money == 2
 
     def test_add_ingredient_before_required(self):
         sm = ScoreManager()
@@ -44,7 +44,7 @@ class TestScoreManager:
         sm.add_ingredient("红茶", is_required=True)
         sm.add_ingredient("珍珠", is_required=False)
         assert sm.has_required is True
-        assert sm.money == 8  # 红茶 5 + 珍珠 3
+        assert sm.money == 3  # 红茶 2 + 珍珠 1
 
     def test_finish_cup_without_required(self):
         sm = ScoreManager()
@@ -61,7 +61,7 @@ class TestScoreManager:
         sm.add_ingredient("红茶", is_required=True)
         sm.add_ingredient("珍珠", is_required=False)
         sm.finish_cup()
-        assert sm.money == 8
+        assert sm.money == 3
 
     def test_score_accumulation(self):
         sm = ScoreManager()
@@ -69,7 +69,7 @@ class TestScoreManager:
         sm.add_ingredient("红茶", is_required=True)
         sm.add_ingredient("牛奶", is_required=False)
         sm.add_ingredient("珍珠", is_required=False)
-        assert sm.score == 13  # 5 + 5 + 3
+        assert sm.score == 5  # 2 + 2 + 1
 
     def test_unknown_ingredient_default_points(self):
         sm = ScoreManager()

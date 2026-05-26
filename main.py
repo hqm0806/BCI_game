@@ -10,7 +10,6 @@ import sys
 
 import pygame
 
-from bci.data_reader import BCIDataReader
 from config import IMAGES_DIR
 from core.audio_manager import AudioManager
 from core.state_machine import GameEvent, GameState, State, StateMachine
@@ -18,7 +17,6 @@ from data.player_profile import PlayerProfile
 from game.font_utils import load_chinese_font
 from game.session import run_game
 from menu import GameSettingsScreen, MainMenu
-from menu.calibration import CalibrationScreen
 from menu.login import LoginScreen
 from menu.splash import SplashScreen
 from utils.logging_config import get_logger, setup_logging
@@ -96,8 +94,6 @@ class MenuState(State):
         if result == "settings":
             return GameState.SETTINGS
         if result == "start":
-            if self._context.get("use_bci"):
-                return GameState.CALIBRATION
             return GameState.TRANSITION
         return None
 
@@ -141,39 +137,6 @@ class SettingsState(State):
         pass
 
 
-class CalibrationState(State):
-    """BCI 专注力校准状态"""
-
-    def __init__(self, screen: pygame.Surface, context: dict, audio: AudioManager) -> None:
-        self.screen = screen
-        self._context = context
-        self._audio = audio
-
-    def enter(self) -> GameState | None:
-        bci_reader = BCIDataReader()
-        if not bci_reader.connect():
-            bci_reader = None
-
-        if bci_reader is not None:
-            cal = CalibrationScreen(self.screen, bci_reader)
-            result = cal.run()
-            if result is not None:
-                self._context["calibration"] = result
-            else:
-                self._context["calibration"] = {"baseline": 40.0, "norm_min": 0.0, "norm_max": 100.0}
-            bci_reader.disconnect()
-
-        self._audio.play_bgm("晨光木盒.wav", volume=0.5)
-        SplashScreen(self.screen, load_chinese_font(110)).run()
-        return GameState.GAME
-
-    def handle_event(self, event: GameEvent) -> GameState | None:
-        return None
-
-    def update(self) -> None:
-        pass
-
-
 class TransitionState(State):
     """过场动画状态"""
 
@@ -203,9 +166,8 @@ class GameStateImpl(State):
 
     def enter(self) -> GameState | None:
         mode = self._context.get("game_mode", "regular")
-        calib = self._context.get("calibration", None)
         profile = self._context.get("profile")
-        game_result = run_game(self.screen, self.clock, game_mode=mode, calibration=calib, profile=profile)
+        game_result = run_game(self.screen, self.clock, game_mode=mode, profile=profile)
         if profile:
             profile.save()
         if game_result == "quit":
@@ -241,7 +203,6 @@ def main() -> None:
     sm.register(GameState.LOGIN, LoginState(screen, context))
     sm.register(GameState.MENU, MenuState(screen, context, audio))
     sm.register(GameState.SETTINGS, SettingsState(screen))
-    sm.register(GameState.CALIBRATION, CalibrationState(screen, context, audio))
     sm.register(GameState.TRANSITION, TransitionState(screen, audio))
     sm.register(GameState.GAME, GameStateImpl(screen, clock, context))
     sm.register(GameState.QUIT, QuitState())

@@ -13,13 +13,10 @@ import pygame
 from bci.data_reader import BCIDataReader
 from bci.filter import (
     AttentionMappingCurve,
-    AttentionToSpeedCurve,
 )
 from config import (
     BACKGROUND_IMG,
     CUP_DURATION,
-    CUP_SPEED_MAX,
-    CUP_SPEED_MIN,
     CUP_WIDTH,
     DEFAULT_GAME_MODE,
     FOCUS_TEAPOT_IMG,
@@ -81,7 +78,6 @@ class GameSession:
     score_manager: ScoreManager
     ingredient_manager: IngredientManager
     cup_manager: CupManager
-    attention_speed_curve: AttentionToSpeedCurve
 
     bci_reader: BCIDataReader
     bci_available: bool
@@ -128,13 +124,11 @@ class GameSession:
         screen: pygame.Surface,
         clock: pygame.time.Clock,
         game_mode: str = "regular",
-        calibration: dict | None = None,
         profile=None,
     ) -> None:
         self.screen = screen
         self.clock = clock
         self.game_mode = game_mode
-        self._calibration = calibration or {}
         self._profile = profile
         self._upgrade_level = 0
 
@@ -193,19 +187,12 @@ class GameSession:
     def _init_bci(self) -> None:
         self.bci_reader = BCIDataReader()
         self.bci_available = False
-        use_bci = self.bci_mode or bool(self._calibration)
-        if use_bci:
+        if self.bci_mode:
             self.bci_available = self.bci_reader.connect()
 
         self.attention_curve = None
         if self.free_combine:
             self.attention_curve = AttentionMappingCurve()
-
-        self.attention_speed_curve = AttentionToSpeedCurve(
-            speed_min=CUP_SPEED_MIN,
-            speed_max=CUP_SPEED_MAX,
-            baseline=40.0,
-        )
 
     def _load_background(self) -> None:
         self.background = None
@@ -262,15 +249,12 @@ class GameSession:
         if teapot_img_path:
             self.focus_teapot = FocusTeapotUI(image_path=teapot_img_path, x=10, y=90, width=120, height=140)
 
-        if not self.bci_available and (self.bci_mode or self._calibration):
+        if not self.bci_available and self.bci_mode:
             logger.warning("BCI设备未连接，无法使用头动控制，将自动切换到键盘控制")
             self.use_yaw_control = False
             self.cup.yaw_control = False
 
         self._current_tier = self._profile.level if self._profile else 1
-
-        calib_baseline = self._calibration.get("baseline", 40.0)
-        self.attention_speed_curve.set_baseline(calib_baseline)
 
         # 热身阶段状态初始化
         self.phase = "warmup"
@@ -584,17 +568,10 @@ class GameSession:
         if self.attention is not None:
             self.focus_samples.append(self.attention)
 
-    def _normalize_attention(self, raw: float) -> float:
-        norm_min = self._calibration.get("norm_min", 0.0)
-        norm_max = self._calibration.get("norm_max", 100.0)
-        if norm_max - norm_min < 1:
-            return raw
-        return max(0.0, min(100.0, (raw - norm_min) / (norm_max - norm_min) * 100.0))
-
     def _update_attention_variance(self) -> None:
-        if self.attention is None or not self._calibration:
+        if self.attention is None:
             return
-        baseline = self._calibration.get("baseline", 40.0)
+        baseline = 40.0
         offset = self.attention - baseline
         self._attn_offsets.append(offset)
         if len(self._attn_offsets) > 60:
@@ -623,20 +600,6 @@ class GameSession:
         else:
             self.cup.update(keys=keys, dt=dt_sec)
 
-    def _update_ingredient_speed(self) -> None:
-        if self.bci_available and self.attention is not None:
-            speed = self.attention_speed_curve.get_speed(self.attention)
-            self.ingredient_manager.set_current_speed(speed)
-            for ing in self.ingredients:
-                ing.speed = speed
-
-            speed_ratio = speed / self.mode_speed if self.mode_speed > 0 else 1.0
-            adjusted = self.spawn_interval * (0.7 + 0.6 * speed_ratio)
-            self.ingredient_manager.set_spawn_interval(max(0.3, min(3.0, adjusted)))
-        else:
-            self.ingredient_manager.set_current_speed(self.mode_speed)
-            self.ingredient_manager.set_spawn_interval(self.spawn_interval)
-
     def _check_secret_recipe(self, dt_sec: float) -> None:
         if self.cup_manager.secret_recipe_spawned:
             return
@@ -644,8 +607,7 @@ class GameSession:
             return
 
         if self.bci_available and self.attention is not None:
-            calib_baseline = self._calibration.get("baseline", 40.0) if self._calibration else 40.0
-            threshold = min(88.0, calib_baseline + SECRET_RECIPE_OFFSET)
+            threshold = min(88.0, 40.0 + SECRET_RECIPE_OFFSET)
             if self.attention > threshold:
                 self.focus_above_seconds += dt_sec
             else:
@@ -840,7 +802,7 @@ class GameSession:
             rolling_attention=self.bci_reader.get_rolling_attention() if self.bci_available else 0.0,
             attn_variance=self._attn_variance,
             attn_mode=self._attn_mode,
-            attn_baseline=self._calibration.get("baseline", 40.0) if self._calibration else 40.0,
+            attn_baseline=40.0,
         )
 
         if self._blackout_alpha > 1:
@@ -915,10 +877,9 @@ def run_game(
     screen: pygame.Surface,
     clock: pygame.time.Clock,
     game_mode: str = "regular",
-    calibration: dict | None = None,
     profile=None,
 ) -> str:
-    session = GameSession(screen, clock, game_mode, calibration, profile)
+    session = GameSession(screen, clock, game_mode, profile)
     return session.run()
 
 

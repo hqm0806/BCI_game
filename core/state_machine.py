@@ -16,7 +16,6 @@ class GameState(Enum):
     LOGIN = auto()
     MENU = auto()
     SETTINGS = auto()
-    CALIBRATION = auto()
     TRANSITION = auto()
     GAME = auto()
     QUIT = auto()

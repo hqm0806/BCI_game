@@ -15,7 +15,6 @@ BCI_gane/
 ├── menu/                        # 菜单系统
 │   ├── login.py                 # 登录/注册界面
 │   ├── splash.py                # 启动动画
-│   ├── calibration.py           # BCI 专注力校准界面
 │   ├── summary.py               # 游戏结算界面（含专注力波形图）
 │   ├── components.py            # 基础组件（MenuItem, Badge, ClickParticle）
 │   ├── mode_selector.py         # 模式选择器（辉光粒子风格）
@@ -67,7 +66,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-启动 → 登录/注册 → 主菜单 → 选择模式 →（BCI 校准）→ 热身阶段 → 正式游戏 → 结算
+启动 → 登录/注册 → 主菜单 → 选择模式 → 热身阶段 → 正式游戏 → 结算
 
 ## 游戏控制
 
@@ -183,11 +182,10 @@ python main.py
 
 ### 连接流程
 
-1. 主菜单点击"脑机接口"按钮
-2. 进入校准界面（3 秒倒计时 → 30 秒记录专注力）
-3. 取最后 5 秒均值作为个人基线
-4. 校准可选跳过（基线默认 40）
-5. 游戏中使用头环控制奶茶杯 + 专注力影响食材
+1. 主菜单选择 BCI 模式并点"开始"
+2. 进入热身阶段（3 分钟），开始接收注意力数据
+3. 热身阶段使用头环控制奶茶杯 + 专注力影响食材速度
+4. 热身结束后自动进入正式游戏
 
 ### 协议
 
@@ -243,9 +241,6 @@ gyroscope 数据格式:
 | **一杯制** | | |
 | `CUP_DURATION` | 15 | 每杯时间（秒） |
 | `TOTAL_CUPS` | 5 | 总杯数 |
-| **校准** | | |
-| `CALIBRATION_DURATION` | 30 | 校准采集时长（秒） |
-| `CALIBRATION_BASELINE_WINDOW` | 5 | 基线取最后 N 秒均值 |
 | **秘方** | | |
 | `SECRET_RECIPE_SUSTAIN` | 4 | 秘方触发持续专注秒数 |
 | `SECRET_RECIPE_OFFSET` | 5 | 秘方阈值偏移量 |
@@ -259,7 +254,7 @@ gyroscope 数据格式:
 
 - [x] 基础游戏框架 + 一杯制
 - [x] 4 级食材 + 等级系统
-- [x] BCI 头动控制 + 专注力校准
+- [x] BCI 头动控制
 - [x] 登录/注册 + 存档
 - [x] 专注力波形图（结算界面）
 - [x] 低专注保护暂停

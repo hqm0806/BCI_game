@@ -400,8 +400,9 @@ class GameSession:
         return max(1.0, min(100.0, normalized))
 
     def _update_formal_speed(self) -> None:
-        if self.bci_mode and self.attention is not None:
-            norm = self._normalize_to_range(self.attention)
+        if self.bci_mode:
+            attn = self.attention if self.attention is not None else 50.0
+            norm = self._normalize_to_range(attn)
             speed = FORMAL_SPEED_MAX - (norm - 1.0) / 99.0 * (FORMAL_SPEED_MAX - FORMAL_SPEED_MIN)
             self.ingredient_manager.set_current_speed(speed)
             for ing in self.ingredients:
@@ -555,7 +556,8 @@ class GameSession:
             else:
                 self.attention = 50
         else:
-            self.attention = 50 if self.bci_mode else None
+            if not self.bci_mode:
+                self.attention = None
 
         if self.attention is not None:
             self.focus_samples.append(self.attention)
@@ -598,9 +600,10 @@ class GameSession:
         if self.cup_manager.cup_ended:
             return
 
-        if self.bci_mode and self.attention is not None:
+        if self.bci_mode:
             threshold = min(88.0, 40.0 + SECRET_RECIPE_OFFSET)
-            if self.attention > threshold:
+            attn = self.attention if self.attention is not None else 50.0
+            if attn > threshold:
                 self.focus_above_seconds += dt_sec
             else:
                 self.focus_above_seconds = 0.0
@@ -723,9 +726,10 @@ class GameSession:
             (SCREEN_WIDTH // 2 - timer_text.get_width() // 2, 12),
         )
 
-        attn_display = self.attention if self.attention is not None else 50
+        attn_display = self.attention if self.attention is not None else 0
         attn_text = self.font.render(f"注意力: {int(attn_display)}", True, (255, 255, 255))
-        self.screen.blit(attn_text, (10, 235))
+        attn_rect = attn_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+        self.screen.blit(attn_text, attn_rect)
 
         hint = self.hint_font.render(
             "方向键: 左右移动 | ESC: 返回",

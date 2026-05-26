@@ -573,9 +573,6 @@ class GameSession:
                     self._handle_collisions()
 
             self._update_bci_data()
-            if self.use_yaw_control:
-                fx = int(self.platform_focus_x)
-                self.cup.rect.centerx = max(self.focus_min, min(self.focus_max, fx))
 
             self._render()
 
@@ -639,11 +636,11 @@ class GameSession:
             self.ingredient_manager.set_required_probability(prob)
 
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
-        if self.use_yaw_control:
+        self.cup.update(keys=keys, dt=dt_sec)
+        kb_pressed = keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
+        if not kb_pressed and self.use_yaw_control:
             fx = int(self.platform_focus_x)
             self.cup.rect.centerx = max(self.focus_min, min(self.focus_max, fx))
-        else:
-            self.cup.update(keys=keys, dt=dt_sec)
 
     def _check_secret_recipe(self, dt_sec: float) -> None:
         if self.cup_manager.secret_recipe_spawned:
@@ -788,12 +785,21 @@ class GameSession:
         attn_rect = attn_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
         self.screen.blit(attn_text, attn_rect)
 
+        ctrl_text = "方向键 / 头环: 左右移动 | ESC: 返回" if self.bci_available else "方向键: 左右移动 | ESC: 返回"
         hint = self.hint_font.render(
-            "方向键: 左右移动 | ESC: 返回",
+            ctrl_text,
             True,
             (50, 50, 50),
         )
         self.screen.blit(hint, (10, SCREEN_HEIGHT - 40))
+
+        bci_status_color = (0, 255, 0) if self.bci_available else (255, 100, 100)
+        bci_status_text = self.hint_font.render(
+            f"头环: {'已连接' if self.bci_available else '未连接'}",
+            True,
+            bci_status_color,
+        )
+        self.screen.blit(bci_status_text, (10, SCREEN_HEIGHT - 60))
 
         if self.warmup_paused:
             freeze_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
@@ -914,6 +920,15 @@ class GameSession:
             attn_mode=self._attn_mode,
             attn_baseline=40.0,
         )
+
+        if self.bci_mode:
+            bci_status_color = (0, 255, 0) if self.bci_available else (255, 100, 100)
+            bci_status_text = self.hint_font.render(
+                f"头环: {'已连接' if self.bci_available else '未连接'}",
+                True,
+                bci_status_color,
+            )
+            self.screen.blit(bci_status_text, (10, SCREEN_HEIGHT - 60))
 
         if self._blackout_alpha > 1:
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)

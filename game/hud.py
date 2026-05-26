@@ -1,4 +1,4 @@
-"""游戏 HUD 模块 - 专注力茶壶 UI + HUD 渲染逻辑"""
+"""游戏 HUD 模块 - HUD 渲染逻辑"""
 
 import math
 import os
@@ -18,97 +18,6 @@ _glow_alpha = 0.0
 _glow_phase = 0.0
 
 
-class FocusTeapotUI:
-    """专注力茶壶 UI - 液面高度代表专注力数值（0-100）"""
-
-    def __init__(self, image_path=None, x=10, y=90, width=100, height=120):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.focus_value = 0
-        self._liquid_color = (144, 238, 144)
-        self._teapot_img = None
-
-        if image_path and os.path.exists(image_path):
-            try:
-                self._teapot_img = pygame.image.load(image_path).convert_alpha()
-                self._teapot_img = pygame.transform.scale(self._teapot_img, (self.width, self.height))
-            except (pygame.error, OSError):
-                pass
-
-    def update(self, value):
-        self.focus_value = max(0, min(100, value))
-        t = self.focus_value / 100.0
-        r = int(144 + (255 - 144) * t)
-        g = int(238 + (215 - 238) * t)
-        b = int(144 + (0 - 144) * t)
-        self._liquid_color = (r, g, b)
-
-    def draw(self, screen):
-        if self._teapot_img:
-            screen.blit(self._teapot_img, (self.x, self.y))
-        else:
-            self._draw_fallback(screen)
-
-    def _draw_fallback(self, screen):
-        cx = self.x + self.width // 2
-        cy = self.y + self.height // 2
-        body_r = self.width * 0.38
-
-        handle_rect = pygame.Rect(cx + body_r - 5, cy - body_r * 0.6, self.width * 0.35, body_r * 1.2)
-        pygame.draw.rect(screen, (139, 69, 19), handle_rect, 6, border_radius=10)
-
-        spout_pts = [
-            (cx - body_r + 5, cy - body_r * 0.2),
-            (cx - body_r - self.width * 0.35, cy - body_r * 0.8),
-            (cx - body_r - self.width * 0.25, cy - body_r * 0.6),
-            (cx - body_r + 5, cy + body_r * 0.4),
-        ]
-        pygame.draw.polygon(screen, (139, 69, 19), spout_pts, 6)
-
-        body_rect = pygame.Rect(cx - body_r, cy - body_r, body_r * 2, body_r * 2)
-
-        liquid_h = body_rect.height * (self.focus_value / 100.0)
-        if liquid_h > 0:
-            clip_surf = pygame.Surface((body_rect.width, body_rect.height), pygame.SRCALPHA)
-            pygame.draw.ellipse(clip_surf, (255, 255, 255), (0, 0, body_rect.width, body_rect.height))
-            pygame.draw.rect(
-                clip_surf,
-                self._liquid_color,
-                (0, body_rect.height - liquid_h, body_rect.width, liquid_h),
-            )
-            if liquid_h > 4:
-                pygame.draw.line(
-                    clip_surf,
-                    (255, 255, 255),
-                    (4, body_rect.height - liquid_h + 2),
-                    (body_rect.width - 4, body_rect.height - liquid_h + 2),
-                    2,
-                )
-            screen.blit(clip_surf, (body_rect.x, body_rect.y))
-
-        glass_surf = pygame.Surface((body_rect.width, body_rect.height), pygame.SRCALPHA)
-        pygame.draw.ellipse(glass_surf, (200, 200, 200, 80), (0, 0, body_rect.width, body_rect.height))
-        screen.blit(glass_surf, (body_rect.x, body_rect.y))
-        pygame.draw.ellipse(screen, (139, 69, 19), body_rect, 6)
-
-        lid_rect = pygame.Rect(cx - body_r * 0.8, cy - body_r - 10, body_r * 1.6, 14)
-        pygame.draw.rect(screen, (139, 69, 19), lid_rect, 6, border_radius=8)
-        knob_rect = pygame.Rect(cx - 8, cy - body_r - 18, 16, 10)
-        pygame.draw.ellipse(screen, (160, 82, 45), knob_rect)
-
-        font = pygame.font.Font(None, 28)
-        val_surf = font.render(f"{int(self.focus_value)}", True, (255, 255, 255))
-        screen.blit(
-            val_surf,
-            (
-                body_rect.x + (body_rect.width - val_surf.get_width()) // 2,
-                body_rect.y + body_rect.height // 2 - val_surf.get_height() // 2,
-            ),
-        )
-
-
 def draw_hud(
     screen,
     score_manager,
@@ -118,7 +27,6 @@ def draw_hud(
     font,
     hint_font,
     recipe_font,
-    focus_teapot=None,
     attention=None,
     bci_mode=False,
     free_combine=False,
@@ -212,13 +120,6 @@ def draw_hud(
                 color = (100, 255, 100)
             txt = hint_font.render(line, True, color)
             screen.blit(txt, (gyro_x, gyro_y + i * line_h))
-
-    if focus_teapot:
-        if attention is not None:
-            focus_teapot.update(attention)
-        else:
-            focus_teapot.update(0)
-        focus_teapot.draw(screen)
 
     if bci_mode and attn_baseline > 0:
         bl_text = hint_font.render(f"基线: {attn_baseline:.0f}", True, (200, 200, 200))

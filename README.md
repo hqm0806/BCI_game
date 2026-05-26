@@ -52,7 +52,7 @@ BCI_gane/
 │   │   ├── cups/                # 奶茶杯1/2/3.png
 │   │   ├── badges/              # badge1-4.png（4 等级徽章）
 │   │   ├── backgrounds/         # 背景图片
-│   │   └── other/               # 其他素材（横.png, focus_teapot.png等）
+│   │   └── other/               # 其他素材（横.png等）
 │   ├── fonts/                   # ZCOOLKuaiLe-Regular.ttf
 │   └── sounds/                  # 音频文件
 │

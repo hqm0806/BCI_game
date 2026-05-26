@@ -42,7 +42,6 @@ CUP_IMGS = [  # 杯子阶段图片：0接→1, 1接→2, 2+接→3
     os.path.join(IMAGES_DIR, "cups", "奶茶杯2.png"),
     os.path.join(IMAGES_DIR, "cups", "奶茶杯3.png"),
 ]
-FOCUS_TEAPOT_IMG = os.path.join(IMAGES_DIR, "other", "focus_teapot.png")  # 专注力茶壶 UI 图片
 INGREDIENT_IMGS = {  # 食材图片字典
     "红茶": os.path.join(IMAGES_DIR, "ingredients", "红茶.png"),
     "绿茶": os.path.join(IMAGES_DIR, "ingredients", "绿茶.png"),

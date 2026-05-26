@@ -19,7 +19,6 @@ from config import (
     CUP_DURATION,
     CUP_WIDTH,
     DEFAULT_GAME_MODE,
-    FOCUS_TEAPOT_IMG,
     FORMAL_SPEED_MAX,
     FORMAL_SPEED_MIN,
     GAME_MODES,
@@ -42,7 +41,7 @@ from data.recipes import evaluate_recipe
 from data.score_manager import ScoreManager
 from game.cup_manager import CupManager
 from game.font_utils import load_chinese_font
-from game.hud import FocusTeapotUI, draw_hud
+from game.hud import draw_hud
 from game.ingredient_manager import IngredientManager
 from game.sprites import CatchEffect, Cup, MissEffect, Particle
 from menu.summary import SummaryScreen
@@ -102,8 +101,6 @@ class GameSession:
     raw_gyro_z: float
     platform_focus_x: float
     platform_focus_y: float
-
-    focus_teapot: FocusTeapotUI | None
 
     focus_min: int
     focus_max: int
@@ -243,11 +240,6 @@ class GameSession:
 
         self.focus_min = CUP_WIDTH // 2
         self.focus_max = SCREEN_WIDTH - CUP_WIDTH // 2
-
-        teapot_img_path = FOCUS_TEAPOT_IMG if os.path.exists(FOCUS_TEAPOT_IMG) else None
-        self.focus_teapot = None
-        if teapot_img_path:
-            self.focus_teapot = FocusTeapotUI(image_path=teapot_img_path, x=10, y=90, width=120, height=140)
 
         if not self.bci_available and self.bci_mode:
             logger.warning("BCI设备未连接，无法使用头动控制，将自动切换到键盘控制")
@@ -408,7 +400,7 @@ class GameSession:
         return max(1.0, min(100.0, normalized))
 
     def _update_formal_speed(self) -> None:
-        if self.bci_available and self.attention is not None:
+        if self.bci_mode and self.attention is not None:
             norm = self._normalize_to_range(self.attention)
             speed = FORMAL_SPEED_MAX - (norm - 1.0) / 99.0 * (FORMAL_SPEED_MAX - FORMAL_SPEED_MIN)
             self.ingredient_manager.set_current_speed(speed)
@@ -563,7 +555,7 @@ class GameSession:
             else:
                 self.attention = 50
         else:
-            self.attention = None
+            self.attention = 50 if self.bci_mode else None
 
         if self.attention is not None:
             self.focus_samples.append(self.attention)
@@ -606,7 +598,7 @@ class GameSession:
         if self.cup_manager.cup_ended:
             return
 
-        if self.bci_available and self.attention is not None:
+        if self.bci_mode and self.attention is not None:
             threshold = min(88.0, 40.0 + SECRET_RECIPE_OFFSET)
             if self.attention > threshold:
                 self.focus_above_seconds += dt_sec
@@ -731,11 +723,7 @@ class GameSession:
             (SCREEN_WIDTH // 2 - timer_text.get_width() // 2, 12),
         )
 
-        if self.focus_teapot and self.attention is not None:
-            self.focus_teapot.update(self.attention)
-            self.focus_teapot.draw(self.screen)
-
-        attn_display = self.attention if self.attention is not None else 0
+        attn_display = self.attention if self.attention is not None else 50
         attn_text = self.font.render(f"注意力: {int(attn_display)}", True, (255, 255, 255))
         self.screen.blit(attn_text, (10, 235))
 
@@ -783,14 +771,13 @@ class GameSession:
             font=self.font,
             hint_font=self.hint_font,
             recipe_font=self.recipe_font,
-            focus_teapot=self.focus_teapot,
             attention=self.attention,
-            bci_mode=self.bci_available,
+            bci_mode=self.bci_mode,
             free_combine=self.free_combine,
             recipe_result=self.recipe_result,
             creative_ingredients=self.creative_ingredients,
             attention_curve=self.attention_curve,
-            bci_connected=self.bci_available,
+            bci_connected=self.bci_mode or self.bci_available,
             focus_above_seconds=self.focus_above_seconds,
             raw_gyro_x=self.raw_gyro_x,
             raw_gyro_y=self.raw_gyro_y,
@@ -799,7 +786,7 @@ class GameSession:
             platform_focus_y=self.platform_focus_y,
             cup_x=self.cup.rect.centerx,
             cup_y=self.cup.rect.centery,
-            rolling_attention=self.bci_reader.get_rolling_attention() if self.bci_available else 0.0,
+            rolling_attention=self.bci_reader.get_rolling_attention() if self.bci_mode else 0.0,
             attn_variance=self._attn_variance,
             attn_mode=self._attn_mode,
             attn_baseline=40.0,

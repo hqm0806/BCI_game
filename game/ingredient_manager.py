@@ -8,7 +8,9 @@ import random
 import time
 from typing import Any
 
-from config import INGREDIENT_SPAWN_INTERVAL, INGREDIENT_TIERS
+import pygame
+
+from config import INGREDIENT_LANE_INDICES, INGREDIENT_SPAWN_INTERVAL, INGREDIENT_TIERS, LANE_WIDTH
 from game.sprites import Ingredient
 
 
@@ -54,7 +56,11 @@ class IngredientManager:
     def set_required_probability(self, prob: float) -> None:
         self._required_prob = max(0.0, min(1.0, prob))
 
-    def spawn_ingredient(self, required_types: list[str] | None = None) -> Ingredient:
+    def spawn_ingredient(
+        self,
+        required_types: list[str] | None = None,
+        allowed_lanes: list[int] | None = None,
+    ) -> Ingredient:
         types = required_types if required_types else self._available
         available_types = [t for t in types if t != self.last_type]
         if not available_types:
@@ -67,12 +73,23 @@ class IngredientManager:
         if ing_type in self._required:
             is_required = random.random() < self._required_prob
 
-        return Ingredient(ing_type, is_required, self._current_speed)
+        return Ingredient(ing_type, is_required, self._current_speed, allowed_lanes=allowed_lanes)
 
-    def spawn_secret_recipe(self) -> Ingredient:
-        return Ingredient("秘方", is_required=False, speed=self._current_speed)
+    def spawn_secret_recipe(self, allowed_lanes: list[int] | None = None) -> Ingredient:
+        return Ingredient("秘方", is_required=False, speed=self._current_speed, allowed_lanes=allowed_lanes)
 
-    def update(self, required_types: list[str] | None = None) -> Ingredient | None:
+    def update(
+        self,
+        required_types: list[str] | None = None,
+        ingredients_group: pygame.sprite.Group | None = None,
+    ) -> Ingredient | None:
         if self.should_spawn():
-            return self.spawn_ingredient(required_types)
+            allowed = self._free_lanes(ingredients_group) if ingredients_group else None
+            if allowed is None or allowed:
+                return self.spawn_ingredient(required_types, allowed)
         return None
+
+    @staticmethod
+    def _free_lanes(ingredients_group: pygame.sprite.Group) -> list[int]:
+        occupied = {int(ing.rect.centerx) // LANE_WIDTH for ing in ingredients_group}
+        return [l for l in INGREDIENT_LANE_INDICES if l not in occupied]

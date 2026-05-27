@@ -20,8 +20,10 @@ from config import (
     CUP_WIDTH,
     INGREDIENT_COLORS,
     INGREDIENT_IMGS,
+    INGREDIENT_LANE_INDICES,
     INGREDIENT_SIZE,
     INGREDIENT_SPEED,
+    LANE_WIDTH,
     RED,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -268,6 +270,7 @@ class Ingredient(pygame.sprite.Sprite):
         ing_type: str,
         is_required: bool = False,
         speed: float = -1.0,
+        allowed_lanes: list[int] | None = None,
         *groups: Any,
     ) -> None:
         super().__init__(*groups)
@@ -290,10 +293,7 @@ class Ingredient(pygame.sprite.Sprite):
             pygame.draw.circle(self.image, color, (size // 2, size // 2), size // 2)
 
         self.rect = self.image.get_rect()
-        if self._is_secret:
-            self.rect.x = random.randint(100, SCREEN_WIDTH - size - 100)
-        else:
-            self.rect.x = random.randint(0, SCREEN_WIDTH - size)
+        self.rect.x = self._random_spawn_x(size, allowed_lanes)
         self.rect.y = -size
         self.speed: float = speed if speed >= 0 else INGREDIENT_SPEED
         self._float_t = random.uniform(0, 6.28)
@@ -303,6 +303,14 @@ class Ingredient(pygame.sprite.Sprite):
         self._glow_phase = 0.0
         self._particle_group: pygame.sprite.Group | None = None
         self._particle_timer = 0.0
+
+    @staticmethod
+    def _random_spawn_x(size: int, allowed_lanes: list[int] | None = None) -> int:
+        lanes = allowed_lanes if allowed_lanes else INGREDIENT_LANE_INDICES
+        lane = random.choice(lanes)
+        lane_start = lane * LANE_WIDTH
+        lane_end = lane_start + LANE_WIDTH
+        return random.randint(lane_start, max(lane_start, lane_end - size))
 
     def set_particle_group(self, group: pygame.sprite.Group) -> None:
         self._particle_group = group

@@ -1,7 +1,7 @@
 {
   "level": 1,
   "cumulative_revenue": 0,
-  "total_games": 8,
+  "total_games": 9,
   "games_history": [
     {
       "mode": "regular",
@@ -178,6 +178,15 @@
       "avg_attention": 0.0,
       "duration": 6.9,
       "date": "2026-05-26 18:11"
+    },
+    {
+      "mode": "regular",
+      "revenue": 0,
+      "cups": 0,
+      "secrets": 0,
+      "avg_attention": 0.0,
+      "duration": 13.0,
+      "date": "2026-05-27 14:22"
     }
   ]
 }

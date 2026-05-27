@@ -23,6 +23,9 @@ from config import (
     FORMAL_SPEED_MIN,
     GAME_MODES,
     INGREDIENT_COLORS,
+    LANE_LINE_COLOR,
+    LANE_WIDTH,
+    NUM_LANES,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SECRET_RECIPE_OFFSET,
@@ -413,12 +416,9 @@ class GameSession:
     def _normalize_to_range(self, attention: float) -> float:
         if self.normalization_upper - self.normalization_lower < 1.0:
             return 50.0
-        normalized = (
-            (attention - self.normalization_lower)
-            / (self.normalization_upper - self.normalization_lower)
-            * 99.0
-            + 1.0
-        )
+        normalized = (attention - self.normalization_lower) / (
+            self.normalization_upper - self.normalization_lower
+        ) * 99.0 + 1.0
         return max(1.0, min(100.0, normalized))
 
     def _update_formal_speed(self) -> None:
@@ -657,7 +657,8 @@ class GameSession:
                 self.focus_above_seconds = 0.0
 
             if self.focus_above_seconds >= SECRET_RECIPE_SUSTAIN and self.cup_manager.trigger_secret_recipe():
-                secret = self.ingredient_manager.spawn_secret_recipe()
+                allowed = self.ingredient_manager._free_lanes(self.ingredients)
+                secret = self.ingredient_manager.spawn_secret_recipe(allowed)
                 self.ingredients.add(secret)
                 secret.set_particle_group(self.particles)
                 self.focus_above_seconds = 0.0
@@ -665,7 +666,8 @@ class GameSession:
         else:
             if self.cup_manager.should_force_secret_recipe() and self.cup_manager.catch_count == 0:
                 if self.cup_manager.trigger_secret_recipe():
-                    secret = self.ingredient_manager.spawn_secret_recipe()
+                    allowed = self.ingredient_manager._free_lanes(self.ingredients)
+                    secret = self.ingredient_manager.spawn_secret_recipe(allowed)
                     self.ingredients.add(secret)
                     secret.set_particle_group(self.particles)
                     logger.info("第 %s 杯触发秘方掉落！", self.cup_manager.cup_number)
@@ -706,7 +708,7 @@ class GameSession:
             self.recipe_result = None
 
     def _update_game_objects(self, dt_sec: float) -> None:
-        ingredient = self.ingredient_manager.update(required_types=None)
+        ingredient = self.ingredient_manager.update(required_types=None, ingredients_group=self.ingredients)
         if ingredient:
             self.ingredients.add(ingredient)
 
@@ -761,6 +763,7 @@ class GameSession:
         pygame.display.flip()
 
     def _render_warmup_hud(self) -> None:
+        self._draw_lane_lines()
         if self._top_bar:
             self.screen.blit(self._top_bar, (0, 0))
             mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
@@ -853,6 +856,13 @@ class GameSession:
             (SCREEN_WIDTH // 2 - hint_text.get_width() // 2, SCREEN_HEIGHT // 2 + 120),
         )
 
+    def _draw_lane_lines(self) -> None:
+        lane_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        for i in range(1, NUM_LANES):
+            x = i * LANE_WIDTH
+            pygame.draw.line(lane_overlay, LANE_LINE_COLOR, (x, 60), (x, SCREEN_HEIGHT), 2)
+        self.screen.blit(lane_overlay, (0, 0))
+
     def _render_warmup_intro(self) -> None:
         alpha = min(200, int(self.warmup_intro_alpha * 0.8))
         if alpha <= 0:
@@ -885,6 +895,7 @@ class GameSession:
         )
 
     def _render_formal_hud(self) -> None:
+        self._draw_lane_lines()
         if self._top_bar:
             self.screen.blit(self._top_bar, (0, 0))
             mask = pygame.Surface((1280, 60), pygame.SRCALPHA)

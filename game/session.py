@@ -33,9 +33,6 @@ from config import (
     TOP_BAR_IMG,
     TOTAL_CUPS,
     WARMUP_DURATION,
-    WARMUP_FREEZE_TIME,
-    WARMUP_LOW_THRESHOLD,
-    WARMUP_RESUME_TIME,
     WARMUP_SMOOTH_WINDOW,
     WARMUP_SPEED_MAX,
     WARMUP_SPEED_MIN,
@@ -344,24 +341,27 @@ class GameSession:
         if self.attention is None:
             return
 
-        if self.attention <= WARMUP_LOW_THRESHOLD:
+        if self.attention <= 15:
             self.warmup_low_timer += dt_sec
             self.warmup_high_timer = 0.0
-        elif self.attention > WARMUP_LOW_THRESHOLD:
+        elif self.attention >= 10:
             self.warmup_high_timer += dt_sec
             self.warmup_low_timer = 0.0
+        else:
+            self.warmup_low_timer = 0.0
+            self.warmup_high_timer = 0.0
 
-        if not self.warmup_paused and self.warmup_low_timer >= WARMUP_FREEZE_TIME:
+        if not self.warmup_paused and self.warmup_low_timer >= 5.0:
             self.warmup_paused = True
             self.warmup_low_timer = 0.0
             self.warmup_high_timer = 0.0
-            logger.info("热身冻结：注意力连续 %.0f 秒低于 %d", WARMUP_FREEZE_TIME, WARMUP_LOW_THRESHOLD)
-        elif self.warmup_paused and self.warmup_high_timer >= WARMUP_RESUME_TIME:
+            logger.info("热身冻结：注意力连续 5 秒低于 15")
+        elif self.warmup_paused and self.warmup_high_timer >= 5.0:
             self.warmup_paused = False
             self.warmup_low_timer = 0.0
             self.warmup_high_timer = 0.0
             self.ingredient_manager.reset_spawn_timer()
-            logger.info("热身恢复：注意力连续 %.0f 秒高于 %d", WARMUP_RESUME_TIME, WARMUP_LOW_THRESHOLD)
+            logger.info("热身恢复：注意力连续 5 秒高于 15")
 
     def _transition_to_formal(self) -> None:
         warmup_last_30s_frames = int(30 * 60)
@@ -809,14 +809,14 @@ class GameSession:
             freeze_overlay.fill((0, 0, 0, 180))
             self.screen.blit(freeze_overlay, (0, 0))
 
-            freeze_text = self.pause_font.render("注意力过低，请调整状态", True, (255, 255, 255))
+            freeze_text = self.pause_font.render("请调整身心状态", True, (255, 255, 255))
             self.screen.blit(
                 freeze_text,
                 (SCREEN_WIDTH // 2 - freeze_text.get_width() // 2, SCREEN_HEIGHT // 2 - 60),
             )
-            resume_remain = max(0.0, WARMUP_RESUME_TIME - self.warmup_high_timer)
+            resume_remain = max(0.0, 5.0 - self.warmup_high_timer)
             sub_text = self.hint_font.render(
-                f"保持专注力 >{WARMUP_LOW_THRESHOLD} 持续 {resume_remain:.0f}s 恢复",
+                f"保持专注力 >10 持续 {resume_remain:.0f}s 恢复游戏",
                 True,
                 (200, 200, 200),
             )

@@ -280,8 +280,8 @@ DIFFICULTY_BASELINE_MAX = 80  # 基线调节上限
 # 进入正式游戏前进行 3 分钟热身，收集注意力数据用于归一化
 # ============================================================
 WARMUP_DURATION = 180  # 热身阶段时长（秒），修改此项可改变热身时间
-WARMUP_LOW_THRESHOLD = 20  # 低注意力阈值，注意力低于此值时开始计时冻结
-WARMUP_FREEZE_TIME = 3.0  # 低注意力持续多久冻结画面（秒）
+WARMUP_LOW_THRESHOLD = 15  # 低注意力阈值，注意力低于此值时开始计时冻结（与正式游戏一致）
+WARMUP_FREEZE_TIME = 5.0  # 低注意力持续多久冻结画面（秒），与正式游戏一致
 WARMUP_RESUME_TIME = 5.0  # 注意力恢复后持续多久解冻（秒）
 WARMUP_SMOOTH_WINDOW = 3.0  # 注意力平滑窗口（秒），用于速度计算
 WARMUP_SPEED_MIN = 1.5  # 热身阶段最低速度（专注力高时，pixels/frame）

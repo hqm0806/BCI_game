@@ -72,7 +72,7 @@ def draw_hud(
     screen.blit(mode_text, (bar_x + spacing, cy))
 
     cup_text = bar_font.render(
-        f"已接秘方 x{cup_manager.secret_recipe_count}",
+        f"已接杯数: {cup_manager.cup_number}",
         True,
         (20, 20, 20),
     )

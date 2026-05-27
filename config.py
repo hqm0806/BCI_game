@@ -282,6 +282,16 @@ DIFFICULTY_BASELINE_MAX = 80  # 基线调节上限
 WARMUP_DURATION = 180  # 热身阶段时长（秒），修改此项可改变热身时间
 WARMUP_LOW_THRESHOLD = 15  # 低注意力阈值，注意力低于此值时开始计时冻结（与正式游戏一致）
 WARMUP_FREEZE_TIME = 5.0  # 低注意力持续多久冻结画面（秒），与正式游戏一致
+
+# ============================================================
+# 防伪迹仲裁配置
+# 正常专注时头部有微小自然抖动（1-2度），若头部完全静止
+# 超过阈值且专注力异常高，判定为刻意咬牙/僵直等伪迹行为
+# ============================================================
+ARTIFACT_STILL_THRESHOLD = 0.5  # 陀螺仪变化阈值（度），低于此值视为头部静止
+ARTIFACT_STILL_DURATION = 5.0  # 头部静止持续时间（秒），超时触发检测
+ARTIFACT_ATTENTION_THRESHOLD = 80  # 专注力阈值，高于此值+静止=判定伪迹
+ARTIFACT_PENALTY_DURATION = 5.0  # 惩罚冻结时长（秒），自动恢复
 WARMUP_RESUME_TIME = 5.0  # 注意力恢复后持续多久解冻（秒）
 WARMUP_SMOOTH_WINDOW = 3.0  # 注意力平滑窗口（秒），用于速度计算
 WARMUP_SPEED_MIN = 1.5  # 热身阶段最低速度（专注力高时，pixels/frame）

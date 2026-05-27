@@ -15,6 +15,10 @@ from bci.filter import (
     AttentionMappingCurve,
 )
 from config import (
+    ARTIFACT_ATTENTION_THRESHOLD,
+    ARTIFACT_PENALTY_DURATION,
+    ARTIFACT_STILL_DURATION,
+    ARTIFACT_STILL_THRESHOLD,
     BACKGROUND_IMG,
     CUP_DURATION,
     CUP_WIDTH,
@@ -33,6 +37,7 @@ from config import (
     TOP_BAR_IMG,
     TOTAL_CUPS,
     WARMUP_DURATION,
+    WARMUP_LOW_THRESHOLD,
     WARMUP_SMOOTH_WINDOW,
     WARMUP_SPEED_MAX,
     WARMUP_SPEED_MIN,
@@ -242,6 +247,14 @@ class GameSession:
         self._low_attn_seconds = 0.0
         self._high_attn_seconds = 0.0
         self._blackout_alpha = 0.0
+
+        self._prev_gyro_x = 0.0
+        self._prev_gyro_y = 0.0
+        self._prev_gyro_z = 0.0
+        self._gyro_still_timer = 0.0
+        self._artifact_frozen = False
+        self._artifact_penalty_timer = 0.0
+        self._artifact_alpha = 0.0
 
         self.focus_min = CUP_WIDTH // 2
         self.focus_max = SCREEN_WIDTH - CUP_WIDTH // 2
@@ -499,6 +512,57 @@ class GameSession:
         target_alpha = 180 if self._paused else 0
         self._blackout_alpha += (target_alpha - self._blackout_alpha) * 0.05
 
+    def _check_artifact(self, dt_sec: float) -> None:
+        if self._artifact_frozen or not self.bci_mode:
+            return
+
+        gx = abs(self.raw_gyro_x - self._prev_gyro_x)
+        gy = abs(self.raw_gyro_y - self._prev_gyro_y)
+        gz = abs(self.raw_gyro_z - self._prev_gyro_z)
+
+        self._prev_gyro_x = self.raw_gyro_x
+        self._prev_gyro_y = self.raw_gyro_y
+        self._prev_gyro_z = self.raw_gyro_z
+
+        is_still = gx < ARTIFACT_STILL_THRESHOLD and gy < ARTIFACT_STILL_THRESHOLD and gz < ARTIFACT_STILL_THRESHOLD
+
+        attn = self.attention if self.attention is not None else 50.0
+
+        if is_still and attn > ARTIFACT_ATTENTION_THRESHOLD:
+            self._gyro_still_timer += dt_sec
+        else:
+            self._gyro_still_timer = 0.0
+
+        if self._gyro_still_timer >= ARTIFACT_STILL_DURATION:
+            self._artifact_frozen = True
+            self._artifact_penalty_timer = ARTIFACT_PENALTY_DURATION
+            self._gyro_still_timer = 0.0
+            self.ingredient_manager.reset_spawn_timer()
+            logger.info(
+                "防伪迹触发：头部静止 %.0f 秒且专注力 > %d", ARTIFACT_STILL_DURATION, ARTIFACT_ATTENTION_THRESHOLD
+            )
+
+    def _update_artifact_freeze(self, dt_sec: float) -> None:
+        if not self._artifact_frozen:
+            return
+
+        self._artifact_penalty_timer -= dt_sec
+        if self._artifact_penalty_timer <= 0.0:
+            self._artifact_frozen = False
+            self._artifact_penalty_timer = 0.0
+            self._prev_gyro_x = self.raw_gyro_x
+            self._prev_gyro_y = self.raw_gyro_y
+            self._prev_gyro_z = self.raw_gyro_z
+            self.ingredient_manager.reset_spawn_timer()
+            logger.info("防伪迹惩罚结束，恢复游戏")
+
+        target_alpha = 180 if self._artifact_frozen else 0
+        self._artifact_alpha += (target_alpha - self._artifact_alpha) * 0.1
+
+    @property
+    def _game_frozen(self) -> bool:
+        return self._paused or self._artifact_frozen
+
     def run(self) -> str:
         self._render()
         self.clock.tick(60)
@@ -558,8 +622,10 @@ class GameSession:
             else:
                 self._update_cup(keys, dt_sec)
                 self._update_pause_state(dt_sec)
+                self._check_artifact(dt_sec)
+                self._update_artifact_freeze(dt_sec)
 
-                if not self._paused:
+                if not self._game_frozen:
                     self._update_attention_variance()
                     self._update_formal_speed()
                     self._check_secret_recipe(dt_sec)
@@ -568,7 +634,7 @@ class GameSession:
                 if not self.running:
                     break
 
-                if not self._paused:
+                if not self._game_frozen:
                     self._update_game_objects(dt_sec)
                     self._handle_collisions()
 
@@ -954,6 +1020,27 @@ class GameSession:
                 )
                 sub_text = self.hint_font.render(
                     f"保持专注力 >10 持续 {max(0, 5 - self._high_attn_seconds):.0f}s 恢复游戏",
+                    True,
+                    (200, 200, 200),
+                )
+                self.screen.blit(
+                    sub_text,
+                    (SCREEN_WIDTH // 2 - sub_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20),
+                )
+
+        if self._artifact_alpha > 1:
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, int(self._artifact_alpha)))
+            self.screen.blit(overlay, (0, 0))
+
+            if self._artifact_frozen:
+                pause_text = self.pause_font.render("请放松面部肌肉", True, (255, 255, 255))
+                self.screen.blit(
+                    pause_text,
+                    (SCREEN_WIDTH // 2 - pause_text.get_width() // 2, SCREEN_HEIGHT // 2 - 60),
+                )
+                sub_text = self.hint_font.render(
+                    f"检测到伪迹，冻结 {self._artifact_penalty_timer:.0f}s",
                     True,
                     (200, 200, 200),
                 )

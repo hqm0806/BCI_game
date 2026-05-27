@@ -41,6 +41,7 @@ from config import (
     WARMUP_SMOOTH_WINDOW,
     WARMUP_SPEED_MAX,
     WARMUP_SPEED_MIN,
+    get_attention_coefficient,
 )
 from data.recipes import evaluate_recipe
 from data.score_manager import ScoreManager
@@ -742,6 +743,13 @@ class GameSession:
         if self.cup_manager.check_cup_end():
             cup_money = self.cup_manager.settle_cup()
             had_secret = self.cup_manager.secret_recipe_caught
+
+            if self.bci_mode and cup_money > 0:
+                attn = self.attention if self.attention is not None else 50.0
+                norm = self._normalize_to_range(attn)
+                coeff = get_attention_coefficient(norm)
+                cup_money = int(cup_money * coeff)
+
             self.score_manager.add_cup_money(cup_money, had_secret)
             self.score_manager.reset_cup_ingredients()
             self.creative_ingredients = []

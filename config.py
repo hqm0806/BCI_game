@@ -264,8 +264,8 @@ BCI_CONNECTION_TIMEOUT = 5  # 连接超时时间（秒）
 # ============================================================
 # 一杯制配置
 # ============================================================
-CUP_DURATION = 15  # 每杯时间上限 T（秒），超时则结算
-TOTAL_CUPS = 5  # 本局共需制作的奶茶杯数，游戏最大时长 = TOTAL_CUPS × CUP_DURATION
+CUP_DURATION = 20  # 每杯时间上限 T（秒），超时则结算
+TOTAL_CUPS = 36  # 本局共需制作的奶茶杯数，游戏最大时长 = TOTAL_CUPS × CUP_DURATION（12分钟=720秒）
 SECRET_RECIPE_SUSTAIN = 4  # 秘方触发所需持续专注秒数 a
 SECRET_RECIPE_OFFSET = 5  # 秘方阈值偏移量 m，阈值 = min(基线 + m, 88)
 DIFFICULTY_BASELINE = 60  # 难度基线初始值（0-100），自适应调节
@@ -307,7 +307,7 @@ GAME_MODES = {
         "ingredient_speed": 3,
         "spawn_interval": 1000,
         "ui_color": (60, 160, 100),
-        "total_cups": 5,
+        "total_cups": 36,
         "secret_recipe_cup_interval": 1,
     },
     "challenge": {
@@ -319,7 +319,7 @@ GAME_MODES = {
         "ingredient_speed": 5,
         "spawn_interval": 600,
         "ui_color": (200, 80, 60),
-        "total_cups": 5,
+        "total_cups": 36,
         "secret_recipe_cup_interval": 1,
     },
     "creative": {
@@ -331,7 +331,7 @@ GAME_MODES = {
         "ingredient_speed": 3,
         "spawn_interval": 1200,
         "ui_color": (120, 80, 200),
-        "total_cups": 5,
+        "total_cups": 36,
         "secret_recipe_cup_interval": 1,
     },
     "bci": {
@@ -343,7 +343,7 @@ GAME_MODES = {
         "ingredient_speed": 3,
         "spawn_interval": 1200,
         "ui_color": (0, 150, 200),
-        "total_cups": 5,
+        "total_cups": 36,
         "secret_recipe_cup_interval": 3,
     },
 }

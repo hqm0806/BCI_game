@@ -166,6 +166,9 @@ class GameStateImpl(State):
 
     def enter(self) -> GameState | None:
         mode = self._context.get("game_mode", "regular")
+        use_bci = self._context.get("use_bci", False)
+        if use_bci:
+            mode = "bci"
         profile = self._context.get("profile")
         game_result = run_game(self.screen, self.clock, game_mode=mode, profile=profile)
         if profile:

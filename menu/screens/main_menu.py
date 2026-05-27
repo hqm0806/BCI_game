@@ -165,7 +165,7 @@ class MainMenu:
                         self.current_mode = mode
                     if self.bci_btn.handle_event(event):
                         self.result = "start"
-                        self.current_mode = "regular"
+                        self.current_mode = "bci"
                         self._use_bci = True
                         click_frames = 15
                     if self.settings_btn.handle_event(event):

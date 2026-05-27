@@ -680,7 +680,7 @@ class GameSession:
     def _update_attention_variance(self) -> None:
         if self.attention is None:
             return
-        baseline = 40.0
+        baseline = self.warmup_summary_avg if self.warmup_summary_avg > 0 else 40.0
         offset = self.attention - baseline
         self._attn_offsets.append(offset)
         if len(self._attn_offsets) > 60:

@@ -337,30 +337,6 @@ GAME_MODES = {
         "total_cups": 36,
         "secret_recipe_cup_interval": 1,
     },
-    "challenge": {
-        "name": "挑战模式",
-        "description": "更快更密集，考验你的手速",
-        "has_required": True,
-        "free_combine": False,
-        "bci_mode": False,
-        "ingredient_speed": 5,
-        "spawn_interval": 600,
-        "ui_color": (200, 80, 60),
-        "total_cups": 36,
-        "secret_recipe_cup_interval": 1,
-    },
-    "creative": {
-        "name": "创意模式",
-        "description": "自由搭配，创造你的专属奶茶",
-        "has_required": False,
-        "free_combine": True,
-        "bci_mode": False,
-        "ingredient_speed": 3,
-        "spawn_interval": 1200,
-        "ui_color": (120, 80, 200),
-        "total_cups": 36,
-        "secret_recipe_cup_interval": 1,
-    },
     "bci": {
         "name": "脑机接口模式",
         "description": "使用BCI设备读取专注力和头动数据",
@@ -374,9 +350,6 @@ GAME_MODES = {
         "secret_recipe_cup_interval": 3,
     },
 }
-
-DEFAULT_GAME_MODE = "regular"  # 默认游戏模式
-GAME_DURATION = 120  # （已废弃，由一杯制 CUP_DURATION × TOTAL_CUPS 替代）
 
 # ============================================================
 # 控制模式配置（主菜单模式选择器使用）

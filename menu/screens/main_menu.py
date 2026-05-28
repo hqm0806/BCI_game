@@ -107,7 +107,7 @@ class MainMenu:
 
         self.btn_cx = cx
 
-        self.title_y = start_y - 125
+        self.title_y = start_y - 175   # 疯狂奶茶杯的y坐标
         self.title_phase = 0.0
 
         self._dialog_active = False

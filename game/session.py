@@ -133,10 +133,12 @@ class GameSession:
         clock: pygame.time.Clock,
         game_mode: str = "regular",
         profile=None,
+        control_mode: str = "bci",
     ) -> None:
         self.screen = screen
         self.clock = clock
         self.game_mode = game_mode
+        self.control_mode = control_mode
         self._profile = profile
         self._upgrade_level = 0
 
@@ -195,7 +197,7 @@ class GameSession:
     def _init_bci(self) -> None:
         self.bci_reader = BCIDataReader()
         self.bci_available = False
-        if self.bci_mode:
+        if self.bci_mode and self.control_mode != "keyboard":
             self.bci_available = self.bci_reader.connect()
 
         self.attention_curve = None
@@ -657,6 +659,9 @@ class GameSession:
                     return
 
     def _update_bci_data(self) -> None:
+        if self.control_mode == "keyboard":
+            self.attention = 50.0
+            return
         if self.bci_available:
             result = self.bci_reader.read_with_timeout()
             if result[0] is not None:
@@ -1109,8 +1114,9 @@ def run_game(
     clock: pygame.time.Clock,
     game_mode: str = "regular",
     profile=None,
+    control_mode: str = "bci",
 ) -> str:
-    session = GameSession(screen, clock, game_mode, profile)
+    session = GameSession(screen, clock, game_mode, profile, control_mode=control_mode)
     return session.run()
 
 

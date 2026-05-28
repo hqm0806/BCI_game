@@ -83,11 +83,12 @@ class MenuState(State):
         player_level = profile.level if profile else 1
         history_games = profile.games_history if profile else []
         menu = MainMenu(self.screen, self.font, self.title_font, player_level, history_games)
-        result, mode, use_bci = menu.run()
+        result, game_mode, control_mode = menu.run()
         result = result or "quit"
-        mode = mode or "regular"
-        self._context["game_mode"] = mode
-        self._context["use_bci"] = use_bci
+        game_mode = game_mode or "bci"
+        control_mode = control_mode or "bci"
+        self._context["game_mode"] = game_mode
+        self._context["control_mode"] = control_mode
 
         if result == "quit":
             return GameState.QUIT
@@ -165,12 +166,10 @@ class GameStateImpl(State):
         self._context = context
 
     def enter(self) -> GameState | None:
-        mode = self._context.get("game_mode", "regular")
-        use_bci = self._context.get("use_bci", False)
-        if use_bci:
-            mode = "bci"
+        game_mode = self._context.get("game_mode", "bci")
+        control_mode = self._context.get("control_mode", "bci")
         profile = self._context.get("profile")
-        game_result = run_game(self.screen, self.clock, game_mode=mode, profile=profile)
+        game_result = run_game(self.screen, self.clock, game_mode=game_mode, profile=profile, control_mode=control_mode)
         if profile:
             profile.save()
         if game_result == "quit":

@@ -11,7 +11,6 @@ import pygame
 from config import (
     BACKGROUND_IMG,
     INGREDIENT_IMGS,
-    INGREDIENT_LANE_INDICES,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
@@ -80,15 +79,17 @@ class MemorySession:
         self._upgrade_threshold = 3
         self._downgrade_threshold = 2
 
-        self._recipe_spawn_timer = 0.0
+        self._spawn_timer = 0.0
+        self._spawn_interval = 0.5
+        self._spawn_count = 0
         self._recipe_spawn_index = 0
-        self._recipe_spawn_interval = 1.5
-        self._distractor_spawn_timer = 0.0
-        self._distractor_spawn_interval = 0.5
+        self._recipe_ratio = 3
         self._ingredient_speed = 5.5
 
-        self._lane_last_y: dict[int, float] = {}
+        self._num_lanes = 5
+        self._lane_w = SCREEN_WIDTH // self._num_lanes
         self._lane_spacing = 400
+        self._max_per_lane = 2
 
         self._rules_display_time = 3.0
         self._memorize_time = 3.0
@@ -115,7 +116,6 @@ class MemorySession:
         self._recipe_ingredients = list(self._recipe["ingredients"])
         self._target_index = 0
         self._round_result = ""
-        self._lane_last_y = {}
 
     def _enter_phase(self, phase: str) -> None:
         self._phase = phase
@@ -124,27 +124,25 @@ class MemorySession:
             self._pick_recipe()
         elif phase == "playing":
             self._all_ingredients.empty()
-            self._lane_last_y = {}
-            self._recipe_spawn_timer = 0.3
+            self._spawn_timer = 0.3
+            self._spawn_count = 0
             self._recipe_spawn_index = 0
-            self._distractor_spawn_timer = 0.6
-
-    def _update_lane_positions(self) -> None:
-        lane_w = SCREEN_WIDTH // 5
-        self._lane_last_y = {}
-        for ing in self._all_ingredients:
-            lane = ing.rect.centerx // lane_w
-            cur_y = ing.rect.y
-            if lane not in self._lane_last_y or cur_y < self._lane_last_y[lane]:
-                self._lane_last_y[lane] = cur_y
 
     def _free_lane(self) -> int | None:
-        lanes = list(INGREDIENT_LANE_INDICES)
+        lanes = list(range(self._num_lanes))
         random.shuffle(lanes)
         for lane in lanes:
-            last_y = self._lane_last_y.get(lane, -9999)
-            if last_y < 0 or last_y >= self._lane_spacing:
-                self._lane_last_y[lane] = -40
+            lane_left = lane * self._lane_w
+            lane_right = lane_left + self._lane_w
+            count = 0
+            blocked = False
+            for ing in self._all_ingredients:
+                if lane_left <= ing.rect.centerx < lane_right:
+                    count += 1
+                    if ing.rect.y < self._lane_spacing:
+                        blocked = True
+                        break
+            if not blocked and count < self._max_per_lane:
                 return lane
         return None
 
@@ -152,11 +150,9 @@ class MemorySession:
         lane = self._free_lane()
         if lane is None:
             return None
-        lane_center = lane * (SCREEN_WIDTH // 5) + (SCREEN_WIDTH // 10)
-        x = random.randint(
-            max(0, lane_center - 40),
-            min(SCREEN_WIDTH - 80, lane_center + 40),
-        )
+        center = lane * self._lane_w + self._lane_w // 2
+        x = random.randint(center - 30, center + 30)
+        x = max(lane * self._lane_w + 10, min((lane + 1) * self._lane_w - 90, x))
 
         ing = Ingredient(ing_type, speed=self._ingredient_speed)
         ing.rect.width = 80
@@ -166,6 +162,30 @@ class MemorySession:
 
         self._all_ingredients.add(ing)
         return ing
+
+    def _random_distractor(self) -> str:
+        used = set(self._recipe_ingredients)
+        pool = [
+            "珍珠",
+            "椰果",
+            "牛奶",
+            "红茶",
+            "绿茶",
+            "芋圆",
+            "脆啵啵",
+            "芒果",
+            "椰奶",
+            "草莓",
+            "芋泥",
+            "燕麦奶",
+            "咖啡",
+            "特调稀奶油顶",
+            "米酿",
+            "咸芝士奶盖",
+            "茉莉花茶",
+        ]
+        available = [t for t in pool if t not in used]
+        return random.choice(available) if available else random.choice(pool)
 
     def _check_catches(self) -> None:
         hits = pygame.sprite.spritecollide(self.cup, self._all_ingredients, False)
@@ -224,56 +244,24 @@ class MemorySession:
                     dt=dt,
                 )
 
-                self._update_lane_positions()
-
-                # 配方食材循环生成
                 n = len(self._recipe_ingredients)
-                self._recipe_spawn_timer -= dt
-                while self._recipe_spawn_timer <= 0:
-                    ing_type = self._recipe_ingredients[self._recipe_spawn_index % n]
+                self._spawn_timer -= dt
+                while self._spawn_timer <= 0:
+                    if self._spawn_count % self._recipe_ratio == 0:
+                        ing_type = self._recipe_ingredients[self._recipe_spawn_index % n]
+                        self._recipe_spawn_index += 1
+                    else:
+                        ing_type = self._random_distractor()
                     self._spawn_ingredient(ing_type)
-                    self._recipe_spawn_index += 1
-                    self._recipe_spawn_timer += self._recipe_spawn_interval
+                    self._spawn_count += 1
+                    self._spawn_timer += self._spawn_interval
 
-                # 干扰食材生成
-                self._distractor_spawn_timer -= dt
-                while self._distractor_spawn_timer <= 0:
-                    used = set(self._recipe_ingredients)
-                    available = [
-                        t
-                        for t in [
-                            "珍珠",
-                            "椰果",
-                            "牛奶",
-                            "红茶",
-                            "绿茶",
-                            "芋圆",
-                            "脆啵啵",
-                            "芒果",
-                            "椰奶",
-                            "草莓",
-                            "芋泥",
-                            "燕麦奶",
-                            "咖啡",
-                            "特调稀奶油顶",
-                            "米酿",
-                            "咸芝士奶盖",
-                            "茉莉花茶",
-                        ]
-                        if t not in used
-                    ]
-                    if available:
-                        self._spawn_ingredient(random.choice(available))
-                    self._distractor_spawn_timer += self._distractor_spawn_interval
-
-                # 更新 — 释放离开屏幕的食材的车道
                 for ing in list(self._all_ingredients):
                     ing.update()
                 for ing in list(self._all_ingredients):
                     if ing.rect.top > SCREEN_HEIGHT + 50:
                         ing.kill()
 
-                # 检查是否有配方食材因落下未接住而超时（只检查当前目标食材）
                 self._check_catches()
 
                 if self._phase == "playing" and self._phase_timer >= self._drop_window:

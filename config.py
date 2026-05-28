@@ -396,7 +396,7 @@ CONTROL_MODES = [
         "key": "memory",
         "name": "记忆模式",
         "desc": "记忆食材序列",
-        "enabled": False,
+        "enabled": True,
         "color": (100, 100, 100),
         "glow": (150, 150, 150),
     },

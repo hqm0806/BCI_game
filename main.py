@@ -15,6 +15,7 @@ from core.audio_manager import AudioManager
 from core.state_machine import GameEvent, GameState, State, StateMachine
 from data.player_profile import PlayerProfile
 from game.font_utils import load_chinese_font
+from game.memory_mode import run_memory_game
 from game.session import run_game
 from menu import GameSettingsScreen, MainMenu
 from menu.login import LoginScreen
@@ -94,6 +95,8 @@ class MenuState(State):
             return GameState.QUIT
         if result == "settings":
             return GameState.SETTINGS
+        if result == "start_memory":
+            return GameState.GAME_MEMORY
         if result == "start":
             return GameState.TRANSITION
         return None
@@ -157,6 +160,26 @@ class TransitionState(State):
         pass
 
 
+class MemoryGameState(State):
+    """记忆模式游戏状态"""
+
+    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock) -> None:
+        self.screen = screen
+        self.clock = clock
+
+    def enter(self) -> GameState | None:
+        result = run_memory_game(self.screen, self.clock)
+        if result == "quit":
+            return GameState.QUIT
+        return GameState.MENU
+
+    def handle_event(self, event: GameEvent) -> GameState | None:
+        return GameState.MENU
+
+    def update(self) -> None:
+        pass
+
+
 class GameStateImpl(State):
     """游戏运行状态"""
 
@@ -207,6 +230,7 @@ def main() -> None:
     sm.register(GameState.SETTINGS, SettingsState(screen))
     sm.register(GameState.TRANSITION, TransitionState(screen, audio))
     sm.register(GameState.GAME, GameStateImpl(screen, clock, context))
+    sm.register(GameState.GAME_MEMORY, MemoryGameState(screen, clock))
     sm.register(GameState.QUIT, QuitState())
 
     sm.start(GameState.SPLASH)

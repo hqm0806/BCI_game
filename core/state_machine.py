@@ -18,6 +18,7 @@ class GameState(Enum):
     SETTINGS = auto()
     TRANSITION = auto()
     GAME = auto()
+    GAME_MEMORY = auto()
     QUIT = auto()
 
 

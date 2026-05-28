@@ -107,7 +107,7 @@ class MainMenu:
 
         self.btn_cx = cx
 
-        self.title_y = start_y - 175   # 疯狂奶茶杯的y坐标
+        self.title_y = start_y - 175  # 疯狂奶茶杯的y坐标
         self.title_phase = 0.0
 
         self._dialog_active = False
@@ -115,9 +115,6 @@ class MainMenu:
         self._dialog_confirm_rect = pygame.Rect(0, 0, 160, 50)
         self._dialog_result = None
         self._dialog_click_frames = 0
-
-        self._memory_tip_timer = 0.0
-        self._memory_tip_alpha = 0
 
     def _load_bg(self) -> pygame.Surface | None:
         path = os.path.join(IMAGES_DIR, "backgrounds", "吧台.png")
@@ -159,8 +156,10 @@ class MainMenu:
             self._control_mode = "keyboard"
             click_frames[0] = 15
         elif control_key == "memory":
-            self._memory_tip_timer = 2.0
-            self._memory_tip_alpha = 255
+            self.result = "start_memory"
+            self.current_mode = "bci"
+            self._control_mode = "bci"
+            click_frames[0] = 15
 
     def run(self) -> tuple[str | None, str, str]:
         click_frames = [0]
@@ -249,14 +248,6 @@ class MainMenu:
 
         self.title_phase += dt * 2
 
-        if self._memory_tip_timer > 0:
-            self._memory_tip_timer -= dt
-            if self._memory_tip_timer <= 0:
-                self._memory_tip_timer = 0
-            fade_out_start = 0.5
-            if self._memory_tip_timer < fade_out_start:
-                self._memory_tip_alpha = max(0, int(255 * self._memory_tip_timer / fade_out_start))
-
     def _draw_dialog(self) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 140))
@@ -289,16 +280,6 @@ class MainMenu:
         self.screen.blit(box_surf, (bx, by))
 
         self._dialog_confirm_rect = pygame.Rect(bx + btn_x, by + btn_y, 160, 50)
-
-    def _draw_memory_tip(self) -> None:
-        if self._memory_tip_alpha <= 0:
-            return
-        tip_text = "开发中，敬请期待"
-        tip_surf = self.font.render(tip_text, True, (255, 200, 100))
-        tip_surf.set_alpha(self._memory_tip_alpha)
-        tip_x = self.mode_selector.rect.centerx - tip_surf.get_width() // 2
-        tip_y = self.mode_selector.rect.bottom + 12
-        self.screen.blit(tip_surf, (tip_x, tip_y))
 
     def _draw(self) -> None:
         if self.bg:
@@ -340,8 +321,6 @@ class MainMenu:
         self.start_btn.draw(self.screen)
         self.mode_selector.draw(self.screen)
         self.settings_btn.draw(self.screen)
-
-        self._draw_memory_tip()
 
         if self._dialog_active:
             self._draw_dialog()

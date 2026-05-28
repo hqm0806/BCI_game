@@ -1,0 +1,512 @@
+"""记忆模式游戏会话 - 记忆配方→按序接食材"""
+
+from __future__ import annotations
+
+import math
+import os
+import random
+
+import pygame
+
+from config import (
+    BACKGROUND_IMG,
+    INGREDIENT_IMGS,
+    INGREDIENT_LANE_INDICES,
+    LANE_WIDTH,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
+from data.memory_recipes import MEMORY_RECIPES
+from game.font_utils import load_chinese_font
+from game.sprites import Cup, Ingredient
+
+
+class _MemoryParticle(pygame.sprite.Sprite):
+    def __init__(self, x: float, y: float, color: tuple[int, int, int]) -> None:
+        super().__init__()
+        self.x = x
+        self.y = y
+        self.color = color
+        angle = random.uniform(0, 2 * math.pi)
+        speed = random.uniform(2, 7)
+        self.vx = math.cos(angle) * speed
+        self.vy = math.sin(angle) * speed
+        self.life = 1.0
+        self.decay = random.uniform(1.5, 3.0)
+        self.size = random.randint(2, 6)
+        self.image = pygame.Surface((self.size * 2, self.size * 2), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, (*color, 255), (self.size, self.size), self.size)
+        self.rect = self.image.get_rect(center=(int(x), int(y)))
+
+    def update(self, dt: float = 0.016) -> None:  # type: ignore[override]
+        self.life -= self.decay * dt
+        if self.life <= 0:
+            self.kill()
+            return
+        self.x += self.vx * dt * 60
+        self.y += self.vy * dt * 60
+        self.rect.center = (int(self.x), int(self.y))
+        self.image.set_alpha(int(self.life * 255))
+
+
+class MemorySession:
+    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock) -> None:
+        self.screen = screen
+        self.clock = clock
+        self.font = load_chinese_font(36)
+        self.big_font = load_chinese_font(48)
+        self.small_font = load_chinese_font(20)
+        self.running = True
+
+        self._bg = self._load_bg()
+
+        self.cup = Cup()
+        self._all_ingredients = pygame.sprite.Group()
+        self._particles = pygame.sprite.Group()
+
+        self._phase = "rules"
+        self._phase_timer = 0.0
+
+        self._recipe = None
+        self._recipe_name = ""
+        self._recipe_ingredients: list[str] = []
+        self._target_index = 0
+        self._caught_count = 0
+        self._wrong_caught = False
+
+        self._current_level = 2
+        self._consecutive_success = 0
+        self._round_failures = 0
+
+        self._max_level = 5
+        self._min_level = 2
+        self._upgrade_threshold = 3
+        self._downgrade_threshold = 2
+
+        self._spawn_timer = 0.0
+        self._next_recipe_spawn_index = 0
+        self._distractor_spawn_interval = 0.6
+        self._ingredient_speed = 4.5
+
+        self._occupied_lanes: set[int] = set()
+
+        self._rules_display_time = 3.0
+        self._memorize_time = 3.0
+        self._drop_window = 10.0
+        self._result_time = 1.5
+        self._rest_time = 2.0
+
+        self._round_result = ""
+        self._result_color = (255, 255, 255)
+
+        self._fade_alpha = 0
+        self._fade_target = 0
+
+        self._total_score = 0
+        self._total_rounds = 0
+        self._total_success = 0
+
+    def _load_bg(self) -> pygame.Surface | None:
+        if os.path.exists(BACKGROUND_IMG):
+            img = pygame.image.load(BACKGROUND_IMG).convert()
+            return pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        return None
+
+    def _pick_recipe(self) -> None:
+        recipes = MEMORY_RECIPES.get(self._current_level, MEMORY_RECIPES[2])
+        self._recipe = random.choice(recipes)
+        self._recipe_name = self._recipe["name"]
+        self._recipe_ingredients = list(self._recipe["ingredients"])
+        self._target_index = 0
+        self._caught_count = 0
+        self._wrong_caught = False
+        self._spawn_timer = 0.0
+        self._next_recipe_spawn_index = 0
+        self._round_result = ""
+        self._occupied_lanes = set()
+
+    def _enter_phase(self, phase: str) -> None:
+        self._phase = phase
+        self._phase_timer = 0.0
+        if phase == "memorize":
+            self._pick_recipe()
+        elif phase == "playing":
+            self._all_ingredients.empty()
+            self._occupied_lanes = set()
+            n = len(self._recipe_ingredients)
+            self._spawn_timer = 0.3
+            self._next_recipe_spawn_index = 0
+            self._spawn_interval = 6.0 / max(n - 1, 1)
+
+    def _free_lane(self) -> int | None:
+        occupied = self._occupied_lanes
+        free = [idx for idx in INGREDIENT_LANE_INDICES if idx not in occupied]
+        if not free:
+            return None
+        lane = random.choice(free)
+        self._occupied_lanes.add(lane)
+        return lane
+
+    def _release_lane(self, ing: Ingredient) -> None:
+        lane = ing.rect.centerx // LANE_WIDTH
+        self._occupied_lanes.discard(lane)
+
+    def _spawn_ingredient(self, ing_type: str, is_target: bool = False) -> Ingredient | None:
+        lane = self._free_lane()
+        if lane is None:
+            return None
+        lane_center = lane * LANE_WIDTH + LANE_WIDTH // 2
+        size = 80
+        x = random.randint(
+            max(0, lane_center - size // 2),
+            min(SCREEN_WIDTH - size, lane_center + size // 2),
+        )
+
+        ing = Ingredient(ing_type, speed=self._ingredient_speed)
+        size_w = 80
+        ing.rect.width = size_w
+        ing.rect.height = size_w
+        ing.rect.centerx = x
+        ing.rect.y = -size_w
+
+        if is_target:
+            target_surf = pygame.Surface((size_w + 6, size_w + 6), pygame.SRCALPHA)
+            pygame.draw.rect(
+                target_surf,
+                (255, 200, 0, 180),
+                (0, 0, target_surf.get_width(), target_surf.get_height()),
+                border_radius=8,
+            )
+            combined = pygame.Surface((target_surf.get_width(), target_surf.get_height()), pygame.SRCALPHA)
+            combined.blit(target_surf, (0, 0))
+            combined.blit(ing.image, (3, 3))
+            ing.image = combined
+            ing.rect = ing.image.get_rect(center=(x, -size_w // 2))
+
+        self._all_ingredients.add(ing)
+        return ing
+
+    def _spawn_distractor(self) -> None:
+        used = set(self._recipe_ingredients)
+        available = [
+            t
+            for t in [
+                "珍珠",
+                "椰果",
+                "牛奶",
+                "红茶",
+                "绿茶",
+                "芋圆",
+                "脆啵啵",
+                "芒果",
+                "椰奶",
+                "草莓",
+                "芋泥",
+                "燕麦奶",
+                "咖啡",
+                "特调稀奶油顶",
+                "米酿",
+                "咸芝士奶盖",
+                "茉莉花茶",
+            ]
+            if t not in used
+        ]
+        if available:
+            ing_type = random.choice(available)
+            self._spawn_ingredient(ing_type)
+
+    def _check_catches(self) -> None:
+        hits = pygame.sprite.spritecollide(self.cup, self._all_ingredients, False)
+        for hit in hits:
+            is_right = hit.type == self._recipe_ingredients[self._target_index]
+            if is_right:
+                self._caught_count += 1
+                self._target_index += 1
+                self.cup.trigger_bounce()
+                self._release_lane(hit)
+                hit.kill()
+                for _ in range(8):
+                    p = _MemoryParticle(
+                        hit.rect.centerx,
+                        hit.rect.centery,
+                        (255, 200, 50),
+                    )
+                    self._particles.add(p)
+                if self._target_index >= len(self._recipe_ingredients):
+                    self._round_result = "success"
+                    self._enter_phase("result")
+                    return
+            else:
+                self._wrong_caught = True
+                self._round_result = "wrong"
+                self._enter_phase("result")
+                return
+
+    def run(self) -> str:
+        self._enter_phase("rules")
+
+        while self.running:
+            dt = self.clock.tick(60) / 1000.0
+            self._phase_timer += dt
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    return "quit"
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    self.running = False
+                    return "menu"
+
+            if self._phase == "rules":
+                if self._phase_timer >= self._rules_display_time:
+                    self._enter_phase("memorize")
+
+            elif self._phase == "memorize":
+                if self._phase_timer >= self._memorize_time:
+                    self._enter_phase("playing")
+
+            elif self._phase == "playing":
+                keys = pygame.key.get_pressed()
+                self.cup.update(
+                    keys={
+                        pygame.K_LEFT: keys[pygame.K_LEFT],
+                        pygame.K_RIGHT: keys[pygame.K_RIGHT],
+                    },
+                    dt=dt,
+                )
+
+                n = len(self._recipe_ingredients)
+                self._spawn_timer -= dt
+                if self._spawn_timer <= 0 and self._next_recipe_spawn_index < n:
+                    self._spawn_ingredient(
+                        self._recipe_ingredients[self._next_recipe_spawn_index],
+                        is_target=True,
+                    )
+                    self._next_recipe_spawn_index += 1
+                    if self._next_recipe_spawn_index < n:
+                        self._spawn_timer = self._spawn_interval
+
+                if random.random() < dt / self._distractor_spawn_interval:
+                    self._spawn_distractor()
+
+                for ing in list(self._all_ingredients):
+                    ing.update()
+                    if ing.rect.top > SCREEN_HEIGHT + 50:
+                        if ing.type in self._recipe_ingredients:
+                            self._round_result = "timeout"
+                            self._enter_phase("result")
+                            break
+                        else:
+                            self._release_lane(ing)
+                            ing.kill()
+
+                self._check_catches()
+
+                if self._phase == "playing" and self._phase_timer >= self._drop_window:
+                    self._round_result = "timeout"
+                    self._enter_phase("result")
+
+                self._particles.update(dt)
+
+            elif self._phase == "result":
+                if self._phase_timer >= self._result_time:
+                    if self._round_result == "success":
+                        self._total_success += 1
+                        self._consecutive_success += 1
+                        self._round_failures = 0
+                        if self._consecutive_success >= self._upgrade_threshold:
+                            self._current_level = min(
+                                self._max_level,
+                                self._current_level + 1,
+                            )
+                            self._consecutive_success = 0
+                    else:
+                        self._consecutive_success = 0
+                        self._round_failures += 1
+                        if self._round_failures >= self._downgrade_threshold:
+                            self._current_level = max(
+                                self._min_level,
+                                self._current_level - 1,
+                            )
+                            self._round_failures = 0
+                    self._total_rounds += 1
+                    self._total_score += self._current_level
+                    self._enter_phase("rest")
+
+            elif self._phase == "rest":
+                if self._phase_timer >= self._rest_time:
+                    self._enter_phase("memorize")
+
+            self._draw()
+            pygame.display.flip()
+
+        return "menu"
+
+    def _draw(self) -> None:
+        if self._bg:
+            self.screen.blit(self._bg, (0, 0))
+        else:
+            self.screen.fill((40, 25, 15))
+
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 40))
+        self.screen.blit(overlay, (0, 0))
+
+        self._draw_hud()
+
+        if self._phase in ("rules", "memorize", "result", "rest"):
+            self.cup.rect.centerx = SCREEN_WIDTH // 2
+            self.cup.rect.bottom = SCREEN_HEIGHT - 10
+        self.screen.blit(self.cup.image, self.cup.rect)
+
+        for ing in self._all_ingredients:
+            self.screen.blit(ing.image, ing.rect)
+
+        for p in self._particles:
+            self.screen.blit(p.image, p.rect)
+
+        if self._phase == "rules":
+            self._draw_rules()
+        elif self._phase == "memorize":
+            self._draw_memorize()
+        elif self._phase == "result":
+            self._draw_result()
+        elif self._phase == "rest":
+            self._draw_rest()
+
+    def _draw_hud(self) -> None:
+        level_text = self.small_font.render(
+            f"难度 Lv.{self._current_level - 1} | 配方 {self._current_level}食材 | 得分 {self._total_score} | ESC 退出",
+            True,
+            (200, 180, 140),
+        )
+        self.screen.blit(level_text, (SCREEN_WIDTH // 2 - level_text.get_width() // 2, 10))
+
+        if self._phase == "playing" and self._target_index < len(self._recipe_ingredients):
+            n = len(self._recipe_ingredients)
+            circles_y = 40
+            circle_r = 6
+            circle_gap = 18
+            total_c_w = n * (circle_r * 2) + (n - 1) * circle_gap
+            start_x = SCREEN_WIDTH // 2 - total_c_w // 2
+            for i in range(n):
+                cx = start_x + i * (circle_r * 2 + circle_gap)
+                cy = circles_y
+                if i < self._target_index:
+                    color = (100, 255, 100)
+                elif i == self._target_index:
+                    pulse = (math.sin(self._phase_timer * 6) + 1) * 0.5
+                    color = (
+                        int(255 * pulse + 200 * (1 - pulse)),
+                        int(200 * pulse + 150 * (1 - pulse)),
+                        int(100 * pulse + 50 * (1 - pulse)),
+                    )
+                else:
+                    color = (80, 80, 80)
+                pygame.draw.circle(self.screen, color, (cx, cy), circle_r)
+
+    def _draw_rules(self) -> None:
+        popup = pygame.Surface((700, 340), pygame.SRCALPHA)
+        pygame.draw.rect(popup, (30, 25, 20, 220), (0, 0, 700, 340), border_radius=20)
+        pygame.draw.rect(popup, (255, 180, 100, 100), (0, 0, 700, 340), 3, border_radius=20)
+
+        lines = [
+            ("记忆模式", self.big_font, (255, 200, 100)),
+            ("", self.small_font, (255, 255, 255)),
+            ("1. 记住屏幕中央的配方食材组合", self.font, (255, 255, 255)),
+            ("2. 食材消失后，按顺序接住配方中的食材", self.font, (255, 255, 255)),
+            ("3. 必须严格按顺序！接错顺序即失败", self.font, (255, 220, 100)),
+            ("4. 连续成功 3 次升级难度，失败 2 次降级", self.font, (255, 255, 255)),
+            ("5. 最高 5 种食材配方", self.font, (255, 255, 255)),
+        ]
+
+        y = 30
+        for text, fnt, color in lines:
+            if text:
+                surf = fnt.render(text, True, color)
+                popup.blit(surf, ((700 - surf.get_width()) // 2, y))
+                y += 42 if fnt == self.font else 55 if fnt == self.big_font else 20
+
+        px = (SCREEN_WIDTH - 700) // 2
+        py = (SCREEN_HEIGHT - 340) // 2
+        self.screen.blit(popup, (px, py))
+
+    def _draw_memorize(self) -> None:
+        n = len(self._recipe_ingredients)
+        img_size = 90
+        gap = 15
+        total_w = n * img_size + (n - 1) * gap
+        start_x = (SCREEN_WIDTH - total_w) // 2
+        y = SCREEN_HEIGHT // 2 - 70
+
+        for i, ing_type in enumerate(self._recipe_ingredients):
+            x = start_x + i * (img_size + gap)
+            path = INGREDIENT_IMGS.get(ing_type, "")
+            if path and os.path.exists(path):
+                img = pygame.image.load(path).convert_alpha()
+                img = pygame.transform.scale(img, (img_size, img_size))
+            else:
+                img = pygame.Surface((img_size, img_size), pygame.SRCALPHA)
+                pygame.draw.circle(img, (200, 160, 100), (img_size // 2, img_size // 2), img_size // 2)
+            self.screen.blit(img, (x, y))
+
+            if i < n - 1:
+                arr_surf = self.big_font.render("→", True, (255, 200, 100))
+                arr_x = x + img_size + (gap - arr_surf.get_width()) // 2
+                arr_y = y + img_size // 2 - arr_surf.get_height() // 2
+                self.screen.blit(arr_surf, (arr_x, arr_y))
+
+        name_surf = self.font.render(self._recipe_name, True, (255, 220, 100))
+        self.screen.blit(
+            name_surf,
+            (SCREEN_WIDTH // 2 - name_surf.get_width() // 2, y + img_size + 18),
+        )
+
+        remain = max(0, self._memorize_time - self._phase_timer)
+        bar_w = int(300 * remain / self._memorize_time)
+        bar_rect = pygame.Rect(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT - 60, bar_w, 8)
+        pygame.draw.rect(self.screen, (255, 180, 100), bar_rect, border_radius=4)
+        timer_text = self.small_font.render(f"记忆时间 {remain:.1f}s", True, (200, 180, 140))
+        self.screen.blit(timer_text, (SCREEN_WIDTH // 2 - timer_text.get_width() // 2, SCREEN_HEIGHT - 50))
+
+    def _draw_result(self) -> None:
+        if self._round_result == "success":
+            text = f"成功制作 {self._recipe_name}"
+            color = (100, 255, 100)
+        elif self._round_result == "wrong":
+            text = "接错食材，制作失败"
+            color = (255, 120, 100)
+        else:
+            text = "超时，制作失败"
+            color = (255, 180, 60)
+
+        popup = pygame.Surface((500, 120), pygame.SRCALPHA)
+        pygame.draw.rect(popup, (25, 20, 15, 220), (0, 0, 500, 120), border_radius=16)
+        pygame.draw.rect(popup, (*color, 120), (0, 0, 500, 120), 3, border_radius=16)
+
+        surf = self.font.render(text, True, color)
+        popup.blit(surf, ((500 - surf.get_width()) // 2, (120 - surf.get_height()) // 2))
+
+        px = (SCREEN_WIDTH - 500) // 2
+        py = SCREEN_HEIGHT // 2 - 60
+        self.screen.blit(popup, (px, py))
+
+    def _draw_rest(self) -> None:
+        remain = max(0, self._rest_time - self._phase_timer)
+        text = f"下一杯即将开始... {remain:.0f}s"
+        surf = self.font.render(text, True, (200, 180, 140))
+        self.screen.blit(surf, (SCREEN_WIDTH // 2 - surf.get_width() // 2, SCREEN_HEIGHT // 2 - 30))
+
+        lvl_text = self.small_font.render(
+            f"当前等级: {self._current_level}食材配方 | "
+            f"连续成功: {self._consecutive_success}/{self._upgrade_threshold} | "
+            f"失败: {self._round_failures}/{self._downgrade_threshold}",
+            True,
+            (180, 160, 120),
+        )
+        self.screen.blit(lvl_text, (SCREEN_WIDTH // 2 - lvl_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20))
+
+
+def run_memory_game(screen: pygame.Surface, clock: pygame.time.Clock) -> str:
+    session = MemorySession(screen, clock)
+    return session.run()

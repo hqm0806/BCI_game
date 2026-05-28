@@ -12,7 +12,6 @@ from config import (
     BACKGROUND_IMG,
     INGREDIENT_IMGS,
     INGREDIENT_LANE_INDICES,
-    LANE_WIDTH,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
@@ -71,8 +70,6 @@ class MemorySession:
         self._recipe_name = ""
         self._recipe_ingredients: list[str] = []
         self._target_index = 0
-        self._caught_count = 0
-        self._wrong_caught = False
 
         self._current_level = 2
         self._consecutive_success = 0
@@ -83,24 +80,23 @@ class MemorySession:
         self._upgrade_threshold = 3
         self._downgrade_threshold = 2
 
-        self._spawn_timer = 0.0
-        self._next_recipe_spawn_index = 0
-        self._distractor_spawn_interval = 0.6
-        self._ingredient_speed = 4.5
+        self._recipe_spawn_timer = 0.0
+        self._recipe_spawn_index = 0
+        self._recipe_spawn_interval = 1.5
+        self._distractor_spawn_timer = 0.0
+        self._distractor_spawn_interval = 0.5
+        self._ingredient_speed = 5.5
 
-        self._occupied_lanes: set[int] = set()
+        self._lane_last_y: dict[int, float] = {}
+        self._lane_spacing = 400
 
         self._rules_display_time = 3.0
         self._memorize_time = 3.0
-        self._drop_window = 10.0
+        self._drop_window = 15.0
         self._result_time = 1.5
         self._rest_time = 2.0
 
         self._round_result = ""
-        self._result_color = (255, 255, 255)
-
-        self._fade_alpha = 0
-        self._fade_target = 0
 
         self._total_score = 0
         self._total_rounds = 0
@@ -118,12 +114,8 @@ class MemorySession:
         self._recipe_name = self._recipe["name"]
         self._recipe_ingredients = list(self._recipe["ingredients"])
         self._target_index = 0
-        self._caught_count = 0
-        self._wrong_caught = False
-        self._spawn_timer = 0.0
-        self._next_recipe_spawn_index = 0
         self._round_result = ""
-        self._occupied_lanes = set()
+        self._lane_last_y = {}
 
     def _enter_phase(self, phase: str) -> None:
         self._phase = phase
@@ -132,98 +124,56 @@ class MemorySession:
             self._pick_recipe()
         elif phase == "playing":
             self._all_ingredients.empty()
-            self._occupied_lanes = set()
-            n = len(self._recipe_ingredients)
-            self._spawn_timer = 0.3
-            self._next_recipe_spawn_index = 0
-            self._spawn_interval = 6.0 / max(n - 1, 1)
+            self._lane_last_y = {}
+            self._recipe_spawn_timer = 0.3
+            self._recipe_spawn_index = 0
+            self._distractor_spawn_timer = 0.6
+
+    def _update_lane_positions(self) -> None:
+        lane_w = SCREEN_WIDTH // 5
+        self._lane_last_y = {}
+        for ing in self._all_ingredients:
+            lane = ing.rect.centerx // lane_w
+            cur_y = ing.rect.y
+            if lane not in self._lane_last_y or cur_y < self._lane_last_y[lane]:
+                self._lane_last_y[lane] = cur_y
 
     def _free_lane(self) -> int | None:
-        occupied = self._occupied_lanes
-        free = [idx for idx in INGREDIENT_LANE_INDICES if idx not in occupied]
-        if not free:
-            return None
-        lane = random.choice(free)
-        self._occupied_lanes.add(lane)
-        return lane
+        lanes = list(INGREDIENT_LANE_INDICES)
+        random.shuffle(lanes)
+        for lane in lanes:
+            last_y = self._lane_last_y.get(lane, -9999)
+            if last_y < 0 or last_y >= self._lane_spacing:
+                self._lane_last_y[lane] = -40
+                return lane
+        return None
 
-    def _release_lane(self, ing: Ingredient) -> None:
-        lane = ing.rect.centerx // LANE_WIDTH
-        self._occupied_lanes.discard(lane)
-
-    def _spawn_ingredient(self, ing_type: str, is_target: bool = False) -> Ingredient | None:
+    def _spawn_ingredient(self, ing_type: str) -> Ingredient | None:
         lane = self._free_lane()
         if lane is None:
             return None
-        lane_center = lane * LANE_WIDTH + LANE_WIDTH // 2
-        size = 80
+        lane_center = lane * (SCREEN_WIDTH // 5) + (SCREEN_WIDTH // 10)
         x = random.randint(
-            max(0, lane_center - size // 2),
-            min(SCREEN_WIDTH - size, lane_center + size // 2),
+            max(0, lane_center - 40),
+            min(SCREEN_WIDTH - 80, lane_center + 40),
         )
 
         ing = Ingredient(ing_type, speed=self._ingredient_speed)
-        size_w = 80
-        ing.rect.width = size_w
-        ing.rect.height = size_w
+        ing.rect.width = 80
+        ing.rect.height = 80
         ing.rect.centerx = x
-        ing.rect.y = -size_w
-
-        if is_target:
-            target_surf = pygame.Surface((size_w + 6, size_w + 6), pygame.SRCALPHA)
-            pygame.draw.rect(
-                target_surf,
-                (255, 200, 0, 180),
-                (0, 0, target_surf.get_width(), target_surf.get_height()),
-                border_radius=8,
-            )
-            combined = pygame.Surface((target_surf.get_width(), target_surf.get_height()), pygame.SRCALPHA)
-            combined.blit(target_surf, (0, 0))
-            combined.blit(ing.image, (3, 3))
-            ing.image = combined
-            ing.rect = ing.image.get_rect(center=(x, -size_w // 2))
+        ing.rect.y = -80
 
         self._all_ingredients.add(ing)
         return ing
-
-    def _spawn_distractor(self) -> None:
-        used = set(self._recipe_ingredients)
-        available = [
-            t
-            for t in [
-                "珍珠",
-                "椰果",
-                "牛奶",
-                "红茶",
-                "绿茶",
-                "芋圆",
-                "脆啵啵",
-                "芒果",
-                "椰奶",
-                "草莓",
-                "芋泥",
-                "燕麦奶",
-                "咖啡",
-                "特调稀奶油顶",
-                "米酿",
-                "咸芝士奶盖",
-                "茉莉花茶",
-            ]
-            if t not in used
-        ]
-        if available:
-            ing_type = random.choice(available)
-            self._spawn_ingredient(ing_type)
 
     def _check_catches(self) -> None:
         hits = pygame.sprite.spritecollide(self.cup, self._all_ingredients, False)
         for hit in hits:
             is_right = hit.type == self._recipe_ingredients[self._target_index]
             if is_right:
-                self._caught_count += 1
                 self._target_index += 1
                 self.cup.trigger_bounce()
-                self._release_lane(hit)
                 hit.kill()
                 for _ in range(8):
                     p = _MemoryParticle(
@@ -237,7 +187,6 @@ class MemorySession:
                     self._enter_phase("result")
                     return
             else:
-                self._wrong_caught = True
                 self._round_result = "wrong"
                 self._enter_phase("result")
                 return
@@ -275,35 +224,61 @@ class MemorySession:
                     dt=dt,
                 )
 
+                self._update_lane_positions()
+
+                # 配方食材循环生成
                 n = len(self._recipe_ingredients)
-                self._spawn_timer -= dt
-                if self._spawn_timer <= 0 and self._next_recipe_spawn_index < n:
-                    self._spawn_ingredient(
-                        self._recipe_ingredients[self._next_recipe_spawn_index],
-                        is_target=True,
-                    )
-                    self._next_recipe_spawn_index += 1
-                    if self._next_recipe_spawn_index < n:
-                        self._spawn_timer = self._spawn_interval
+                self._recipe_spawn_timer -= dt
+                while self._recipe_spawn_timer <= 0:
+                    ing_type = self._recipe_ingredients[self._recipe_spawn_index % n]
+                    self._spawn_ingredient(ing_type)
+                    self._recipe_spawn_index += 1
+                    self._recipe_spawn_timer += self._recipe_spawn_interval
 
-                if random.random() < dt / self._distractor_spawn_interval:
-                    self._spawn_distractor()
+                # 干扰食材生成
+                self._distractor_spawn_timer -= dt
+                while self._distractor_spawn_timer <= 0:
+                    used = set(self._recipe_ingredients)
+                    available = [
+                        t
+                        for t in [
+                            "珍珠",
+                            "椰果",
+                            "牛奶",
+                            "红茶",
+                            "绿茶",
+                            "芋圆",
+                            "脆啵啵",
+                            "芒果",
+                            "椰奶",
+                            "草莓",
+                            "芋泥",
+                            "燕麦奶",
+                            "咖啡",
+                            "特调稀奶油顶",
+                            "米酿",
+                            "咸芝士奶盖",
+                            "茉莉花茶",
+                        ]
+                        if t not in used
+                    ]
+                    if available:
+                        self._spawn_ingredient(random.choice(available))
+                    self._distractor_spawn_timer += self._distractor_spawn_interval
 
+                # 更新 — 释放离开屏幕的食材的车道
                 for ing in list(self._all_ingredients):
                     ing.update()
+                for ing in list(self._all_ingredients):
                     if ing.rect.top > SCREEN_HEIGHT + 50:
-                        if ing.type in self._recipe_ingredients:
-                            self._round_result = "timeout"
-                            self._enter_phase("result")
-                            break
-                        else:
-                            self._release_lane(ing)
-                            ing.kill()
+                        ing.kill()
 
+                # 检查是否有配方食材因落下未接住而超时（只检查当前目标食材）
                 self._check_catches()
 
                 if self._phase == "playing" and self._phase_timer >= self._drop_window:
-                    self._round_result = "timeout"
+                    if self._target_index < len(self._recipe_ingredients):
+                        self._round_result = "timeout"
                     self._enter_phase("result")
 
                 self._particles.update(dt)
@@ -391,7 +366,6 @@ class MemorySession:
             start_x = SCREEN_WIDTH // 2 - total_c_w // 2
             for i in range(n):
                 cx = start_x + i * (circle_r * 2 + circle_gap)
-                cy = circles_y
                 if i < self._target_index:
                     color = (100, 255, 100)
                 elif i == self._target_index:
@@ -403,7 +377,7 @@ class MemorySession:
                     )
                 else:
                     color = (80, 80, 80)
-                pygame.draw.circle(self.screen, color, (cx, cy), circle_r)
+                pygame.draw.circle(self.screen, color, (cx, circles_y), circle_r)
 
     def _draw_rules(self) -> None:
         popup = pygame.Surface((700, 340), pygame.SRCALPHA)
@@ -449,12 +423,6 @@ class MemorySession:
                 img = pygame.Surface((img_size, img_size), pygame.SRCALPHA)
                 pygame.draw.circle(img, (200, 160, 100), (img_size // 2, img_size // 2), img_size // 2)
             self.screen.blit(img, (x, y))
-
-            if i < n - 1:
-                arr_surf = self.big_font.render("→", True, (255, 200, 100))
-                arr_x = x + img_size + (gap - arr_surf.get_width()) // 2
-                arr_y = y + img_size // 2 - arr_surf.get_height() // 2
-                self.screen.blit(arr_surf, (arr_x, arr_y))
 
         name_surf = self.font.render(self._recipe_name, True, (255, 220, 100))
         self.screen.blit(

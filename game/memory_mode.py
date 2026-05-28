@@ -103,6 +103,8 @@ class MemorySession:
         self._total_rounds = 0
         self._total_success = 0
 
+        self._catch_success_timer = 0.0
+
     def _load_bg(self) -> pygame.Surface | None:
         if os.path.exists(BACKGROUND_IMG):
             img = pygame.image.load(BACKGROUND_IMG).convert()
@@ -204,7 +206,7 @@ class MemorySession:
                     self._particles.add(p)
                 if self._target_index >= len(self._recipe_ingredients):
                     self._round_result = "success"
-                    self._enter_phase("result")
+                    self._catch_success_timer = 0.6
                     return
             else:
                 self._round_result = "wrong"
@@ -249,16 +251,17 @@ class MemorySession:
                 )
 
                 n = len(self._recipe_ingredients)
-                self._spawn_timer -= dt
-                while self._spawn_timer <= 0:
-                    if self._spawn_count % self._recipe_ratio == 0:
-                        ing_type = self._recipe_ingredients[self._recipe_spawn_index % n]
-                        self._recipe_spawn_index += 1
-                    else:
-                        ing_type = self._random_distractor()
-                    self._spawn_ingredient(ing_type)
-                    self._spawn_count += 1
-                    self._spawn_timer += self._spawn_interval
+                if self._catch_success_timer <= 0:
+                    self._spawn_timer -= dt
+                    while self._spawn_timer <= 0:
+                        if self._spawn_count % self._recipe_ratio == 0:
+                            ing_type = self._recipe_ingredients[self._recipe_spawn_index % n]
+                            self._recipe_spawn_index += 1
+                        else:
+                            ing_type = self._random_distractor()
+                        self._spawn_ingredient(ing_type)
+                        self._spawn_count += 1
+                        self._spawn_timer += self._spawn_interval
 
                 for ing in list(self._all_ingredients):
                     ing.update()
@@ -267,6 +270,11 @@ class MemorySession:
                         ing.kill()
 
                 self._check_catches()
+
+                if self._catch_success_timer > 0:
+                    self._catch_success_timer -= dt
+                    if self._catch_success_timer <= 0:
+                        self._enter_phase("result")
 
                 if self._phase == "playing" and self._phase_timer >= self._drop_window:
                     if self._target_index < len(self._recipe_ingredients):
@@ -399,6 +407,10 @@ class MemorySession:
         self.screen.blit(popup, (px, py))
 
     def _draw_memorize(self) -> None:
+        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 180))
+        self.screen.blit(shade, (0, 0))
+
         n = len(self._recipe_ingredients)
         img_size = 90
         gap = 15

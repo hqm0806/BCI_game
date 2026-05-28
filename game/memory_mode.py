@@ -91,7 +91,7 @@ class MemorySession:
         self._lane_spacing = 400
         self._max_per_lane = 2
 
-        self._rules_display_time = 3.0
+        self._rules_display_time = 7.0
         self._memorize_time = 3.0
         self._drop_window = 15.0
         self._result_time = 1.5
@@ -213,9 +213,13 @@ class MemorySession:
 
     def run(self) -> str:
         self._enter_phase("rules")
+        self.screen.fill((0, 0, 0))
+        self._draw()
+        pygame.display.flip()
+        self.clock.tick()  # 重置时钟，避免首帧 dt 过大
 
         while self.running:
-            dt = self.clock.tick(60) / 1000.0
+            dt = min(self.clock.tick(60) / 1000.0, 0.05)
             self._phase_timer += dt
 
             for event in pygame.event.get():
@@ -306,6 +310,7 @@ class MemorySession:
         return "menu"
 
     def _draw(self) -> None:
+        self.screen.fill((0, 0, 0))
         if self._bg:
             self.screen.blit(self._bg, (0, 0))
         else:

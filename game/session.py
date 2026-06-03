@@ -22,7 +22,6 @@ from config import (
     BACKGROUND_IMG,
     CUP_DURATION,
     CUP_WIDTH,
-    DEFAULT_GAME_MODE,
     FORMAL_SPEED_MAX,
     FORMAL_SPEED_MIN,
     GAME_MODES,
@@ -133,10 +132,12 @@ class GameSession:
         clock: pygame.time.Clock,
         game_mode: str = "regular",
         profile=None,
+        control_mode: str = "bci",
     ) -> None:
         self.screen = screen
         self.clock = clock
         self.game_mode = game_mode
+        self.control_mode = control_mode
         self._profile = profile
         self._upgrade_level = 0
 
@@ -150,7 +151,7 @@ class GameSession:
         self._draw_initial_frame()
 
     def _load_mode_config(self) -> None:
-        mode_config = GAME_MODES.get(self.game_mode, GAME_MODES[DEFAULT_GAME_MODE])
+        mode_config = GAME_MODES.get(self.game_mode, GAME_MODES["bci"])
         self.mode_name = mode_config["name"]
         self.has_required = mode_config["has_required"]
         self.free_combine = mode_config["free_combine"]
@@ -195,7 +196,7 @@ class GameSession:
     def _init_bci(self) -> None:
         self.bci_reader = BCIDataReader()
         self.bci_available = False
-        if self.bci_mode:
+        if self.bci_mode and self.control_mode != "keyboard":
             self.bci_available = self.bci_reader.connect()
 
         self.attention_curve = None
@@ -657,6 +658,9 @@ class GameSession:
                     return
 
     def _update_bci_data(self) -> None:
+        if self.control_mode == "keyboard":
+            self.attention = 50.0
+            return
         if self.bci_available:
             result = self.bci_reader.read_with_timeout()
             if result[0] is not None:
@@ -1111,8 +1115,9 @@ def run_game(
     clock: pygame.time.Clock,
     game_mode: str = "regular",
     profile=None,
+    control_mode: str = "bci",
 ) -> str:
-    session = GameSession(screen, clock, game_mode, profile)
+    session = GameSession(screen, clock, game_mode, profile, control_mode=control_mode)
     return session.run()
 
 

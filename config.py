@@ -337,30 +337,6 @@ GAME_MODES = {
         "total_cups": 36,
         "secret_recipe_cup_interval": 1,
     },
-    "challenge": {
-        "name": "挑战模式",
-        "description": "更快更密集，考验你的手速",
-        "has_required": True,
-        "free_combine": False,
-        "bci_mode": False,
-        "ingredient_speed": 5,
-        "spawn_interval": 600,
-        "ui_color": (200, 80, 60),
-        "total_cups": 36,
-        "secret_recipe_cup_interval": 1,
-    },
-    "creative": {
-        "name": "创意模式",
-        "description": "自由搭配，创造你的专属奶茶",
-        "has_required": False,
-        "free_combine": True,
-        "bci_mode": False,
-        "ingredient_speed": 3,
-        "spawn_interval": 1200,
-        "ui_color": (120, 80, 200),
-        "total_cups": 36,
-        "secret_recipe_cup_interval": 1,
-    },
     "bci": {
         "name": "脑机接口模式",
         "description": "使用BCI设备读取专注力和头动数据",
@@ -375,8 +351,37 @@ GAME_MODES = {
     },
 }
 
-DEFAULT_GAME_MODE = "regular"  # 默认游戏模式
-GAME_DURATION = 120  # （已废弃，由一杯制 CUP_DURATION × TOTAL_CUPS 替代）
+# ============================================================
+# 控制模式配置（主菜单模式选择器使用）
+# 常规模式/键盘模式均使用 bci 游戏底层配置（热身→正式、36杯、自由搭配）
+# 区别仅在于控制方式：常规模式用头环，键盘模式用键盘
+# ============================================================
+CONTROL_MODES = [
+    {
+        "key": "bci_normal",
+        "name": "常规模式",
+        "desc": "BCI头环控制杯子，未连接时键盘控制",
+        "enabled": True,
+        "color": (0, 150, 200),
+        "glow": (100, 200, 255),
+    },
+    {
+        "key": "memory",
+        "name": "记忆模式",
+        "desc": "记忆食材序列",
+        "enabled": True,
+        "color": (100, 100, 100),
+        "glow": (150, 150, 150),
+    },
+    {
+        "key": "keyboard",
+        "name": "键盘模式",
+        "desc": "键盘控制杯子移动",
+        "enabled": True,
+        "color": (60, 160, 100),
+        "glow": (100, 220, 150),
+    },
+]
 
 # ============================================================
 # 生成间隔（毫秒）

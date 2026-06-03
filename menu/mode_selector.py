@@ -1,4 +1,4 @@
-"""模式选择器 - 循环切换游戏模式并显示预览（辉光粒子风格）"""
+"""模式选择器 - 循环切换控制模式并显示预览（辉光粒子风格）"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import random
 
 import pygame
 
-from config import GAME_MODES
+from config import CONTROL_MODES
 from menu.components import ClickParticle, MenuItem
 
 
@@ -15,30 +15,30 @@ class ModePreviewDisplay:
     """模式预览显示框 - 鼠标靠近时显示模式列表"""
 
     def __init__(
-        self, x: int, y: int, font: pygame.font.Font, title_font: pygame.font.Font, mode_key: str = "regular"
+        self,
+        x: int,
+        y: int,
+        font: pygame.font.Font,
+        small_font: pygame.font.Font,
+        control_modes: list[dict],
+        current_key: str = "bci_normal",
     ) -> None:
         self.x = x
         self.y = y
         self.font = font
-        self.title_font = title_font
-        self.mode_key = mode_key
+        self.small_font = small_font
+        self.control_modes = control_modes
+        self.current_key = current_key
         self.alpha = 0
         self.target_alpha = 0
-        self.width = 260
+        self.width = 280
         self.height = 180
-
-        self._mode_keys = ["regular", "challenge", "creative"]
-        self._mode_colors = {
-            "regular": ((145, 90, 45), (180, 120, 65)),
-            "challenge": ((170, 75, 35), (210, 100, 50)),
-            "creative": ((160, 115, 55), (195, 150, 80)),
-        }
 
     def update(self, dt: float = 0.016) -> None:
         self.alpha += (self.target_alpha - self.alpha) * 0.2
 
     def set_mode(self, mode_key: str) -> None:
-        self.mode_key = mode_key
+        self.current_key = mode_key
         self.target_alpha = 200
 
     def hide(self) -> None:
@@ -68,16 +68,25 @@ class ModePreviewDisplay:
         gap = 10
         start_y = 15
 
-        for i, key in enumerate(self._mode_keys):
-            bg, hover = self._mode_colors[key]
-            is_active = key == self.mode_key
+        for i, mode in enumerate(self.control_modes):
+            key = mode["key"]
+            name = mode["name"]
+            enabled = mode["enabled"]
+            color = mode["color"]
+            is_active = key == self.current_key
 
             y = start_y + i * (btn_h + gap)
-            color = hover if is_active else bg
-            alpha_color = (*color, int(self.alpha))
-            pygame.draw.rect(surf, alpha_color, (10, y, self.width - 20, btn_h), border_radius=8)
 
-            if is_active:
+            if enabled:
+                bg = (*color, int(self.alpha * 0.5))
+                hov = (*color, int(self.alpha * 0.8))
+                bg_color = hov if is_active else bg
+            else:
+                bg_color = (60, 60, 60, int(self.alpha * 0.35))
+
+            pygame.draw.rect(surf, bg_color, (10, y, self.width - 20, btn_h), border_radius=8)
+
+            if is_active and enabled:
                 pygame.draw.rect(
                     surf,
                     (255, 255, 255, int(self.alpha * 0.8)),
@@ -86,9 +95,15 @@ class ModePreviewDisplay:
                     border_radius=8,
                 )
 
-            name = GAME_MODES[key]["name"]
-            txt = self.font.render(name, True, (255, 255, 255))
-            txt.set_alpha(int(self.alpha))
+            text_alpha = int(self.alpha * 0.6) if not enabled else int(self.alpha)
+            text_color = (160, 160, 160) if not enabled else (255, 255, 255)
+
+            display_name = name
+            if not enabled:
+                display_name = f"{name}（开发中）"
+
+            txt = self.font.render(display_name, True, text_color)
+            txt.set_alpha(text_alpha)
             surf.blit(
                 txt,
                 (
@@ -101,7 +116,7 @@ class ModePreviewDisplay:
 
 
 class ModeSelector(MenuItem):
-    """模式选择按钮 - 辉光风格，点击循环切换模式"""
+    """模式选择按钮 - 辉光风格，点击循环切换控制模式，按钮显示当前模式名"""
 
     def __init__(
         self,
@@ -109,30 +124,14 @@ class ModeSelector(MenuItem):
         y: int,
         font: pygame.font.Font,
         title_font: pygame.font.Font,
-        mode_keys: list[str] | None = None,
+        control_modes: list[dict] | None = None,
     ) -> None:
-        self.mode_keys = mode_keys or ["regular", "challenge", "creative"]
+        self.control_modes = control_modes or CONTROL_MODES
         self.current_index = 0
         self.font = font
         self.title_font = title_font
         self.x = x
         self.y = y
-
-        self._mode_colors = {
-            "regular": ((145, 90, 45), (180, 120, 65)),
-            "challenge": ((170, 75, 35), (210, 100, 50)),
-            "creative": ((160, 115, 55), (195, 150, 80)),
-        }
-        self._mode_glow = {
-            "regular": (255, 180, 110),
-            "challenge": (255, 140, 80),
-            "creative": (255, 210, 140),
-        }
-        self._mode_icons = {
-            "regular": "\U0001f375",
-            "challenge": "\U0001f525",
-            "creative": "\u2728",
-        }
 
         self.hovered = False
         self.scale_t = 0.0
@@ -140,12 +139,11 @@ class ModeSelector(MenuItem):
         self.ripple = 0.0
         self.pulse_t = 0.0
 
-        _bg_color, _ = self._mode_colors[self.mode_keys[0]]
         padding = (50, 14)
         self.padding = padding
         self.radius = 25
 
-        self._text_surf = title_font.render("模式选择", True, (255, 255, 255))
+        self._rebuild_text_surf()
         w = self._text_surf.get_width() + padding[0] * 2
         h = self._text_surf.get_height() + padding[1] * 2
         self.rect = pygame.Rect(x - w // 2, y - h // 2, w, h)
@@ -156,13 +154,33 @@ class ModeSelector(MenuItem):
             self.rect.right + 20,
             self.rect.top - 10,
             font,
-            title_font,
-            self.mode_keys[0],
+            font,
+            self.control_modes,
+            self.control_modes[self.current_index]["key"],
         )
 
+    @property
+    def current_key(self) -> str:
+        return self.control_modes[self.current_index]["key"]
+
+    @property
+    def current_name(self) -> str:
+        return self.control_modes[self.current_index]["name"]
+
+    @property
+    def current_enabled(self) -> bool:
+        return self.control_modes[self.current_index]["enabled"]
+
+    def _rebuild_text_surf(self) -> None:
+        mode = self.control_modes[self.current_index]
+        name = mode["name"]
+        enabled = mode["enabled"]
+        display_text = name
+        color = (255, 255, 255) if enabled else (130, 130, 130)
+        self._text_surf = self.title_font.render(display_text, True, color)
+
     def _update_text(self) -> None:
-        mode_key = self.mode_keys[self.current_index]
-        self._text_surf = self.title_font.render("模式选择", True, (255, 255, 255))
+        self._rebuild_text_surf()
         w = self._text_surf.get_width() + self.padding[0] * 2
         h = self._text_surf.get_height() + self.padding[1] * 2
         old_center = self.rect.center
@@ -171,17 +189,23 @@ class ModeSelector(MenuItem):
             self.rect.right + 20,
             self.rect.top - 10,
             self.font,
-            self.title_font,
-            mode_key,
+            self.font,
+            self.control_modes,
+            self.control_modes[self.current_index]["key"],
         )
 
     @property
     def _glow_color(self) -> tuple[int, int, int]:
-        mode_key = self.mode_keys[self.current_index]
-        return self._mode_glow.get(mode_key, (255, 180, 100))
+        return (255, 180, 100)
+
+    @property
+    def _bg_color_info(self) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
+        if not self.current_enabled:
+            return ((55, 35, 25), (75, 50, 35))
+        return ((50, 25, 12), (85, 40, 20))
 
     def cycle_mode(self) -> str:
-        self.current_index = (self.current_index + 1) % len(self.mode_keys)
+        self.current_index = (self.current_index + 1) % len(self.control_modes)
         self.click_t = 1.0
         self.ripple = 1.0
         self._update_text()
@@ -192,7 +216,7 @@ class ModeSelector(MenuItem):
         for _ in range(10):
             self.click_particles.append(ClickParticle(self.rect.centerx, self.rect.centery, (255, 255, 255)))
 
-        return self.mode_keys[self.current_index]
+        return self.current_key
 
     def update(self, dt: float = 0.016) -> None:
         target = 1.0 if self.hovered else 0.0
@@ -217,8 +241,9 @@ class ModeSelector(MenuItem):
     def draw(self, screen: pygame.Surface) -> None:
         pulse = math.sin(self.pulse_t) * 0.5 + 0.5
         glow = self._glow_color
+        enabled = self.current_enabled
 
-        glow_alpha = int(30 + pulse * 50)
+        glow_alpha = int(30 + pulse * 50) if enabled else int(10 + pulse * 15)
         glow_size = int(8 + pulse * 12)
         glow_surf = pygame.Surface(
             (self.rect.width + glow_size * 2, self.rect.height + glow_size * 2),
@@ -243,12 +268,11 @@ class ModeSelector(MenuItem):
         h = int(self.rect.height * s)
         surf = pygame.Surface((w, h), pygame.SRCALPHA)
 
-        mode_key = self.mode_keys[self.current_index]
-        bg_color, hover_color = self._mode_colors.get(mode_key, ((100, 100, 100), (120, 120, 120)))
+        bg_color, hover_color = self._bg_color_info
         color = hover_color if self.hovered else bg_color
 
-        border_alpha = int(180 + pulse * 75)
         border_color = hover_color if self.hovered else glow
+        border_alpha = int(180 + pulse * 75) if enabled else int(60 + pulse * 25)
 
         for i in range(4, 0, -1):
             thick = i * 2
@@ -270,6 +294,8 @@ class ModeSelector(MenuItem):
         )
 
         bg_a = 180 + (1 if self.hovered else 0) * 40
+        if not enabled:
+            bg_a = 80
         pygame.draw.rect(surf, (*color, bg_a), (2, 2, w - 4, h - 4), border_radius=int(self.radius * s - 1))
 
         if self.click_t > 0:
@@ -297,20 +323,23 @@ class ModeSelector(MenuItem):
                 (self.rect.centerx - ripple_r, self.rect.centery - ripple_r),
             )
 
-        text_glow = self.title_font.render(
-            "模式选择",
-            True,
-            (
-                min(255, glow[0] + 60),
-                min(255, glow[1] + 40),
-                min(255, glow[2] + 30),
-            ),
-        )
-        text_glow.set_alpha(int(100 + pulse * 60))
-        tw = text_glow.get_width()
-        th = text_glow.get_height()
-        surf.blit(text_glow, ((w - tw) // 2 + 1, (h - th) // 2 + 1))
+        if enabled:
+            text_glow = self.title_font.render(
+                self.control_modes[self.current_index]["name"],
+                True,
+                (
+                    min(255, glow[0] + 60),
+                    min(255, glow[1] + 40),
+                    min(255, glow[2] + 30),
+                ),
+            )
+            text_glow.set_alpha(int(100 + pulse * 60))
+            tw = text_glow.get_width()
+            th = text_glow.get_height()
+            surf.blit(text_glow, ((w - tw) // 2 + 1, (h - th) // 2 + 1))
 
+        tw = self._text_surf.get_width()
+        th = self._text_surf.get_height()
         surf.blit(self._text_surf, ((w - tw) // 2, (h - th) // 2))
 
         screen.blit(surf, (self.rect.centerx - w // 2, self.rect.centery - h // 2))
@@ -321,7 +350,7 @@ class ModeSelector(MenuItem):
             p.draw(screen)
 
         if self.hovered:
-            self.info_display.set_mode(mode_key)
+            self.info_display.set_mode(self.control_modes[self.current_index]["key"])
             self.info_display.draw(screen)
 
     def handle_event(self, event: pygame.event.Event) -> str | None:  # type: ignore[override]
@@ -329,7 +358,7 @@ class ModeSelector(MenuItem):
             was_hovered = self.hovered
             self.hovered = self.rect.collidepoint(event.pos)
             if self.hovered:
-                self.info_display.set_mode(self.mode_keys[self.current_index])
+                self.info_display.set_mode(self.control_modes[self.current_index]["key"])
             elif was_hovered:
                 self.info_display.hide()
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:

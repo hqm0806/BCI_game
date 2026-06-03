@@ -15,6 +15,7 @@ from core.audio_manager import AudioManager
 from core.state_machine import GameEvent, GameState, State, StateMachine
 from data.player_profile import PlayerProfile
 from game.font_utils import load_chinese_font
+from game.memory_mode import run_memory_game
 from game.session import run_game
 from menu import GameSettingsScreen, MainMenu
 from menu.login import LoginScreen
@@ -83,16 +84,19 @@ class MenuState(State):
         player_level = profile.level if profile else 1
         history_games = profile.games_history if profile else []
         menu = MainMenu(self.screen, self.font, self.title_font, player_level, history_games)
-        result, mode, use_bci = menu.run()
+        result, game_mode, control_mode = menu.run()
         result = result or "quit"
-        mode = mode or "regular"
-        self._context["game_mode"] = mode
-        self._context["use_bci"] = use_bci
+        game_mode = game_mode or "bci"
+        control_mode = control_mode or "bci"
+        self._context["game_mode"] = game_mode
+        self._context["control_mode"] = control_mode
 
         if result == "quit":
             return GameState.QUIT
         if result == "settings":
             return GameState.SETTINGS
+        if result == "start_memory":
+            return GameState.GAME_MEMORY
         if result == "start":
             return GameState.TRANSITION
         return None
@@ -156,6 +160,26 @@ class TransitionState(State):
         pass
 
 
+class MemoryGameState(State):
+    """记忆模式游戏状态"""
+
+    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock) -> None:
+        self.screen = screen
+        self.clock = clock
+
+    def enter(self) -> GameState | None:
+        result = run_memory_game(self.screen, self.clock)
+        if result == "quit":
+            return GameState.QUIT
+        return GameState.MENU
+
+    def handle_event(self, event: GameEvent) -> GameState | None:
+        return GameState.MENU
+
+    def update(self) -> None:
+        pass
+
+
 class GameStateImpl(State):
     """游戏运行状态"""
 
@@ -165,12 +189,10 @@ class GameStateImpl(State):
         self._context = context
 
     def enter(self) -> GameState | None:
-        mode = self._context.get("game_mode", "regular")
-        use_bci = self._context.get("use_bci", False)
-        if use_bci:
-            mode = "bci"
+        game_mode = self._context.get("game_mode", "bci")
+        control_mode = self._context.get("control_mode", "bci")
         profile = self._context.get("profile")
-        game_result = run_game(self.screen, self.clock, game_mode=mode, profile=profile)
+        game_result = run_game(self.screen, self.clock, game_mode=game_mode, profile=profile, control_mode=control_mode)
         if profile:
             profile.save()
         if game_result == "quit":
@@ -208,6 +230,7 @@ def main() -> None:
     sm.register(GameState.SETTINGS, SettingsState(screen))
     sm.register(GameState.TRANSITION, TransitionState(screen, audio))
     sm.register(GameState.GAME, GameStateImpl(screen, clock, context))
+    sm.register(GameState.GAME_MEMORY, MemoryGameState(screen, clock))
     sm.register(GameState.QUIT, QuitState())
 
     sm.start(GameState.SPLASH)

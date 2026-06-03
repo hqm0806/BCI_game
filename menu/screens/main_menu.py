@@ -35,10 +35,12 @@ class MainMenu:
         player_level: int = 1,
         history_games: list | None = None,
         profile=None,
+        audio=None,
     ) -> None:
         self.screen = screen
         self.font = font
         self.title_font = title_font
+        self._audio = audio
         self.big_title_font = load_chinese_font(64)
         self.clock = pygame.time.Clock()
         self.running = True
@@ -172,6 +174,8 @@ class MainMenu:
                 if event.type == pygame.QUIT:
                     self.running = False
                     self.result = "quit"
+                    if self._audio:
+                        self._audio.play_sfx("音效/按键2.mp3", volume=0.5)
 
                 if self._dialog_active:
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -194,15 +198,23 @@ class MainMenu:
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
                         self.result = "quit"
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键2.mp3", volume=0.5)
                     elif event.key == pygame.K_RETURN or event.key == pygame.K_1:
                         self.start_btn.trigger_click()
                         self._start_game(self.mode_selector.current_key, click_frames)
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
                     elif event.key == pygame.K_2:
                         self.mode_selector.cycle_mode()
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
                     elif event.key == pygame.K_3:
                         self.settings_btn.trigger_click()
                         self.result = "settings"
                         click_frames[0] = 15
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
                 else:
                     if self.badge.handle_event(event):
                         HistoryScreen(self.screen, self._history_games, profile=self._profile).run()
@@ -210,13 +222,19 @@ class MainMenu:
                             self._history_games = list(self._profile.games_history)
                     if self.start_btn.handle_event(event):
                         self._start_game(self.mode_selector.current_key, click_frames)
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
                     mode = self.mode_selector.handle_event(event)
                     if mode:
                         self.current_mode = mode
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
                     if self.settings_btn.handle_event(event):
                         self.settings_btn.trigger_click()
                         self.result = "settings"
                         click_frames[0] = 15
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
 
             self._update(dt)
             self._draw()

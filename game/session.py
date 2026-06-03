@@ -433,8 +433,6 @@ class GameSession:
         self._cup_baseline = self.warmup_summary_avg if self.warmup_summary_avg > 0 else 40.0
         self.cup_manager.start_new_cup()
         self.ingredient_manager.reset_spawn_timer()
-        if self._audio:
-            self._audio.play_sfx("音效/开始倒计时t.wav", volume=0.6)
 
     def _normalize_to_range(self, attention: float) -> float:
         if self.normalization_upper - self.normalization_lower < 1.0:
@@ -571,9 +569,6 @@ class GameSession:
         return self._paused or self._artifact_frozen
 
     def run(self) -> str:
-        if self._audio:
-            self._audio.play_bgm("背景乐1.mp3", volume=0.3)
-
         if self.control_mode in ("keyboard", "bci_failed") and self.phase.startswith("warmup"):
             self.warmup_summary_max = 0.0
             self.warmup_summary_avg = 0.0
@@ -1023,8 +1018,8 @@ class GameSession:
             attention=self.attention,
             bci_mode=self.bci_mode,
             free_combine=self.free_combine,
-            recipe_result=self.recipe_result if self.control_mode != "keyboard" else None,
-            creative_ingredients=self.creative_ingredients if self.control_mode != "keyboard" else [],
+            recipe_result=self.recipe_result if self.control_mode not in ("keyboard", "bci_failed") else None,
+            creative_ingredients=self.creative_ingredients if self.control_mode not in ("keyboard", "bci_failed") else [],
             attention_curve=self.attention_curve,
             bci_connected=self.bci_available,
             focus_above_seconds=self.focus_above_seconds,
@@ -1254,9 +1249,9 @@ def _handle_catches(
 
             if audio:
                 if hit.is_required:
-                    audio.play_sfx("音效/接到必接食材.wav", volume=0.6)
+                    audio.play_sfx("音效/接到必接食材.wav", volume=0.3)
                 else:
-                    audio.play_sfx("音效/接到食材.wav", volume=0.4)
+                    audio.play_sfx("音效/接到食材.wav", volume=0.2)
 
     return creative_ingredients, recipe_result
 

@@ -52,6 +52,9 @@ class LoginState(State):
         self._context = context
 
     def enter(self) -> GameState | None:
+        audio = self._context.get("audio")
+        if audio:
+            audio.play_bgm("背景乐3.mp3", volume=0.4)
         login = LoginScreen(self.screen)
         username = login.run()
         if username is None or username == "quit":
@@ -83,7 +86,7 @@ class MenuState(State):
         profile = self._context.get("profile")
         player_level = profile.level if profile else 1
         history_games = profile.games_history if profile else []
-        menu = MainMenu(self.screen, self.font, self.title_font, player_level, history_games, profile=profile)
+        menu = MainMenu(self.screen, self.font, self.title_font, player_level, history_games, profile=profile, audio=self._audio)
         result, game_mode, control_mode = menu.run()
         result = result or "quit"
         game_mode = game_mode or "bci"
@@ -149,6 +152,7 @@ class TransitionState(State):
         self._audio = audio
 
     def enter(self) -> GameState | None:
+        self._audio.stop_bgm()
         self._audio.play_bgm("晨光木盒.wav", volume=0.5)
         SplashScreen(self.screen, load_chinese_font(110)).run()
         return GameState.GAME

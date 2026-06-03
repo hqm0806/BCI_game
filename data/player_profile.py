@@ -80,6 +80,7 @@ class PlayerProfile:
         avg_attention: float,
         duration: float = 0.0,
         focus_samples: list | None = None,
+        last_5min_avg_attention: float = 0.0,
     ) -> int:
         old_level = self.level
         self.cumulative_revenue += revenue
@@ -91,6 +92,7 @@ class PlayerProfile:
             "cups": cups,
             "secrets": secrets,
             "avg_attention": round(avg_attention, 1),
+            "last_5min_avg_attention": round(last_5min_avg_attention, 1),
             "duration": round(duration, 1),
             "date": timestamp,
         }

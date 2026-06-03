@@ -29,6 +29,10 @@ class HistoryScreen:
         self._visible = (SCREEN_HEIGHT - 120) // self._item_h
 
     def run(self) -> None:
+        LEFT_W = 580
+        RIGHT_X = LEFT_W + 10
+        RIGHT_W = SCREEN_WIDTH - RIGHT_X
+
         while True:
             self.clock.tick(60)
             for event in pygame.event.get():
@@ -41,22 +45,30 @@ class HistoryScreen:
                     self._scroll = max(0, min(len(self.games) - self._visible, self._scroll - event.y))
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     mx, my = event.pos
-                    idx = self._scroll + (my - 100) // self._item_h
-                    if 0 <= idx < len(self.games):
-                        self._show_detail(self.games[idx])
+                    if mx < LEFT_W:
+                        idx = self._scroll + (my - 100) // self._item_h
+                        if 0 <= idx < len(self.games):
+                            self._show_detail(self.games[idx])
 
             self.screen.fill((25, 25, 45))
-            draw_centered(self.screen, self.title_font, "历史记录", 30, (255, 220, 150))
 
-            pygame.draw.line(self.screen, (80, 80, 100), (100, 80), (SCREEN_WIDTH - 100, 80), 1)
+            left_bg = pygame.Surface((LEFT_W, SCREEN_HEIGHT), pygame.SRCALPHA)
+            left_bg.fill((255, 255, 255, 10))
+            self.screen.blit(left_bg, (0, 0))
+
+            left_title = self.title_font.render("历史记录", True, (255, 220, 150))
+            self.screen.blit(left_title, (LEFT_W // 2 - left_title.get_width() // 2, 30))
+
+            pygame.draw.line(self.screen, (80, 80, 100), (40, 80), (LEFT_W - 40, 80), 1)
 
             if not self.games:
-                draw_centered(self.screen, self.font, "暂无记录", 200, (150, 150, 150))
+                no_rec = self.font.render("暂无记录", True, (150, 150, 150))
+                self.screen.blit(no_rec, (LEFT_W // 2 - no_rec.get_width() // 2, 200))
 
             for i in range(self._scroll, min(self._scroll + self._visible + 1, len(self.games))):
                 g = self.games[i]
                 row_y = 100 + (i - self._scroll) * self._item_h
-                row_rect = pygame.Rect(40, row_y, SCREEN_WIDTH - 80, self._item_h - 4)
+                row_rect = pygame.Rect(20, row_y, LEFT_W - 40, self._item_h - 4)
 
                 hover = row_rect.collidepoint(pygame.mouse.get_pos())
                 alpha = 40 if hover else 20
@@ -65,8 +77,8 @@ class HistoryScreen:
                 self.screen.blit(row_bg, row_rect)
                 pygame.draw.rect(self.screen, (60, 60, 80), row_rect, 1, border_radius=6)
 
-                date = self.font.render(g.get("date", "未知"), True, (255, 255, 255))
-                self.screen.blit(date, (row_rect.x + 15, row_rect.y + 8))
+                date = self.hint_font.render(g.get("date", "未知"), True, (255, 255, 255))
+                self.screen.blit(date, (row_rect.x + 10, row_rect.y + 6))
 
                 mode_name = {"regular": "常规", "challenge": "挑战", "creative": "创意", "bci": "BCI"}.get(
                     g.get("mode", ""), ""
@@ -74,11 +86,24 @@ class HistoryScreen:
                 mins = int(g.get("duration", 0)) // 60
                 secs = int(g.get("duration", 0)) % 60
                 info = self.hint_font.render(
-                    f"{mode_name} | 收益:{g.get('revenue', 0)} | {mins}分{secs}秒 | 平均专注:{g.get('avg_attention', 0):.0f}",
+                    f"{mode_name} | 收益:{g.get('revenue', 0)} | {mins}分{secs}秒 | 专注:{g.get('avg_attention', 0):.0f}",
                     True,
                     (180, 180, 200),
                 )
-                self.screen.blit(info, (row_rect.x + 15, row_rect.y + 42))
+                self.screen.blit(info, (row_rect.x + 10, row_rect.y + 40))
+
+            right_bg = pygame.Surface((RIGHT_W, SCREEN_HEIGHT), pygame.SRCALPHA)
+            right_bg.fill((255, 255, 255, 10))
+            self.screen.blit(right_bg, (RIGHT_X, 0))
+
+            pygame.draw.line(self.screen, (80, 80, 100), (LEFT_W, 60), (LEFT_W, SCREEN_HEIGHT), 2)
+
+            curve_title = self.title_font.render("时间-专注力趋势曲线", True, (255, 220, 150))
+            self.screen.blit(curve_title, (RIGHT_X + RIGHT_W // 2 - curve_title.get_width() // 2, 30))
+
+            pygame.draw.line(self.screen, (80, 80, 100), (RIGHT_X + 40, 80), (SCREEN_WIDTH - 40, 80), 1)
+
+            self._draw_trend_curve(RIGHT_X, RIGHT_W)
 
             esc = self.hint_font.render("ESC 返回 | 滚轮翻页 | 点击查看详情", True, (120, 120, 140))
             self.screen.blit(esc, (SCREEN_WIDTH // 2 - esc.get_width() // 2, SCREEN_HEIGHT - 40))
@@ -176,3 +201,78 @@ class HistoryScreen:
 
         title = self.small_font.render("专注力曲线", True, (160, 160, 160))
         self.screen.blit(title, (x + 4, y - 16))
+
+    def _draw_trend_curve(self, right_x: int, right_w: int) -> None:
+        regular_games = [g for g in self.games if g.get("mode") == "regular"]
+        regular_games.sort(key=lambda g: g.get("date", ""))
+
+        graph_x = right_x + 60
+        graph_y = 110
+        graph_w = right_w - 100
+        graph_h = 280
+
+        pygame.draw.rect(self.screen, (30, 30, 50), (graph_x, graph_y, graph_w, graph_h), border_radius=6)
+
+        for i in range(0, 101, 25):
+            py = graph_y + int((1.0 - i / 100.0) * graph_h)
+            pygame.draw.line(self.screen, (60, 60, 80), (graph_x, py), (graph_x + graph_w, py), 1)
+            label = self.small_font.render(str(i), True, (120, 120, 120))
+            self.screen.blit(label, (graph_x - 30, py - 7))
+
+        y_label = self.small_font.render("专注力", True, (140, 140, 160))
+        self.screen.blit(y_label, (graph_x - 30, graph_y - 18))
+
+        if not regular_games:
+            no_data = self.font.render("暂无常规模式数据", True, (150, 150, 150))
+            self.screen.blit(
+                no_data,
+                (graph_x + graph_w // 2 - no_data.get_width() // 2, graph_y + graph_h // 2 - 10),
+            )
+        else:
+            n = len(regular_games)
+            points = []
+            for idx, g in enumerate(regular_games):
+                val = g.get("last_5min_avg_attention", g.get("avg_attention", 0))
+                if n > 1:
+                    px = graph_x + int((idx / (n - 1)) * graph_w)
+                else:
+                    px = graph_x + graph_w // 2
+                py = graph_y + int((1.0 - val / 100.0) * graph_h)
+                py = max(graph_y, min(graph_y + graph_h, py))
+                points.append((px, py))
+
+            if len(points) >= 2:
+                pygame.draw.lines(self.screen, (100, 255, 150), False, points, 2)
+
+            for px, py in points:
+                pygame.draw.circle(self.screen, (255, 200, 100), (px, py), 4)
+
+            if n <= 12:
+                for idx, g in enumerate(regular_games):
+                    date_str = g.get("date", "")[5:10]
+                    label = self.small_font.render(date_str, True, (120, 120, 120))
+                    if n > 1:
+                        px = graph_x + int((idx / (n - 1)) * graph_w)
+                    else:
+                        px = graph_x + graph_w // 2
+                    self.screen.blit(label, (px - 12, graph_y + graph_h + 4))
+            else:
+                step = max(1, n // 10)
+                for idx in range(0, n, step):
+                    date_str = regular_games[idx].get("date", "")[5:10]
+                    label = self.small_font.render(date_str, True, (120, 120, 120))
+                    px = graph_x + int((idx / (n - 1)) * graph_w)
+                    self.screen.blit(label, (px - 12, graph_y + graph_h + 4))
+
+        text_box_y = graph_y + graph_h + 45
+        text_box_h = SCREEN_HEIGHT - text_box_y - 40
+        pygame.draw.rect(self.screen, (40, 40, 60), (graph_x, text_box_y, graph_w, text_box_h), border_radius=6)
+        pygame.draw.rect(
+            self.screen, (100, 100, 140), (graph_x, text_box_y, graph_w, text_box_h), 2, border_radius=6
+        )
+
+        placeholder = self.hint_font.render("（文字框预留）", True, (100, 100, 120))
+        self.screen.blit(
+            placeholder,
+            (graph_x + graph_w // 2 - placeholder.get_width() // 2, text_box_y + text_box_h // 2 - 10),
+        )

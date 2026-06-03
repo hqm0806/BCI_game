@@ -1069,22 +1069,41 @@ class GameSession:
             if not self.bci_mode:
                 avg_focus = 0.0
 
+            game_duration = time_module.time() - self.game_start_time
+            last_5min_avg = avg_focus
+            if self.focus_samples and game_duration > 0:
+                sps = len(self.focus_samples) / game_duration
+                n = max(1, int(sps * 300))
+                last_samples = self.focus_samples[-n:]
+                last_5min_avg = sum(last_samples) / len(last_samples)
+
             if self._profile:
-                old_level = self._profile.level
-                game_duration = time_module.time() - self.game_start_time
-                upgraded = self._profile.add_game_result(
-                    revenue=self.score_manager.total_money,
-                    mode=self.game_mode,
-                    cups=self.score_manager.cup_count,
-                    secrets=self.score_manager.secret_recipe_count,
-                    avg_attention=avg_focus,
-                    duration=game_duration,
-                    focus_samples=self.focus_samples,
+                skip_history = (
+                    self.control_mode != "keyboard"
+                    and self.bci_mode
+                    and not self.bci_available
                 )
-                self._upgrade_level = old_level if upgraded else self._profile.level
-                is_upgraded = upgraded > 0
-                p_level = self._profile.level
-                p_rev = self._profile.cumulative_revenue
+                if skip_history:
+                    is_upgraded = False
+                    p_level = self._profile.level
+                    p_rev = self._profile.cumulative_revenue
+                    self._upgrade_level = self._profile.level
+                else:
+                    old_level = self._profile.level
+                    upgraded = self._profile.add_game_result(
+                        revenue=self.score_manager.total_money,
+                        mode=self.game_mode,
+                        cups=self.score_manager.cup_count,
+                        secrets=self.score_manager.secret_recipe_count,
+                        avg_attention=avg_focus,
+                        duration=game_duration,
+                        focus_samples=self.focus_samples,
+                        last_5min_avg_attention=last_5min_avg,
+                    )
+                    self._upgrade_level = old_level if upgraded else self._profile.level
+                    is_upgraded = upgraded > 0
+                    p_level = self._profile.level
+                    p_rev = self._profile.cumulative_revenue
             else:
                 self._upgrade_level = 1
                 is_upgraded = False

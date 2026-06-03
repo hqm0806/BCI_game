@@ -27,7 +27,7 @@ class HistoryScreen:
         self.small_font = load_chinese_font(16)
         self._scroll = 0
         self._item_h = 80
-        self._visible = (SCREEN_HEIGHT - 140) // self._item_h
+        self._visible = (SCREEN_HEIGHT - 120) // self._item_h
         self._dialog_active = False
         self._dialog_text = ""
         self._dialog_delete_idx = -1
@@ -129,9 +129,9 @@ class HistoryScreen:
             if self.games:
                 btn_hover = clear_btn_rect.collidepoint(mx, my)
                 btn_fill = (180, 60, 60) if btn_hover else (120, 40, 40)
-                pygame.draw.rect(self.screen, btn_fill, clear_btn_rect, border_radius=6)
-                pygame.draw.rect(self.screen, (200, 80, 80), clear_btn_rect, 2, border_radius=6)
-                btn_text = self.hint_font.render("清除全部记录", True, (255, 255, 255))
+                pygame.draw.rect(self.screen, btn_fill, clear_btn_rect, border_radius=5)
+                pygame.draw.rect(self.screen, (200, 80, 80), clear_btn_rect, 1, border_radius=5)
+                btn_text = self.small_font.render("一键清除", True, (255, 255, 255))
                 self.screen.blit(
                     btn_text,
                     (clear_btn_rect.centerx - btn_text.get_width() // 2,

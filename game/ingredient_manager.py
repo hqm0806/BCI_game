@@ -27,6 +27,7 @@ class IngredientManager:
         self._new_spawn_random_offset()
         self.set_tier(tier)
         self._required_prob = 0.5
+        self._ice_probability = 0.0
 
     def _new_spawn_random_offset(self) -> None:
         self._spawn_random_offset = random.uniform(-0.3, 0.3)
@@ -56,6 +57,9 @@ class IngredientManager:
     def set_required_probability(self, prob: float) -> None:
         self._required_prob = max(0.0, min(1.0, prob))
 
+    def set_ice_probability(self, prob: float) -> None:
+        self._ice_probability = max(0.0, min(1.0, prob))
+
     def spawn_ingredient(
         self,
         required_types: list[str] | None = None,
@@ -72,6 +76,10 @@ class IngredientManager:
         is_required = False
         if ing_type in self._required:
             is_required = random.random() < self._required_prob
+
+        if self._ice_probability > 0 and random.random() < self._ice_probability:
+            ing_type = "冰块"
+            is_required = False
 
         return Ingredient(ing_type, is_required, self._current_speed, allowed_lanes=allowed_lanes)
 

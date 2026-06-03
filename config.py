@@ -72,6 +72,7 @@ INGREDIENT_IMGS = {  # 食材图片字典
     "咸芝士奶盖": os.path.join(IMAGES_DIR, "ingredients", "咸芝士奶盖.png"),
     "茉莉花茶": os.path.join(IMAGES_DIR, "ingredients", "茉莉花茶.png"),
     "秘方": os.path.join(IMAGES_DIR, "ingredients", "秘方.png"),
+    "冰块": os.path.join(IMAGES_DIR, "ingredients", "冰块.png"),
 }
 BADGE_IMGS = [  # 徽章图片列表，按等级排列
     os.path.join(IMAGES_DIR, "badges", "badge1.png"),
@@ -158,6 +159,7 @@ INGREDIENT_COLORS = {  # 食材默认颜色（无图片时使用，RGB 格式）
     "米酿": (240, 220, 160),
     "咸芝士奶盖": (250, 240, 180),
     "茉莉花茶": (180, 210, 100),
+    "冰块": (180, 210, 240),
 }
 
 INGREDIENT_POINTS = {  # 食材分值/金钱值，接到对应食材时获得的价格（元）
@@ -179,6 +181,7 @@ INGREDIENT_POINTS = {  # 食材分值/金钱值，接到对应食材时获得的
     "咸芝士奶盖": 6,
     "茉莉花茶": 6,
     "秘方": 0,
+    "冰块": 0,
 }
 
 INGREDIENT_TIERS = {  # 等级系统：每个等级的可用食材和必接食材（含之前等级所有食材）

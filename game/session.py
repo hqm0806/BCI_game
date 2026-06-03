@@ -688,15 +688,18 @@ class GameSession:
 
             if self._attn_variance < 50:
                 self._attn_mode = "简单模式"
-                prob = 0.7
+                ice_prob = 0.2
             elif self._attn_variance < 150:
                 self._attn_mode = "中等模式"
-                prob = 0.5
+                ice_prob = 0.25
             else:
                 self._attn_mode = "困难模式"
-                prob = 0.3
+                if self.attention is not None and self.attention < 20:
+                    ice_prob = 1.0
+                else:
+                    ice_prob = 0.5
 
-            self.ingredient_manager.set_required_probability(prob)
+            self.ingredient_manager.set_ice_probability(ice_prob)
 
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
         self.cup.update(keys=keys, dt=dt_sec)

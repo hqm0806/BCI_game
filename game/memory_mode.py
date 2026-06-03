@@ -80,7 +80,7 @@ class MemorySession:
         self._downgrade_threshold = 2
 
         self._spawn_timer = 0.0
-        self._spawn_interval = 0.5
+        self._spawn_interval = 0.8
         self._spawn_count = 0
         self._recipe_spawn_index = 0
         self._recipe_ratio = 3
@@ -89,7 +89,7 @@ class MemorySession:
         self._num_lanes = 5
         self._lane_w = SCREEN_WIDTH // self._num_lanes
         self._lane_spacing = 400
-        self._max_per_lane = 2
+        self._max_per_lane = 1
 
         self._rules_display_time = 7.0
         self._memorize_time = 3.0

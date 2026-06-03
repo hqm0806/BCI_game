@@ -105,6 +105,20 @@ class PlayerProfile:
             return self.level
         return 0
 
+    def remove_game(self, index: int) -> None:
+        if 0 <= index < len(self.games_history):
+            del self.games_history[index]
+            self._recalculate()
+
+    def clear_history(self) -> None:
+        self.games_history.clear()
+        self._recalculate()
+
+    def _recalculate(self) -> None:
+        self.total_games = len(self.games_history)
+        self.cumulative_revenue = sum(g.get("revenue", 0) for g in self.games_history)
+        self._check_level_up()
+
     def _check_level_up(self) -> None:
         for lv in range(4, 0, -1):
             if self.cumulative_revenue >= LEVEL_THRESHOLDS[lv - 1]:

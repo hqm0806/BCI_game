@@ -16,39 +16,73 @@ from menu.summary import _draw_centered as draw_centered
 class HistoryScreen:
     """历史记录列表 + 查看详情"""
 
-    def __init__(self, screen: pygame.Surface, games: list[dict]) -> None:
+    def __init__(self, screen: pygame.Surface, games: list[dict], profile=None) -> None:
         self.screen = screen
         self.clock = pygame.time.Clock()
         self.games = list(reversed(games))
+        self._profile = profile
         self.title_font = load_chinese_font(48)
         self.font = load_chinese_font(28)
         self.hint_font = load_chinese_font(20)
         self.small_font = load_chinese_font(16)
         self._scroll = 0
         self._item_h = 80
-        self._visible = (SCREEN_HEIGHT - 120) // self._item_h
+        self._visible = (SCREEN_HEIGHT - 140) // self._item_h
+        self._dialog_active = False
+        self._dialog_text = ""
+        self._dialog_delete_idx = -1
+        self._dialog_delete_all = False
+        self._dlg_confirm_rect = pygame.Rect(0, 0, 0, 0)
+        self._dlg_cancel_rect = pygame.Rect(0, 0, 0, 0)
 
     def run(self) -> None:
         LEFT_W = 580
         RIGHT_X = LEFT_W + 10
         RIGHT_W = SCREEN_WIDTH - RIGHT_X
 
+        clear_btn_rect = pygame.Rect(LEFT_W - 130, 50, 120, 30)
+
         while True:
             self.clock.tick(60)
+            mx, my = pygame.mouse.get_pos()
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+
+                if self._dialog_active:
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        if self._dlg_confirm_rect.collidepoint(event.pos):
+                            self._execute_delete()
+                            self._dialog_active = False
+                        elif self._dlg_cancel_rect.collidepoint(event.pos):
+                            self._dialog_active = False
+                    elif event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_RETURN:
+                            self._execute_delete()
+                            self._dialog_active = False
+                        elif event.key == pygame.K_ESCAPE:
+                            self._dialog_active = False
+                    continue
+
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     return
                 if event.type == pygame.MOUSEWHEEL:
                     self._scroll = max(0, min(len(self.games) - self._visible, self._scroll - event.y))
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    mx, my = event.pos
-                    if mx < LEFT_W:
-                        idx = self._scroll + (my - 100) // self._item_h
-                        if 0 <= idx < len(self.games):
-                            self._show_detail(self.games[idx])
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        if mx < LEFT_W:
+                            idx = self._scroll + (my - 100) // self._item_h
+                            if 0 <= idx < len(self.games):
+                                self._show_detail(self.games[idx])
+                        if clear_btn_rect.collidepoint(mx, my) and self.games:
+                            self._show_confirm_dialog("确认清除全部历史记录？", delete_all=True)
+                    elif event.button == 3:
+                        if mx < LEFT_W:
+                            idx = self._scroll + (my - 100) // self._item_h
+                            if 0 <= idx < len(self.games):
+                                self._show_confirm_dialog("确认删除该条历史记录？", delete_idx=idx)
 
             self.screen.fill((25, 25, 45))
 
@@ -92,6 +126,18 @@ class HistoryScreen:
                 )
                 self.screen.blit(info, (row_rect.x + 10, row_rect.y + 40))
 
+            if self.games:
+                btn_hover = clear_btn_rect.collidepoint(mx, my)
+                btn_fill = (180, 60, 60) if btn_hover else (120, 40, 40)
+                pygame.draw.rect(self.screen, btn_fill, clear_btn_rect, border_radius=6)
+                pygame.draw.rect(self.screen, (200, 80, 80), clear_btn_rect, 2, border_radius=6)
+                btn_text = self.hint_font.render("清除全部记录", True, (255, 255, 255))
+                self.screen.blit(
+                    btn_text,
+                    (clear_btn_rect.centerx - btn_text.get_width() // 2,
+                     clear_btn_rect.centery - btn_text.get_height() // 2),
+                )
+
             right_bg = pygame.Surface((RIGHT_W, SCREEN_HEIGHT), pygame.SRCALPHA)
             right_bg.fill((255, 255, 255, 10))
             self.screen.blit(right_bg, (RIGHT_X, 0))
@@ -105,8 +151,12 @@ class HistoryScreen:
 
             self._draw_trend_curve(RIGHT_X, RIGHT_W)
 
-            esc = self.hint_font.render("ESC 返回 | 滚轮翻页 | 点击查看详情", True, (120, 120, 140))
+            esc = self.hint_font.render("ESC 返回 | 滚轮翻页 | 左键详情 | 右键删除", True, (120, 120, 140))
             self.screen.blit(esc, (SCREEN_WIDTH // 2 - esc.get_width() // 2, SCREEN_HEIGHT - 40))
+
+            if self._dialog_active:
+                self._draw_dialog()
+
             pygame.display.flip()
 
     def _show_detail(self, game: dict) -> None:
@@ -276,3 +326,73 @@ class HistoryScreen:
             placeholder,
             (graph_x + graph_w // 2 - placeholder.get_width() // 2, text_box_y + text_box_h // 2 - 10),
         )
+
+    def _show_confirm_dialog(self, text: str, delete_idx: int = -1, delete_all: bool = False) -> None:
+        self._dialog_active = True
+        self._dialog_text = text
+        self._dialog_delete_idx = delete_idx
+        self._dialog_delete_all = delete_all
+
+    def _execute_delete(self) -> None:
+        if not self._profile:
+            return
+        if self._dialog_delete_all:
+            self._profile.clear_history()
+            self.games = []
+        elif self._dialog_delete_idx >= 0:
+            original_len = len(self._profile.games_history)
+            reversed_idx = len(self._profile.games_history) - 1 - self._dialog_delete_idx
+            if 0 <= reversed_idx < original_len:
+                self._profile.remove_game(reversed_idx)
+            self._refresh_games()
+        self._profile.save()
+        self._scroll = 0
+
+    def _refresh_games(self) -> None:
+        if self._profile:
+            self.games = list(reversed(self._profile.games_history))
+
+    def _draw_dialog(self) -> None:
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 160))
+        self.screen.blit(overlay, (0, 0))
+
+        dlg_w = 480
+        dlg_h = 200
+        dlg_x = (SCREEN_WIDTH - dlg_w) // 2
+        dlg_y = (SCREEN_HEIGHT - dlg_h) // 2
+
+        pygame.draw.rect(self.screen, (40, 35, 30), (dlg_x, dlg_y, dlg_w, dlg_h), border_radius=16)
+        pygame.draw.rect(self.screen, (200, 120, 80), (dlg_x, dlg_y, dlg_w, dlg_h), 3, border_radius=16)
+
+        text_surf = self.font.render(self._dialog_text, True, (255, 255, 255))
+        self.screen.blit(text_surf, (dlg_x + (dlg_w - text_surf.get_width()) // 2, dlg_y + 35))
+
+        btn_w = 140
+        btn_h = 45
+        btn_y = dlg_y + 105
+        gap = 60
+        total_btn_w = btn_w * 2 + gap
+        btn_start_x = dlg_x + (dlg_w - total_btn_w) // 2
+
+        confirm_rect = pygame.Rect(btn_start_x, btn_y, btn_w, btn_h)
+        cancel_rect = pygame.Rect(btn_start_x + btn_w + gap, btn_y, btn_w, btn_h)
+
+        self._dlg_confirm_rect = confirm_rect
+        self._dlg_cancel_rect = cancel_rect
+
+        mx, my = pygame.mouse.get_pos()
+
+        c_hover = confirm_rect.collidepoint(mx, my)
+        confirm_fill = (200, 70, 50) if c_hover else (160, 50, 30)
+        pygame.draw.rect(self.screen, confirm_fill, confirm_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (220, 100, 80), confirm_rect, 2, border_radius=8)
+        confirm_text = self.hint_font.render("确认", True, (255, 255, 255))
+        self.screen.blit(confirm_text, (confirm_rect.centerx - confirm_text.get_width() // 2, confirm_rect.centery - confirm_text.get_height() // 2))
+
+        x_hover = cancel_rect.collidepoint(mx, my)
+        cancel_fill = (100, 100, 110) if x_hover else (70, 70, 80)
+        pygame.draw.rect(self.screen, cancel_fill, cancel_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (140, 140, 150), cancel_rect, 2, border_radius=8)
+        cancel_text = self.hint_font.render("取消", True, (255, 255, 255))
+        self.screen.blit(cancel_text, (cancel_rect.centerx - cancel_text.get_width() // 2, cancel_rect.centery - cancel_text.get_height() // 2))

@@ -34,6 +34,7 @@ class MainMenu:
         title_font: pygame.font.Font,
         player_level: int = 1,
         history_games: list | None = None,
+        profile=None,
     ) -> None:
         self.screen = screen
         self.font = font
@@ -45,6 +46,7 @@ class MainMenu:
         self.current_mode = "bci_normal"
         self._control_mode = "bci"
         self._history_games = history_games or []
+        self._profile = profile
 
         self.bg = self._load_bg()
         self.badge = Badge(
@@ -203,7 +205,9 @@ class MainMenu:
                         click_frames[0] = 15
                 else:
                     if self.badge.handle_event(event):
-                        HistoryScreen(self.screen, self._history_games).run()
+                        HistoryScreen(self.screen, self._history_games, profile=self._profile).run()
+                        if self._profile:
+                            self._history_games = list(self._profile.games_history)
                     if self.start_btn.handle_event(event):
                         self._start_game(self.mode_selector.current_key, click_frames)
                     mode = self.mode_selector.handle_event(event)

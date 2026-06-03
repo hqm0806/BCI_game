@@ -933,6 +933,8 @@ class GameSession:
     def _draw_lane_lines(self) -> None:
         lane_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         for i in range(1, NUM_LANES):
+            if i == NUM_LANES // 2:
+                continue
             x = i * LANE_WIDTH
             pygame.draw.line(lane_overlay, LANE_LINE_COLOR, (x, 60), (x, SCREEN_HEIGHT), 2)
         self.screen.blit(lane_overlay, (0, 0))

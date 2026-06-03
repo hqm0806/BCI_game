@@ -179,14 +179,14 @@ class MainMenu:
                             self._dialog_active = False
                             self.result = "start"
                             self.current_mode = "bci"
-                            self._control_mode = "bci"
+                            self._control_mode = "keyboard"
                             click_frames[0] = 15
                     elif event.type == pygame.KEYDOWN:
                         if event.key in (pygame.K_RETURN, pygame.K_SPACE):
                             self._dialog_active = False
                             self.result = "start"
                             self.current_mode = "bci"
-                            self._control_mode = "bci"
+                            self._control_mode = "keyboard"
                             click_frames[0] = 15
                     continue
 

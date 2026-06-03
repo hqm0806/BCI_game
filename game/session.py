@@ -359,12 +359,9 @@ class GameSession:
         if self.attention <= 15:
             self.warmup_low_timer += dt_sec
             self.warmup_high_timer = 0.0
-        elif self.attention >= 10:
+        else:
             self.warmup_high_timer += dt_sec
             self.warmup_low_timer = 0.0
-        else:
-            self.warmup_low_timer = 0.0
-            self.warmup_high_timer = 0.0
 
         if not self.warmup_paused and self.warmup_low_timer >= 5.0:
             self.warmup_paused = True
@@ -496,12 +493,9 @@ class GameSession:
         if self.attention <= 15:
             self._low_attn_seconds += dt_sec
             self._high_attn_seconds = 0.0
-        elif self.attention >= 10:
+        else:
             self._high_attn_seconds += dt_sec
             self._low_attn_seconds = 0.0
-        else:
-            self._low_attn_seconds = 0.0
-            self._high_attn_seconds = 0.0
 
         if not self._paused and self._low_attn_seconds >= 5.0:
             self._paused = True
@@ -639,8 +633,6 @@ class GameSession:
                 if not self._game_frozen:
                     self._update_game_objects(dt_sec)
                     self._handle_collisions()
-
-            self._update_bci_data()
 
             self._render()
 
@@ -861,10 +853,11 @@ class GameSession:
             (SCREEN_WIDTH // 2 - timer_text.get_width() // 2, 12),
         )
 
-        attn_display = self.attention if self.attention is not None else 0
-        attn_text = self.font.render(f"注意力: {int(attn_display)}", True, (255, 255, 255))
-        attn_rect = attn_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-        self.screen.blit(attn_text, attn_rect)
+        if self.bci_available:
+            attn_display = self.attention if self.attention is not None else 0
+            attn_text = self.font.render(f"注意力: {int(attn_display)}", True, (255, 255, 255))
+            attn_rect = attn_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+            self.screen.blit(attn_text, attn_rect)
 
         ctrl_text = "方向键 / 头环: 左右移动 | ESC: 返回" if self.bci_available else "方向键: 左右移动 | ESC: 返回"
         hint = self.hint_font.render(
@@ -894,7 +887,7 @@ class GameSession:
             )
             resume_remain = max(0.0, 5.0 - self.warmup_high_timer)
             sub_text = self.hint_font.render(
-                f"保持专注力 >10 持续 {resume_remain:.0f}s 恢复游戏",
+                f"保持专注力 >15 持续 {resume_remain:.0f}s 恢复游戏",
                 True,
                 (200, 200, 200),
             )
@@ -997,7 +990,7 @@ class GameSession:
             recipe_result=self.recipe_result,
             creative_ingredients=self.creative_ingredients,
             attention_curve=self.attention_curve,
-            bci_connected=self.bci_mode or self.bci_available,
+            bci_connected=self.bci_available,
             focus_above_seconds=self.focus_above_seconds,
             raw_gyro_x=self.raw_gyro_x,
             raw_gyro_y=self.raw_gyro_y,
@@ -1033,7 +1026,7 @@ class GameSession:
                     (SCREEN_WIDTH // 2 - pause_text.get_width() // 2, SCREEN_HEIGHT // 2 - 60),
                 )
                 sub_text = self.hint_font.render(
-                    f"保持专注力 >10 持续 {max(0, 5 - self._high_attn_seconds):.0f}s 恢复游戏",
+                    f"保持专注力 >15 持续 {max(0, 5 - self._high_attn_seconds):.0f}s 恢复游戏",
                     True,
                     (200, 200, 200),
                 )
@@ -1126,6 +1119,8 @@ class GameSession:
             )
             return summary.run()
 
+        if self.bci_available:
+            self.bci_reader.disconnect()
         return "quit"
 
 

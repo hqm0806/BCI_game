@@ -153,6 +153,10 @@ class BCIDataReader:
 
         while len(self.recv_buffer) >= 4:
             payload_len = struct.unpack(">I", self.recv_buffer[:4])[0]
+            if payload_len > 1048576:
+                logger.error("[BCI] 载荷长度异常: %d，断开连接", payload_len)
+                self.connected = False
+                return None
             total_len = 4 + payload_len
             if len(self.recv_buffer) < total_len:
                 break
@@ -162,7 +166,7 @@ class BCIDataReader:
 
             try:
                 return json.loads(payload.decode("utf-8"))
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, UnicodeDecodeError):
                 continue
 
         return None

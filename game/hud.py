@@ -177,10 +177,8 @@ def draw_hud(
     screen.blit(hint1, (10, SCREEN_HEIGHT - 40))
 
     attention_value = attention if attention is not None else 0
-    if bci_mode:
+    if bci_mode and bci_connected:
         attention_text = f"注意力 {int(attention_value)}"
-    else:
-        attention_text = f"注意力: {int(attention_value)}"
-    attention_surface = font.render(attention_text, True, (0, 255, 0) if bci_connected else (255, 0, 0))
-    attention_rect = attention_surface.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-    screen.blit(attention_surface, attention_rect)
+        attention_surface = font.render(attention_text, True, (0, 255, 0))
+        attention_rect = attention_surface.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+        screen.blit(attention_surface, attention_rect)

@@ -61,6 +61,7 @@ class PlayerProfile:
         if not self._username:
             return
         path = _profile_path(self._username)
+        self._recalculate()
         data = {
             "level": self.level,
             "cumulative_revenue": self.cumulative_revenue,

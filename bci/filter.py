@@ -161,6 +161,12 @@ class AttentionMappingCurve:
         high_threshold: float = 70.0,
         max_multiplier: float = 1.5,
     ) -> None:
+        if low_threshold <= 0:
+            raise ValueError("low_threshold 必须 > 0")
+        if high_threshold <= low_threshold:
+            raise ValueError("high_threshold 必须 > low_threshold")
+        if high_threshold >= 100:
+            raise ValueError("high_threshold 必须 < 100")
         self.low_threshold = low_threshold
         self.high_threshold = high_threshold
         self.max_multiplier = max_multiplier

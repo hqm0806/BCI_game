@@ -190,6 +190,8 @@ class MemorySession:
         return random.choice(available) if available else random.choice(pool)
 
     def _check_catches(self) -> None:
+        if self._target_index >= len(self._recipe_ingredients):
+            return
         hits = pygame.sprite.spritecollide(self.cup, self._all_ingredients, False)
         for hit in hits:
             is_right = hit.type == self._recipe_ingredients[self._target_index]
@@ -209,6 +211,7 @@ class MemorySession:
                     self._catch_success_timer = 0.6
                     return
             else:
+                hit.kill()
                 self._round_result = "wrong"
                 self._enter_phase("result")
                 return
@@ -251,6 +254,9 @@ class MemorySession:
                 )
 
                 n = len(self._recipe_ingredients)
+                if n == 0:
+                    self._enter_phase("result")
+                    continue
                 if self._catch_success_timer <= 0:
                     self._spawn_timer -= dt
                     while self._spawn_timer <= 0:

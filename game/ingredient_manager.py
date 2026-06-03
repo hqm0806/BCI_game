@@ -38,11 +38,11 @@ class IngredientManager:
 
     def should_spawn(self) -> bool:
         current_time = time.time()
-        if current_time - self.last_spawn_time >= self.spawn_interval + self._spawn_random_offset:
-            self.last_spawn_time = current_time
-            self._new_spawn_random_offset()
-            return True
-        return False
+        return current_time - self.last_spawn_time >= self.spawn_interval + self._spawn_random_offset
+
+    def _on_spawned(self) -> None:
+        self.last_spawn_time = time.time()
+        self._new_spawn_random_offset()
 
     def set_current_speed(self, speed: float) -> None:
         self._current_speed = speed
@@ -86,10 +86,18 @@ class IngredientManager:
         if self.should_spawn():
             allowed = self._free_lanes(ingredients_group) if ingredients_group else None
             if allowed is None or allowed:
-                return self.spawn_ingredient(required_types, allowed)
+                ingredient = self.spawn_ingredient(required_types, allowed)
+                self._on_spawned()
+                return ingredient
         return None
 
     @staticmethod
     def _free_lanes(ingredients_group: pygame.sprite.Group) -> list[int]:
-        occupied = {int(ing.rect.centerx) // LANE_WIDTH for ing in ingredients_group}
+        from config import SCREEN_HEIGHT
+
+        occupied = set()
+        for ing in ingredients_group:
+            if ing.rect.y < SCREEN_HEIGHT * 0.35:
+                lane = min(int(ing.rect.centerx) // LANE_WIDTH, 5)
+                occupied.add(lane)
         return [l for l in INGREDIENT_LANE_INDICES if l not in occupied]

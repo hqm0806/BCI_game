@@ -102,11 +102,11 @@ class CupManager:
 
         final_money = 0 if (self.has_required and not self.cup_required_caught) else self.cup_money
 
-        if self.secret_recipe_caught:
+        if self.secret_recipe_spawned:
             final_money *= 2
 
         self.cup_money_history.append(final_money)
-        self.cup_secret_history.append(self.secret_recipe_caught)
+        self.cup_secret_history.append(self.secret_recipe_spawned)
         self.total_money += final_money
 
         logger.info(

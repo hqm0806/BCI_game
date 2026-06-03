@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 import time as time_module
 from collections import deque
@@ -26,6 +27,7 @@ from config import (
     FORMAL_SPEED_MIN,
     GAME_MODES,
     INGREDIENT_COLORS,
+    INGREDIENT_IMGS,
     LANE_LINE_COLOR,
     LANE_WIDTH,
     NUM_LANES,
@@ -257,6 +259,9 @@ class GameSession:
         self._artifact_frozen = False
         self._artifact_penalty_timer = 0.0
         self._artifact_alpha = 0.0
+        self._secret_popup_timer = 0.0
+        self._cup_attn_samples: list[float] = []
+        self._cup_baseline: float = 40.0
 
         self.focus_min = CUP_WIDTH // 2
         self.focus_max = SCREEN_WIDTH - CUP_WIDTH // 2
@@ -422,6 +427,8 @@ class GameSession:
         self.miss_effects.empty()
         self.particles.empty()
         self.focus_samples = []
+        self._cup_attn_samples = []
+        self._cup_baseline = self.warmup_summary_avg if self.warmup_summary_avg > 0 else 40.0
         self.cup_manager.start_new_cup()
         self.ingredient_manager.reset_spawn_timer()
 
@@ -672,11 +679,13 @@ class GameSession:
 
         if self.attention is not None:
             self.focus_samples.append(self.attention)
+            if self.phase == "formal":
+                self._cup_attn_samples.append(self.attention)
 
     def _update_attention_variance(self) -> None:
         if self.attention is None:
             return
-        baseline = self.warmup_summary_avg if self.warmup_summary_avg > 0 else 40.0
+        baseline = self._cup_baseline if self._cup_baseline > 0 else 40.0
         offset = self.attention - baseline
         self._attn_offsets.append(offset)
         if len(self._attn_offsets) > 60:
@@ -709,6 +718,9 @@ class GameSession:
             self.cup.rect.centerx = max(self.focus_min, min(self.focus_max, fx))
 
     def _check_secret_recipe(self, dt_sec: float) -> None:
+        if self._secret_popup_timer > 0:
+            self._secret_popup_timer -= dt_sec
+            return
         if self.cup_manager.secret_recipe_spawned:
             return
         if self.cup_manager.cup_ended:
@@ -723,25 +735,23 @@ class GameSession:
                 self.focus_above_seconds = 0.0
 
             if self.focus_above_seconds >= SECRET_RECIPE_SUSTAIN and self.cup_manager.trigger_secret_recipe():
-                allowed = self.ingredient_manager._free_lanes(self.ingredients)
-                secret = self.ingredient_manager.spawn_secret_recipe(allowed)
-                self.ingredients.add(secret)
-                secret.set_particle_group(self.particles)
+                self._secret_popup_timer = 2.0
                 self.focus_above_seconds = 0.0
-                logger.info("秘方掉落！专注力持续高于阈值 %.0f 达 %d 秒", threshold, SECRET_RECIPE_SUSTAIN)
+                logger.info("秘方触发！专注力持续高于阈值 %.0f 达 %d 秒", threshold, SECRET_RECIPE_SUSTAIN)
         else:
             if self.cup_manager.should_force_secret_recipe() and self.cup_manager.catch_count == 0:
                 if self.cup_manager.trigger_secret_recipe():
-                    allowed = self.ingredient_manager._free_lanes(self.ingredients)
-                    secret = self.ingredient_manager.spawn_secret_recipe(allowed)
-                    self.ingredients.add(secret)
-                    secret.set_particle_group(self.particles)
-                    logger.info("第 %s 杯触发秘方掉落！", self.cup_manager.cup_number)
+                    self._secret_popup_timer = 2.0
+                    logger.info("第 %s 杯触发秘方！", self.cup_manager.cup_number)
 
     def _check_cup_end(self) -> None:
         if self.cup_manager.check_cup_end():
+            if self._cup_attn_samples:
+                self._cup_baseline = sum(self._cup_attn_samples) / len(self._cup_attn_samples)
+            self._cup_attn_samples = []
+
             cup_money = self.cup_manager.settle_cup()
-            had_secret = self.cup_manager.secret_recipe_caught
+            had_secret = self.cup_manager.secret_recipe_spawned
 
             if self.bci_mode and cup_money > 0:
                 attn = self.attention if self.attention is not None else 50.0
@@ -896,8 +906,8 @@ class GameSession:
             )
             self.screen.blit(
                 sub_text,
-                (SCREEN_WIDTH // 2 - sub_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20),
-            )
+                    (SCREEN_WIDTH // 2 - sub_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20),
+                )
 
     def _render_warmup_summary_overlay(self) -> None:
         mask = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
@@ -990,8 +1000,8 @@ class GameSession:
             attention=self.attention,
             bci_mode=self.bci_mode,
             free_combine=self.free_combine,
-            recipe_result=self.recipe_result,
-            creative_ingredients=self.creative_ingredients,
+            recipe_result=self.recipe_result if self.control_mode != "keyboard" else None,
+            creative_ingredients=self.creative_ingredients if self.control_mode != "keyboard" else [],
             attention_curve=self.attention_curve,
             bci_connected=self.bci_available,
             focus_above_seconds=self.focus_above_seconds,
@@ -1058,6 +1068,36 @@ class GameSession:
                     sub_text,
                     (SCREEN_WIDTH // 2 - sub_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20),
                 )
+
+        if self._secret_popup_timer > 0:
+            self._draw_secret_popup()
+
+    def _draw_secret_popup(self) -> None:
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 80))
+        self.screen.blit(overlay, (0, 0))
+
+        popup_w, popup_h = 260, 220
+        popup_x = (SCREEN_WIDTH - popup_w) // 2
+        popup_y = (SCREEN_HEIGHT - popup_h) // 2
+
+        pygame.draw.rect(self.screen, (30, 25, 20), (popup_x, popup_y, popup_w, popup_h), border_radius=16)
+        pygame.draw.rect(self.screen, (255, 180, 100), (popup_x, popup_y, popup_w, popup_h), 3, border_radius=16)
+
+        text_surf = self.font.render("触发秘方！", True, (255, 220, 100))
+        self.screen.blit(text_surf, (popup_x + (popup_w - text_surf.get_width()) // 2, popup_y + 25))
+
+        img_path = INGREDIENT_IMGS.get("秘方", "")
+        if img_path and os.path.exists(img_path):
+            img = pygame.image.load(img_path).convert_alpha()
+            img = pygame.transform.scale(img, (80, 80))
+            t = pygame.time.get_ticks() / 1000.0
+            wobble_x = int(math.sin(t * 4) * 10)
+            angle = math.sin(t * 3) * 5
+            rotated = pygame.transform.rotate(img, angle)
+            rx = popup_x + (popup_w - rotated.get_width()) // 2 + wobble_x
+            ry = popup_y + 80 + (rotated.get_height() - 80) // 2
+            self.screen.blit(rotated, (rx, ry))
 
     def _end_game(self) -> str:
         if self.show_summary:

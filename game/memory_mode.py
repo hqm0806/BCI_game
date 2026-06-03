@@ -92,7 +92,7 @@ class MemorySession:
         self._max_per_lane = 1
 
         self._rules_display_time = 7.0
-        self._memorize_time = 3.0
+        self._memorize_time = 2.0   # 每轮记忆阶段持续时间
         self._drop_window = 15.0
         self._result_time = 1.5
         self._rest_time = 2.0

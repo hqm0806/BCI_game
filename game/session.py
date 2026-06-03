@@ -573,6 +573,14 @@ class GameSession:
     def run(self) -> str:
         if self._audio:
             self._audio.play_bgm("背景乐1.mp3", volume=0.3)
+
+        if self.control_mode in ("keyboard", "bci_failed") and self.phase.startswith("warmup"):
+            self.warmup_summary_max = 0.0
+            self.warmup_summary_avg = 0.0
+            self.normalization_lower = 30.0
+            self.normalization_upper = 70.0
+            self._do_transition_to_formal()
+
         self._render()
         self.clock.tick(60)
         while self.running:
@@ -806,6 +814,8 @@ class GameSession:
         ingredient = self.ingredient_manager.update(required_types=None, ingredients_group=self.ingredients)
         if ingredient:
             self.ingredients.add(ingredient)
+            if ingredient.is_required:
+                ingredient.set_particle_group(self.particles)
 
         self.ingredients.update()
         self.catch_effects.update(dt=dt_sec)
@@ -844,10 +854,10 @@ class GameSession:
             self.screen.fill((255, 255, 255))
 
         self.all_sprites.draw(self.screen)
+        self.particles.draw(self.screen)
         self.ingredients.draw(self.screen)
         self.catch_effects.draw(self.screen)
         self.miss_effects.draw(self.screen)
-        self.particles.draw(self.screen)
 
         if self.phase == "warmup_intro":
             self._render_warmup_intro()

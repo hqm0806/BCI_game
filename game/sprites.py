@@ -319,7 +319,7 @@ class Ingredient(pygame.sprite.Sprite):
         self._float_t += 0.05
         self.rect.y += int(self.speed)
 
-        if self._is_secret:
+        if self._is_secret or (self.is_required and self._particle_group is not None):
             self.rect.centerx = int(self._base_centerx + math.sin(self._float_t) * 5)
             angle = math.cos(self._float_t) * 8
             self.image = pygame.transform.rotate(self._orig_image, angle)

@@ -89,3 +89,4 @@ class AudioManager:
     def init() -> None:
         """初始化 pygame.mixer"""
         pygame.mixer.init()
+        pygame.mixer.set_num_channels(16)

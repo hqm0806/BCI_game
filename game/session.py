@@ -196,7 +196,7 @@ class GameSession:
     def _init_bci(self) -> None:
         self.bci_reader = BCIDataReader()
         self.bci_available = False
-        if self.bci_mode and self.control_mode != "keyboard":
+        if self.bci_mode and self.control_mode not in ("keyboard", "bci_failed"):
             self.bci_available = self.bci_reader.connect()
 
         self.attention_curve = None
@@ -1072,7 +1072,7 @@ class GameSession:
 
             if self._profile:
                 skip_history = (
-                    self.control_mode != "keyboard"
+                    self.control_mode in ("bci", "bci_failed", "keyboard")
                     and self.bci_mode
                     and not self.bci_available
                 )

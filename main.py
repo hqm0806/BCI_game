@@ -163,12 +163,14 @@ class TransitionState(State):
 class MemoryGameState(State):
     """记忆模式游戏状态"""
 
-    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock) -> None:
+    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, context: dict) -> None:
         self.screen = screen
         self.clock = clock
+        self._context = context
 
     def enter(self) -> GameState | None:
-        result = run_memory_game(self.screen, self.clock)
+        audio = self._context.get("audio")
+        result = run_memory_game(self.screen, self.clock, audio=audio)
         if result == "quit":
             return GameState.QUIT
         return GameState.MENU
@@ -192,7 +194,8 @@ class GameStateImpl(State):
         game_mode = self._context.get("game_mode", "bci")
         control_mode = self._context.get("control_mode", "bci")
         profile = self._context.get("profile")
-        game_result = run_game(self.screen, self.clock, game_mode=game_mode, profile=profile, control_mode=control_mode)
+        audio = self._context.get("audio")
+        game_result = run_game(self.screen, self.clock, game_mode=game_mode, profile=profile, control_mode=control_mode, audio=audio)
         if profile:
             profile.save()
         if game_result == "quit":
@@ -222,6 +225,7 @@ def main() -> None:
     context: dict = {}
     audio = AudioManager()
     audio.init()
+    context["audio"] = audio
 
     sm = StateMachine()
     sm.register(GameState.SPLASH, SplashState(screen, load_chinese_font(110)))
@@ -230,7 +234,7 @@ def main() -> None:
     sm.register(GameState.SETTINGS, SettingsState(screen))
     sm.register(GameState.TRANSITION, TransitionState(screen, audio))
     sm.register(GameState.GAME, GameStateImpl(screen, clock, context))
-    sm.register(GameState.GAME_MEMORY, MemoryGameState(screen, clock))
+    sm.register(GameState.GAME_MEMORY, MemoryGameState(screen, clock, context))
     sm.register(GameState.QUIT, QuitState())
 
     sm.start(GameState.SPLASH)

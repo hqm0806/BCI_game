@@ -135,6 +135,7 @@ class GameSession:
         game_mode: str = "regular",
         profile=None,
         control_mode: str = "bci",
+        audio=None,
     ) -> None:
         self.screen = screen
         self.clock = clock
@@ -142,6 +143,7 @@ class GameSession:
         self.control_mode = control_mode
         self._profile = profile
         self._upgrade_level = 0
+        self._audio = audio
 
         self._load_mode_config()
         self._load_fonts()
@@ -431,6 +433,8 @@ class GameSession:
         self._cup_baseline = self.warmup_summary_avg if self.warmup_summary_avg > 0 else 40.0
         self.cup_manager.start_new_cup()
         self.ingredient_manager.reset_spawn_timer()
+        if self._audio:
+            self._audio.play_sfx("音效/开始倒计时t.wav", volume=0.6)
 
     def _normalize_to_range(self, attention: float) -> float:
         if self.normalization_upper - self.normalization_lower < 1.0:
@@ -567,6 +571,8 @@ class GameSession:
         return self._paused or self._artifact_frozen
 
     def run(self) -> str:
+        if self._audio:
+            self._audio.play_bgm("背景乐1.mp3", volume=0.3)
         self._render()
         self.clock.tick(60)
         while self.running:
@@ -737,11 +743,15 @@ class GameSession:
             if self.focus_above_seconds >= SECRET_RECIPE_SUSTAIN and self.cup_manager.trigger_secret_recipe():
                 self._secret_popup_timer = 2.0
                 self.focus_above_seconds = 0.0
+                if self._audio:
+                    self._audio.play_sfx("音效/触发秘方.wav", volume=0.7)
                 logger.info("秘方触发！专注力持续高于阈值 %.0f 达 %d 秒", threshold, SECRET_RECIPE_SUSTAIN)
         else:
             if self.cup_manager.should_force_secret_recipe() and self.cup_manager.catch_count == 0:
                 if self.cup_manager.trigger_secret_recipe():
                     self._secret_popup_timer = 2.0
+                    if self._audio:
+                        self._audio.play_sfx("音效/触发秘方.wav", volume=0.7)
                     logger.info("第 %s 杯触发秘方！", self.cup_manager.cup_number)
 
     def _check_cup_end(self) -> None:
@@ -760,6 +770,8 @@ class GameSession:
                 cup_money = int(cup_money * coeff)
 
             self.score_manager.add_cup_money(cup_money, had_secret)
+            if self._audio and cup_money > 0:
+                self._audio.play_sfx("音效/加金币.wav", volume=0.5)
             self.score_manager.reset_cup_ingredients()
             self.creative_ingredients = []
             self.recipe_result = None
@@ -817,9 +829,10 @@ class GameSession:
             self.free_combine,
             self.creative_ingredients,
             self.recipe_result,
+            audio=self._audio,
         )
 
-        _handle_misses(self.ingredients, threshold_y, self.miss_effects, self.particles)
+        _handle_misses(self.ingredients, threshold_y, self.miss_effects, self.particles, audio=self._audio)
 
     def _render(self) -> None:
         if self.has_background and self.background:
@@ -1100,6 +1113,8 @@ class GameSession:
             self.screen.blit(rotated, (rx, ry))
 
     def _end_game(self) -> str:
+        if self._audio:
+            self._audio.play_sfx("音效/游戏结束.wav", volume=0.6)
         if self.show_summary:
             avg_focus = sum(self.focus_samples) / len(self.focus_samples) if self.focus_samples else 0.0
             if not self.bci_mode:
@@ -1138,6 +1153,8 @@ class GameSession:
                     )
                     self._upgrade_level = old_level if upgraded else self._profile.level
                     is_upgraded = upgraded > 0
+                    if is_upgraded and self._audio:
+                        self._audio.play_sfx("音效/升级.wav", volume=0.7)
                     p_level = self._profile.level
                     p_rev = self._profile.cumulative_revenue
             else:
@@ -1173,8 +1190,9 @@ def run_game(
     game_mode: str = "regular",
     profile=None,
     control_mode: str = "bci",
+    audio=None,
 ) -> str:
-    session = GameSession(screen, clock, game_mode, profile, control_mode=control_mode)
+    session = GameSession(screen, clock, game_mode, profile, control_mode=control_mode, audio=audio)
     return session.run()
 
 
@@ -1191,6 +1209,7 @@ def _handle_catches(
     free_combine: bool,
     creative_ingredients: list[str],
     recipe_result: dict[str, Any] | None,
+    audio=None,
 ) -> tuple[list[str], dict[str, Any] | None]:
     for hit in hits:
         if hit.rect.bottom > threshold_y:
@@ -1223,6 +1242,12 @@ def _handle_catches(
             cup.update_level(cup_manager.catch_count)
             logger.info("接住 %s！收益: %s", hit.type, score_manager.total_money)
 
+            if audio:
+                if hit.is_required:
+                    audio.play_sfx("音效/接到必接食材.wav", volume=0.6)
+                else:
+                    audio.play_sfx("音效/接到食材.wav", volume=0.4)
+
     return creative_ingredients, recipe_result
 
 
@@ -1231,6 +1256,7 @@ def _handle_misses(
     threshold_y: float,
     miss_effects: pygame.sprite.Group,
     particles: pygame.sprite.Group,
+    audio=None,
 ) -> None:
     for ing in ingredients.sprites():
         if ing.rect.bottom > threshold_y:
@@ -1244,3 +1270,5 @@ def _handle_misses(
                 p.decay *= 1.5
                 particles.add(p)
             ingredients.remove(ing)
+            if audio and getattr(ing, "is_required", False):
+                audio.play_sfx("音效/漏接必接食材.wav", volume=0.5)

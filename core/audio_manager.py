@@ -1,4 +1,4 @@
-"""音乐管理器 - 管理背景音乐播放和切换"""
+"""音乐管理器 - 管理背景音乐和音效的播放和切换"""
 
 from __future__ import annotations
 
@@ -13,17 +13,43 @@ logger = logging.getLogger(__name__)
 
 
 class AudioManager:
-    """管理背景音乐（BGM）的加载、播放和切换
+    """管理背景音乐（BGM）和音效（SFX）的加载与播放
 
     使用方式:
         audio = AudioManager()
-        audio.play_bgm("菜单音乐.ogg")
-        audio.play_bgm("游戏音乐.ogg", crossfade=1.0)
+        audio.play_bgm("菜单音乐.wav")
+        audio.play_sfx("音效/接到食材.wav")
         audio.stop_bgm()
     """
 
     def __init__(self) -> None:
         self._current: str | None = None
+        self._sfx_cache: dict[str, pygame.mixer.Sound] = {}
+
+    def _load_sfx(self, sound_file: str) -> pygame.mixer.Sound | None:
+        if sound_file in self._sfx_cache:
+            return self._sfx_cache[sound_file]
+        full_path = os.path.join(SOUNDS_DIR, sound_file)
+        if not os.path.exists(full_path):
+            logger.warning("音效文件不存在: %s", full_path)
+            return None
+        try:
+            sfx = pygame.mixer.Sound(full_path)
+            self._sfx_cache[sound_file] = sfx
+            return sfx
+        except pygame.error as e:
+            logger.warning("音效加载失败 %s: %s", sound_file, e)
+            return None
+
+    def preload_sfx(self, *sound_files: str) -> None:
+        for f in sound_files:
+            self._load_sfx(f)
+
+    def play_sfx(self, sound_file: str, volume: float = 0.7) -> None:
+        sfx = self._load_sfx(sound_file)
+        if sfx:
+            sfx.set_volume(max(0.0, min(1.0, volume)))
+            sfx.play()
 
     def play_bgm(self, sound_file: str, volume: float = 0.5) -> None:
         """播放背景音乐（循环）
@@ -56,11 +82,7 @@ class AudioManager:
         self._current = None
 
     def set_volume(self, volume: float) -> None:
-        """设置背景音乐音量
-
-        参数:
-            volume: 音量（0.0 ~ 1.0）
-        """
+        """设置背景音乐音量"""
         pygame.mixer.music.set_volume(max(0.0, min(1.0, volume)))
 
     @staticmethod

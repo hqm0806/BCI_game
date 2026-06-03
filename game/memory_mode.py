@@ -48,9 +48,10 @@ class _MemoryParticle(pygame.sprite.Sprite):
 
 
 class MemorySession:
-    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock) -> None:
+    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, audio=None) -> None:
         self.screen = screen
         self.clock = clock
+        self._audio = audio
         self.font = load_chinese_font(36)
         self.big_font = load_chinese_font(48)
         self.small_font = load_chinese_font(20)
@@ -199,6 +200,8 @@ class MemorySession:
                 self._target_index += 1
                 self.cup.trigger_bounce()
                 hit.kill()
+                if self._audio:
+                    self._audio.play_sfx("音效/接到食材.wav", volume=0.4)
                 for _ in range(8):
                     p = _MemoryParticle(
                         hit.rect.centerx,
@@ -209,10 +212,14 @@ class MemorySession:
                 if self._target_index >= len(self._recipe_ingredients):
                     self._round_result = "success"
                     self._catch_success_timer = 0.6
+                    if self._audio:
+                        self._audio.play_sfx("音效/接到必接食材.wav", volume=0.6)
                     return
             else:
                 hit.kill()
                 self._round_result = "wrong"
+                if self._audio:
+                    self._audio.play_sfx("音效/漏接必接食材.wav", volume=0.5)
                 self._enter_phase("result")
                 return
 
@@ -301,6 +308,8 @@ class MemorySession:
                                 self._current_level + 1,
                             )
                             self._consecutive_success = 0
+                            if self._audio:
+                                self._audio.play_sfx("音效/升级.wav", volume=0.7)
                     else:
                         self._consecutive_success = 0
                         self._round_failures += 1
@@ -486,6 +495,6 @@ class MemorySession:
         self.screen.blit(lvl_text, (SCREEN_WIDTH // 2 - lvl_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20))
 
 
-def run_memory_game(screen: pygame.Surface, clock: pygame.time.Clock) -> str:
-    session = MemorySession(screen, clock)
+def run_memory_game(screen: pygame.Surface, clock: pygame.time.Clock, audio=None) -> str:
+    session = MemorySession(screen, clock, audio=audio)
     return session.run()

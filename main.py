@@ -52,9 +52,6 @@ class LoginState(State):
         self._context = context
 
     def enter(self) -> GameState | None:
-        audio = self._context.get("audio")
-        if audio:
-            audio.play_bgm("背景乐3.mp3", volume=0.4)
         login = LoginScreen(self.screen)
         username = login.run()
         if username is None or username == "quit":
@@ -229,6 +226,7 @@ def main() -> None:
     context: dict = {}
     audio = AudioManager()
     audio.init()
+    audio.play_bgm("背景乐3.mp3", volume=0.4)
     context["audio"] = audio
 
     sm = StateMachine()

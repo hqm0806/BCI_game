@@ -253,7 +253,7 @@ class HistoryScreen:
         self.screen.blit(title, (x + 4, y - 16))
 
     def _draw_trend_curve(self, right_x: int, right_w: int) -> None:
-        regular_games = [g for g in self.games if g.get("mode") == "regular"]
+        regular_games = [g for g in self.games if g.get("mode") in ("regular", "bci")]
         regular_games.sort(key=lambda g: g.get("date", ""))
 
         graph_x = right_x + 60

@@ -52,7 +52,7 @@ class State(ABC):
     def update(self) -> None:
         """每帧更新"""
 
-    def exit(self) -> None:  # noqa: B027
+    def exit(self) -> None:
         """退出状态时调用"""
 
 

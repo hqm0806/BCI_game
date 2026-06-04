@@ -61,11 +61,5 @@ class ScoreManager:
     def reset_cup_ingredients(self) -> None:
         self.current_cup_ingredients = []
 
-    def finish_cup(self) -> None:
-        if not self.has_required:
-            self.money = max(0, self.money - 10)
-        self.has_required = False
-        self.current_cup_ingredients = []
-
     def get_max_cup_money(self) -> int:
         return max(self.cup_money_history) if self.cup_money_history else 0

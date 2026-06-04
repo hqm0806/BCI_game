@@ -46,23 +46,6 @@ class TestScoreManager:
         assert sm.has_required is True
         assert sm.money == 3  # 红茶 2 + 珍珠 1
 
-    def test_finish_cup_without_required(self):
-        sm = ScoreManager()
-        sm.set_required_ingredient("红茶")
-        sm.add_ingredient("珍珠", is_required=False)
-        sm.finish_cup()
-        assert sm.money == 0  # 扣罚后仍为 0
-        assert sm.has_required is False
-        assert sm.current_cup_ingredients == []
-
-    def test_finish_cup_with_required(self):
-        sm = ScoreManager()
-        sm.set_required_ingredient("红茶")
-        sm.add_ingredient("红茶", is_required=True)
-        sm.add_ingredient("珍珠", is_required=False)
-        sm.finish_cup()
-        assert sm.money == 3
-
     def test_score_accumulation(self):
         sm = ScoreManager()
         sm.set_required_ingredient("红茶")

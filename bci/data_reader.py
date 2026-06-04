@@ -171,7 +171,7 @@ class BCIDataReader:
 
         return None
 
-    def read_data(self, verbose=False):
+    def read_data(self):
         """
         读取脑电数据，返回 (attention, focus_x, focus_y, gyro_x, gyro_y, gyro_z)
         每帧处理缓冲区中所有消息，只保留最新值，消除延迟
@@ -231,4 +231,4 @@ class BCIDataReader:
 
     def read_with_timeout(self):
         """带超时的数据读取"""
-        return self.read_data(verbose=True)
+        return self.read_data()

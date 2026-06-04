@@ -14,12 +14,7 @@ import time
 
 from config import (
     CUP_DURATION,
-    DIFFICULTY_BASELINE,
-    DIFFICULTY_BASELINE_MAX,
-    DIFFICULTY_BASELINE_MIN,
-    DIFFICULTY_ADAPT_WINDOW,
     INGREDIENT_POINTS,
-    SECRET_RECIPE_OFFSET,
 )
 
 logger = logging.getLogger(__name__)
@@ -143,30 +138,3 @@ class CupManager:
         if self.cup_number == 0:
             return False
         return (self.cup_number % self.secret_recipe_interval) == 0
-
-
-class DifficultyAdapter:
-    """难度自适应调节器 - 根据滚动窗口内的平均专注力动态调整基线"""
-
-    def __init__(self) -> None:
-        self.baseline: float = float(DIFFICULTY_BASELINE)
-        self.window_duration: float = float(DIFFICULTY_ADAPT_WINDOW)
-        self._samples: list[tuple[float, float]] = []
-
-    def update(self, attention: float, dt: float) -> float:
-        t = time.time()
-        self._samples.append((t, attention))
-        cutoff = t - self.window_duration
-        self._samples = [(ts, v) for ts, v in self._samples if ts >= cutoff]
-
-        if len(self._samples) >= 30:
-            values = [v for _, v in self._samples]
-            avg = sum(values) / len(values)
-            self.baseline = max(
-                DIFFICULTY_BASELINE_MIN,
-                min(DIFFICULTY_BASELINE_MAX, avg),
-            )
-        return self.baseline
-
-    def get_secret_threshold(self) -> float:
-        return min(88.0, self.baseline + SECRET_RECIPE_OFFSET)

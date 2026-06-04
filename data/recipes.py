@@ -61,36 +61,11 @@ CREATIVE_RECIPES = {
         "score": 82,
         "description": "南洋风味",
     },
-    frozenset(["红茶", "牛奶", "布丁"]): {
-        "name": "布丁奶茶",
-        "score": 88,
-        "description": "甜品控的最爱",
-    },
-    frozenset(["红茶", "牛奶", "仙草"]): {
-        "name": "仙草奶绿",
-        "score": 86,
-        "description": "清凉降火",
-    },
     # === 水果/清新系 ===
     frozenset(["牛奶", "椰果"]): {
         "name": "椰奶小清新",
         "score": 70,
         "description": "夏日海边味道",
-    },
-    frozenset(["牛奶", "布丁"]): {
-        "name": "牛奶布丁冻",
-        "score": 75,
-        "description": "甜品站爆款",
-    },
-    frozenset(["牛奶", "仙草"]): {
-        "name": "仙草牛奶",
-        "score": 72,
-        "description": "养生局标配",
-    },
-    frozenset(["牛奶", "珍珠", "布丁"]): {
-        "name": "珍珠布丁奶",
-        "score": 80,
-        "description": "双重口感",
     },
     # === 纯茶系 ===
     frozenset(["红茶"]): {
@@ -103,16 +78,6 @@ CREATIVE_RECIPES = {
         "score": 65,
         "description": "便利店之王",
     },
-    frozenset(["红茶", "仙草"]): {
-        "name": "烧仙草红茶",
-        "score": 68,
-        "description": "台式经典",
-    },
-    frozenset(["红茶", "布丁"]): {
-        "name": "布丁红茶",
-        "score": 62,
-        "description": "意外的搭配",
-    },
     # === 纯配料系（黑暗预警） ===
     frozenset(["珍珠"]): {
         "name": "干嚼珍珠",
@@ -124,140 +89,20 @@ CREATIVE_RECIPES = {
         "score": 25,
         "description": "纯粹的椰果体验",
     },
-    frozenset(["布丁"]): {
-        "name": "空口布丁",
-        "score": 30,
-        "description": "甜品当水喝",
-    },
-    frozenset(["仙草"]): {
-        "name": "苦行僧仙草",
-        "score": 22,
-        "description": "苦到怀疑人生",
-    },
     frozenset(["珍珠", "椰果"]): {
         "name": "珍珠椰果大乱斗",
         "score": 45,
         "description": "嚼到腮帮子酸",
     },
-    frozenset(["珍珠", "布丁"]): {
-        "name": "双重 Q 弹",
-        "score": 50,
-        "description": "牙口不好别试",
-    },
-    frozenset(["珍珠", "仙草"]): {
-        "name": "珍珠仙草冻",
-        "score": 48,
-        "description": "黑与黑的碰撞",
-    },
-    frozenset(["椰果", "布丁"]): {
-        "name": "椰果布丁船",
-        "score": 52,
-        "description": "甜品融合实验",
-    },
-    frozenset(["椰果", "仙草"]): {
-        "name": "仙草椰椰",
-        "score": 55,
-        "description": "清凉加倍",
-    },
-    frozenset(["布丁", "仙草"]): {
-        "name": "布丁仙草冻",
-        "score": 58,
-        "description": "双重冻品",
-    },
     # === 三配料（重口味） ===
-    frozenset(["珍珠", "椰果", "布丁"]): {
-        "name": "料多多",
-        "score": 60,
-        "description": "一杯顶一顿饭",
-    },
-    frozenset(["珍珠", "椰果", "仙草"]): {
-        "name": "暗黑三重奏",
-        "score": 55,
-        "description": "嚼嚼嚼嚼嚼",
-    },
-    frozenset(["珍珠", "布丁", "仙草"]): {
-        "name": "全家福·黑化版",
-        "score": 58,
-        "description": "黑得发亮",
-    },
-    frozenset(["椰果", "布丁", "仙草"]): {
-        "name": "甜品大杂烩",
-        "score": 52,
-        "description": "选择困难症的解药",
-    },
     # === 四配料（究极体） ===
-    frozenset(["珍珠", "椰果", "布丁", "仙草"]): {
-        "name": "八宝奶茶·缺四样",
-        "score": 65,
-        "description": "粥既视感",
-    },
     # === 全都要 ===
-    frozenset(["红茶", "牛奶", "珍珠", "椰果", "布丁", "仙草"]): {
-        "name": "奶茶界的满汉全席",
-        "score": 100,
-        "description": "传说中的究极奶茶",
-    },
-    frozenset(["红茶", "珍珠", "椰果", "布丁"]): {
-        "name": "料王红茶",
-        "score": 78,
-        "description": "每一口都有料",
-    },
-    frozenset(["红茶", "珍珠", "椰果", "仙草"]): {
-        "name": "四喜奶茶",
-        "score": 75,
-        "description": "吉祥如意",
-    },
     frozenset(["红茶", "牛奶", "珍珠", "椰果"]): {
         "name": "豪华珍珠奶茶",
         "score": 88,
         "description": "升级版经典",
     },
-    frozenset(["红茶", "牛奶", "珍珠", "布丁"]): {
-        "name": "布丁珍珠奶",
-        "score": 90,
-        "description": "甜品奶茶巅峰",
-    },
-    frozenset(["红茶", "牛奶", "珍珠", "仙草"]): {
-        "name": "仙草珍珠奶绿",
-        "score": 89,
-        "description": "清新又浓郁",
-    },
-    frozenset(["红茶", "牛奶", "椰果", "布丁"]): {
-        "name": "椰果布丁奶",
-        "score": 84,
-        "description": "甜蜜炸弹",
-    },
-    frozenset(["红茶", "牛奶", "椰果", "仙草"]): {
-        "name": "南洋仙草奶",
-        "score": 83,
-        "description": "热带风情",
-    },
-    frozenset(["红茶", "牛奶", "布丁", "仙草"]): {
-        "name": "双冻奶茶",
-        "score": 87,
-        "description": "双倍快乐",
-    },
     # === 五配料 ===
-    frozenset(["红茶", "牛奶", "珍珠", "椰果", "布丁"]): {
-        "name": "奶茶界的自助餐",
-        "score": 92,
-        "description": "吃到饱",
-    },
-    frozenset(["红茶", "牛奶", "珍珠", "椰果", "仙草"]): {
-        "name": "南洋豪华版",
-        "score": 91,
-        "description": "热带顶配",
-    },
-    frozenset(["红茶", "牛奶", "珍珠", "布丁", "仙草"]): {
-        "name": "五福奶茶",
-        "score": 93,
-        "description": "五福临门",
-    },
-    frozenset(["红茶", "牛奶", "椰果", "布丁", "仙草"]): {
-        "name": "甜品奶茶船",
-        "score": 88,
-        "description": "甜品控狂喜",
-    },
 }
 
 
@@ -317,7 +162,7 @@ def _estimate_score(ingredients):
     base = 40  # 基础分
     has_tea = "红茶" in ingredients
     has_milk = "牛奶" in ingredients
-    topping_count = sum(1 for i in ingredients if i in ["珍珠", "椰果", "布丁", "仙草"])
+    topping_count = sum(1 for i in ingredients if i in ["珍珠", "椰果"])
 
     # 有茶有奶加分
     if has_tea and has_milk:

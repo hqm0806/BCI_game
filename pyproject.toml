@@ -1,5 +1,5 @@
 [project]
-name = "bci-gane"
+name = "bci-game"
 version = "0.1.0"
 description = "疯狂奶茶杯 - BCI主题休闲小游戏"
 requires-python = ">=3.8"

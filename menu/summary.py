@@ -8,17 +8,8 @@ import time
 
 import pygame
 
-from config import ASSETS_DIR, CHINESE_FONTS, SCREEN_HEIGHT, SCREEN_WIDTH
-
-
-def _load_font(size: int) -> pygame.font.Font:
-    for path in CHINESE_FONTS:
-        if os.path.exists(path):
-            try:
-                return pygame.font.Font(path, size)
-            except (pygame.error, OSError):
-                pass
-    return pygame.font.Font(None, size)
+from config import SCREEN_HEIGHT, SCREEN_WIDTH
+from game.font_utils import load_chinese_font
 
 
 class SummaryScreen:
@@ -58,11 +49,11 @@ class SummaryScreen:
             self.bg = pygame.image.load(self.bg_path).convert()
             self.bg = pygame.transform.scale(self.bg, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
-        self.title_font = _load_font(50)
-        self.info_font = _load_font(36)
-        self.big_font = _load_font(48)
-        self.hint_font = _load_font(22)
-        self.small_font = _load_font(16)
+        self.title_font = load_chinese_font(50)
+        self.info_font = load_chinese_font(36)
+        self.big_font = load_chinese_font(48)
+        self.hint_font = load_chinese_font(22)
+        self.small_font = load_chinese_font(16)
 
         self.comment = self._generate_comment()
 

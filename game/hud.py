@@ -55,7 +55,7 @@ def draw_hud(
     total_max_time = cup_manager.total_cups * CUP_DURATION
     game_remaining = max(0.0, total_max_time - game_elapsed)
 
-    bar_w = 1280
+    bar_w = SCREEN_WIDTH
     bar_x = (SCREEN_WIDTH - bar_w) // 2
     bar_y = 0
     bar_h = 60

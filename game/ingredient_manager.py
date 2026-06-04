@@ -10,7 +10,7 @@ from typing import Any
 
 import pygame
 
-from config import INGREDIENT_LANE_INDICES, INGREDIENT_SPAWN_INTERVAL, INGREDIENT_TIERS, LANE_WIDTH
+from config import INGREDIENT_LANE_INDICES, INGREDIENT_SPAWN_INTERVAL, INGREDIENT_TIERS, LANE_WIDTH, SCREEN_HEIGHT
 from game.sprites import Ingredient
 
 
@@ -101,8 +101,6 @@ class IngredientManager:
 
     @staticmethod
     def _free_lanes(ingredients_group: pygame.sprite.Group) -> list[int]:
-        from config import SCREEN_HEIGHT
-
         occupied = set()
         for ing in ingredients_group:
             if ing.rect.y < SCREEN_HEIGHT * 0.35:

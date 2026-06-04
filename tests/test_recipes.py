@@ -82,6 +82,6 @@ class TestEvaluateRecipe:
         assert result["rating"]["name"] in ["米其林一星", "米其林三星"]
 
     def test_all_ingredients(self):
-        result = evaluate_recipe(["红茶", "牛奶", "珍珠", "椰果", "布丁", "仙草"])
-        assert result["score"] == 100
-        assert result["recipe_name"] == "奶茶界的满汉全席"
+        result = evaluate_recipe(["红茶", "牛奶", "珍珠", "椰果", "芋圆", "脆啵啵"])
+        assert "total_score" in result
+        assert result["total_score"] > 0

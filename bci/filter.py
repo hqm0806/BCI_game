@@ -1,6 +1,9 @@
 """
 信号滤波模块 - 处理 BCI 脑电设备的原始信号
 包含：死区滤波、指数平滑、非线性灵敏度映射
+
+当前游戏实际使用的类: AttentionMappingCurve
+其余类为可复用的信号处理工具库，供扩展功能时选用。
 """
 
 from __future__ import annotations

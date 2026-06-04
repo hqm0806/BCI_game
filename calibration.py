@@ -21,7 +21,7 @@ def connect_bci(reader: BCIDataReader) -> bool:
 
 def read_attention(reader: BCIDataReader, timeout: float = 0.1) -> int | None:
     result = reader.read_with_timeout()
-    if result and result[0] is not None:
+    if result[0] is not None:
         return result[0]
     return None
 

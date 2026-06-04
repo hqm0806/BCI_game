@@ -50,10 +50,6 @@ class PlayerProfile:
         logger.info("新账号 [%s]", username)
         return PlayerProfile(_username=username)
 
-    @staticmethod
-    def load(path: str | None = None) -> PlayerProfile:
-        return PlayerProfile()
-
     def set_username(self, username: str) -> None:
         self._username = username
 
@@ -125,10 +121,3 @@ class PlayerProfile:
             if self.cumulative_revenue >= LEVEL_THRESHOLDS[lv - 1]:
                 self.level = lv
                 break
-
-    def level_up_message(self) -> str | None:
-        next_threshold = LEVEL_THRESHOLDS[self.level] if self.level < 4 else None
-        if next_threshold is None:
-            return "已满级！最高等级 Lv.4"
-        remaining = next_threshold - self.cumulative_revenue
-        return f"距下一级还需 {remaining} 元营业额"

@@ -343,7 +343,5 @@ class Ingredient(pygame.sprite.Sprite):
             self.image = pygame.transform.rotate(self._orig_image, angle)
             self.rect = self.image.get_rect(center=self.rect.center)
 
-        self.rect = self.image.get_rect(center=self.rect.center)
-
         if self.rect.top > SCREEN_HEIGHT:
             self.kill()

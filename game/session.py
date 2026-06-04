@@ -38,7 +38,9 @@ from config import (
     TOP_BAR_IMG,
     TOTAL_CUPS,
     WARMUP_DURATION,
+    WARMUP_FREEZE_TIME,
     WARMUP_LOW_THRESHOLD,
+    WARMUP_RESUME_TIME,
     WARMUP_SMOOTH_WINDOW,
     WARMUP_SPEED_MAX,
     WARMUP_SPEED_MIN,
@@ -363,19 +365,19 @@ class GameSession:
         if self.attention is None:
             return
 
-        if self.attention <= 15:
+        if self.attention <= WARMUP_LOW_THRESHOLD:
             self.warmup_low_timer += dt_sec
             self.warmup_high_timer = 0.0
         else:
             self.warmup_high_timer += dt_sec
             self.warmup_low_timer = 0.0
 
-        if not self.warmup_paused and self.warmup_low_timer >= 5.0:
+        if not self.warmup_paused and self.warmup_low_timer >= WARMUP_FREEZE_TIME:
             self.warmup_paused = True
             self.warmup_low_timer = 0.0
             self.warmup_high_timer = 0.0
-            logger.info("热身冻结：注意力连续 5 秒低于 15")
-        elif self.warmup_paused and self.warmup_high_timer >= 5.0:
+            logger.info("热身冻结：注意力连续 5 秒低于 %s", WARMUP_LOW_THRESHOLD)
+        elif self.warmup_paused and self.warmup_high_timer >= WARMUP_RESUME_TIME:
             self.warmup_paused = False
             self.warmup_low_timer = 0.0
             self.warmup_high_timer = 0.0
@@ -499,16 +501,16 @@ class GameSession:
     def _update_pause_state(self, dt_sec: float) -> None:
         if self.attention is None:
             return
-        if self.attention <= 15:
+        if self.attention <= WARMUP_LOW_THRESHOLD:
             self._low_attn_seconds += dt_sec
             self._high_attn_seconds = 0.0
         else:
             self._high_attn_seconds += dt_sec
             self._low_attn_seconds = 0.0
 
-        if not self._paused and self._low_attn_seconds >= 5.0:
+        if not self._paused and self._low_attn_seconds >= WARMUP_FREEZE_TIME:
             self._paused = True
-        elif self._paused and self._high_attn_seconds >= 5.0:
+        elif self._paused and self._high_attn_seconds >= WARMUP_RESUME_TIME:
             self._paused = False
             self._low_attn_seconds = 0.0
             self._high_attn_seconds = 0.0

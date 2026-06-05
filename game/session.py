@@ -120,6 +120,9 @@ class GameSession:
     warmup_summary_max: float
     warmup_summary_avg: float
 
+    _esc_dialog_active: bool = False
+    _esc_dialog_selected: int = 0
+
     def __init__(
         self,
         screen: pygame.Surface,
@@ -491,6 +494,8 @@ class GameSession:
                     color = INGREDIENT_COLORS.get(hit.type, (255, 200, 0))
                     self.particles.add(Particle(hit.rect.centerx, hit.rect.centery, color))
                 self.cup.trigger_bounce()
+                if self._audio:
+                    self._audio.play_sfx("音效/接到食材.wav", volume=0.2)
 
         for ing in self.ingredients.sprites():
             if ing.rect.bottom > threshold_y:
@@ -504,6 +509,8 @@ class GameSession:
                     p.decay *= 1.5
                     self.particles.add(p)
                 self.ingredients.remove(ing)
+                if self._audio:
+                    self._audio.play_sfx("音效/漏接必接食材.wav", volume=0.5)
 
     def _update_pause_state(self, dt_sec: float) -> None:
         if self.attention is None:
@@ -602,6 +609,13 @@ class GameSession:
             if not self.running:
                 break
 
+            if self._esc_dialog_active:
+                if getattr(self, "_skip_frame", False):
+                    self._skip_frame = False
+                else:
+                    self._render()
+                continue
+
             self._update_bci_data()
 
             if self.phase == "warmup_intro":
@@ -670,15 +684,101 @@ class GameSession:
         return self._end_game()
 
     def _handle_events(self) -> None:
+        show_dialog = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
                 return
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    self.show_summary = True
-                    self.running = False
-                    return
+                    if self._esc_dialog_active:
+                        self._esc_dialog_active = False
+                    else:
+                        show_dialog = True
+                elif self._esc_dialog_active:
+                    if event.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_TAB):
+                        self._esc_dialog_selected = 1 - self._esc_dialog_selected
+                    elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                        self._commit_esc_dialog()
+            elif event.type == pygame.MOUSEBUTTONDOWN and self._esc_dialog_active:
+                if event.button == 1:
+                    self._handle_esc_dialog_click(event.pos)
+        if show_dialog:
+            self._show_esc_dialog()
+
+    def _show_esc_dialog(self) -> None:
+        self._esc_dialog_active = True
+        self._esc_dialog_selected = 0
+        self._skip_frame = True
+
+    def _commit_esc_dialog(self) -> None:
+        if self._esc_dialog_selected == 0:
+            self._esc_dialog_active = False
+        else:
+            self.show_summary = True
+            self.running = False
+
+    def _handle_esc_dialog_click(self, pos: tuple[int, int]) -> None:
+        if hasattr(self, "_esc_continue_rect") and self._esc_continue_rect.collidepoint(pos):
+            self._esc_dialog_active = False
+        elif hasattr(self, "_esc_exit_rect") and self._esc_exit_rect.collidepoint(pos):
+            self.show_summary = True
+            self.running = False
+
+    def _draw_esc_dialog(self) -> None:
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 160))
+        self.screen.blit(overlay, (0, 0))
+
+        box_w, box_h = 380, 200
+        box_x = (SCREEN_WIDTH - box_w) // 2
+        box_y = (SCREEN_HEIGHT - box_h) // 2
+        box_rect = pygame.Rect(box_x, box_y, box_w, box_h)
+        pygame.draw.rect(self.screen, (30, 28, 20), box_rect, border_radius=16)
+        pygame.draw.rect(self.screen, (200, 160, 100), box_rect, 3, border_radius=16)
+
+        title = self.pause_font.render("暂停", True, (255, 255, 255))
+        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, box_y + 25))
+
+        btn_w, btn_h = 150, 48
+        btn_y = box_y + 105
+        gap = 20
+        left_x = SCREEN_WIDTH // 2 - btn_w - gap // 2
+        right_x = SCREEN_WIDTH // 2 + gap // 2
+
+        continue_selected = self._esc_dialog_selected == 0
+        exit_selected = self._esc_dialog_selected == 1
+
+        continue_color = (80, 180, 80)
+        exit_color = (200, 60, 60)
+        selected_border = (255, 255, 255)
+        normal_border = (100, 100, 100) if not exit_selected else (80, 80, 80)
+
+        self._esc_continue_rect = pygame.Rect(left_x, btn_y, btn_w, btn_h)
+        continue_border = selected_border if continue_selected else normal_border
+        pygame.draw.rect(self.screen, continue_color, self._esc_continue_rect, border_radius=10)
+        pygame.draw.rect(self.screen, continue_border, self._esc_continue_rect, 3, border_radius=10)
+        continue_text = self.font.render("继续游戏", True, (255, 255, 255))
+        self.screen.blit(
+            continue_text,
+            (
+                self._esc_continue_rect.centerx - continue_text.get_width() // 2,
+                self._esc_continue_rect.centery - continue_text.get_height() // 2,
+            ),
+        )
+
+        self._esc_exit_rect = pygame.Rect(right_x, btn_y, btn_w, btn_h)
+        exit_border = selected_border if exit_selected else normal_border
+        pygame.draw.rect(self.screen, exit_color, self._esc_exit_rect, border_radius=10)
+        pygame.draw.rect(self.screen, exit_border, self._esc_exit_rect, 3, border_radius=10)
+        exit_text = self.font.render("退出游戏", True, (255, 255, 255))
+        self.screen.blit(
+            exit_text,
+            (
+                self._esc_exit_rect.centerx - exit_text.get_width() // 2,
+                self._esc_exit_rect.centery - exit_text.get_height() // 2,
+            ),
+        )
 
     def _update_bci_data(self) -> None:
         if self.control_mode == "keyboard":
@@ -875,6 +975,9 @@ class GameSession:
             self._render_warmup_hud()
         else:
             self._render_formal_hud()
+
+        if self._esc_dialog_active:
+            self._draw_esc_dialog()
 
         pygame.display.flip()
 

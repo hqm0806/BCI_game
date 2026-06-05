@@ -32,7 +32,7 @@ class ModePreviewDisplay:
         self.alpha = 0
         self.target_alpha = 0
         self.width = 280
-        self.height = 180
+        self.height = 15 + len(self.control_modes) * (45 + 10)
 
     def update(self, dt: float = 0.016) -> None:
         self.alpha += (self.target_alpha - self.alpha) * 0.2

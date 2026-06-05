@@ -52,8 +52,9 @@ def draw_hud(
 
     current_time = time_module.time()
     game_elapsed = current_time - game_start_time
-    total_max_time = cup_manager.total_cups * CUP_DURATION
-    game_remaining = max(0.0, total_max_time - game_elapsed)
+    is_infinite = cup_manager.total_cups < 0
+    total_max_time = -1.0 if is_infinite else cup_manager.total_cups * CUP_DURATION
+    game_remaining = -1.0 if is_infinite else max(0.0, total_max_time - game_elapsed)
 
     bar_w = SCREEN_WIDTH
     bar_x = (SCREEN_WIDTH - bar_w) // 2
@@ -71,21 +72,25 @@ def draw_hud(
     mode_text = bar_font.render(mode_name, True, (20, 20, 20))
     screen.blit(mode_text, (bar_x + spacing, cy))
 
-    cup_text = bar_font.render(
-        f"已接杯数: {cup_manager.cup_number}",
-        True,
-        (20, 20, 20),
-    )
+    if is_infinite:
+        cup_text = bar_font.render("已接杯数: ∞", True, (20, 20, 20))
+    else:
+        cup_text = bar_font.render(
+            f"已接杯数: {cup_manager.cup_number}",
+            True,
+            (20, 20, 20),
+        )
     screen.blit(cup_text, (bar_right - spacing - cup_text.get_width(), cy))
 
     cup_rem = max(0, CUP_DURATION - (time_module.time() - cup_manager.cup_start_time))
 
-    total_time_text = bar_font.render(
-        f"总局 {int(game_remaining)}s",
-        True,
-        (60, 60, 60),
-    )
-    screen.blit(total_time_text, (SCREEN_WIDTH - total_time_text.get_width() - 12, SCREEN_HEIGHT - 36))
+    if not is_infinite:
+        total_time_text = bar_font.render(
+            f"总局 {int(game_remaining)}s",
+            True,
+            (60, 60, 60),
+        )
+        screen.blit(total_time_text, (SCREEN_WIDTH - total_time_text.get_width() - 12, SCREEN_HEIGHT - 36))
 
     cup_timer_text = hint_font.render(
         f"杯倒计时 {cup_rem:.0f}s",

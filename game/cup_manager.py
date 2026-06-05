@@ -128,9 +128,13 @@ class CupManager:
         return max(0.0, CUP_DURATION - self.get_cup_elapsed())
 
     def all_cups_done(self) -> bool:
+        if self.total_cups < 0:
+            return False
         return self.cup_number >= self.total_cups and self.cup_ended
 
     def is_game_time_exceeded(self, game_start_time: float) -> bool:
+        if self.total_cups < 0:
+            return False
         max_time = self.total_cups * CUP_DURATION
         return (time.time() - game_start_time) >= max_time
 

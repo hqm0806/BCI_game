@@ -350,6 +350,19 @@ GAME_MODES = {
         "total_cups": 36,
         "secret_recipe_cup_interval": 3,
     },
+    "infinite": {
+        "name": "无限模式",
+        "description": "无限挑战，持续接食材创造最高收益",
+        "has_required": False,
+        "free_combine": True,
+        "bci_mode": True,
+        "ingredient_speed": 3,
+        "spawn_interval": 1000,
+        "ui_color": (200, 100, 50),
+        "total_cups": -1,
+        "secret_recipe_cup_interval": 3,
+        "skip_warmup": True,
+    },
 }
 
 # ============================================================
@@ -381,6 +394,14 @@ CONTROL_MODES = [
         "enabled": True,
         "color": (60, 160, 100),
         "glow": (100, 220, 150),
+    },
+    {
+        "key": "infinite",
+        "name": "无限模式",
+        "desc": "无限挑战 · 最高收益",
+        "enabled": True,
+        "color": (200, 100, 50),
+        "glow": (255, 150, 100),
     },
 ]
 

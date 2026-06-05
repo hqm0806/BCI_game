@@ -166,6 +166,8 @@ class GameSession:
         self.mode_speed = float(mode_config["ingredient_speed"])
         self._mode_total_cups = mode_config.get("total_cups", TOTAL_CUPS)
         self._mode_secret_interval = mode_config.get("secret_recipe_cup_interval", 3)
+        self._skip_warmup = mode_config.get("skip_warmup", False)
+        self._infinite = mode_config.get("infinite", False)
 
     def _load_fonts(self) -> None:
         self.font = load_chinese_font(36)
@@ -277,8 +279,17 @@ class GameSession:
 
         self._current_tier = self._profile.level if self._profile else 1
 
-        # 热身阶段状态初始化
-        self.phase = "warmup_intro"
+        if self._skip_warmup:
+            self.phase = "formal"
+            self.normalization_lower = 30.0
+            self.normalization_upper = 70.0
+            self.warmup_summary_avg = 40.0
+        else:
+            self.phase = "warmup_intro"
+            self.normalization_lower = 0.0
+            self.normalization_upper = 100.0
+            self.warmup_summary_avg = 0.0
+
         self.warmup_intro_timer = 0.0
         self.warmup_intro_alpha = 255.0
         self.warmup_summary_timer = 0.0
@@ -298,17 +309,26 @@ class GameSession:
         logger.info("=" * 50)
         logger.info("疯狂奶茶杯 - %s（一杯制）", self.mode_name)
         logger.info("=" * 50)
-        logger.info("热身阶段 %s 秒，收集注意力数据用于归一化", WARMUP_DURATION)
-        logger.info("  热身结束后自动进入正式游戏")
+        if self._skip_warmup:
+            logger.info("跳过热身阶段，直接开始游戏")
+        else:
+            logger.info("热身阶段 %s 秒，收集注意力数据用于归一化", WARMUP_DURATION)
+            logger.info("  热身结束后自动进入正式游戏")
         if self.bci_mode:
             logger.info("脑机接口模式规则：")
-            logger.info("  共 %s 杯，每杯最多 %s 秒", self._mode_total_cups, CUP_DURATION)
+            if self._infinite:
+                logger.info("  无限杯数，按 ESC 退出")
+            else:
+                logger.info("  共 %s 杯，每杯最多 %s 秒", self._mode_total_cups, CUP_DURATION)
             logger.info("  专注力越高食材越慢，持续高专注触发秘方翻倍")
             if not self.bci_available:
                 logger.warning("  [警告] BCI设备未连接，无法读取数据")
         elif self.free_combine:
             logger.info("创意模式规则：")
-            logger.info("  共 %s 杯，每杯最多 %s 秒", self._mode_total_cups, CUP_DURATION)
+            if self._infinite:
+                logger.info("  无限杯数，按 ESC 退出")
+            else:
+                logger.info("  共 %s 杯，每杯最多 %s 秒", self._mode_total_cups, CUP_DURATION)
             logger.info("  自由搭配食材，每 %s 杯触发秘方", self._mode_secret_interval)
         else:
             logger.info("控制说明:")
@@ -578,6 +598,9 @@ class GameSession:
             self.normalization_upper = 70.0
             self._do_transition_to_formal()
 
+        if self._skip_warmup and self.phase == "formal":
+            self._do_transition_to_formal()
+
         self._render()
         self.clock.tick(60)
         while self.running:
@@ -782,19 +805,23 @@ class GameSession:
             self.recipe_result = None
             self.focus_above_seconds = 0.0
 
-            if self.cup_manager.all_cups_done():
-                self.show_summary = True
-                self.running = False
-                logger.info("全部 %s 杯完成，游戏结束！", self.cup_manager.total_cups)
-                return
+            if not self._infinite:
+                if self.cup_manager.all_cups_done():
+                    self.show_summary = True
+                    self.running = False
+                    logger.info("全部 %s 杯完成，游戏结束！", self.cup_manager.total_cups)
+                    return
 
-            if self.cup_manager.is_game_time_exceeded(self.game_start_time):
-                self.show_summary = True
-                self.running = False
-                logger.info("总局时间已到，游戏结束！")
-                return
+                if self.cup_manager.is_game_time_exceeded(self.game_start_time):
+                    self.show_summary = True
+                    self.running = False
+                    logger.info("总局时间已到，游戏结束！")
+                    return
 
-            cups_per_tier = max(1, self._mode_total_cups // 4)
+            if self._infinite:
+                cups_per_tier = 9
+            else:
+                cups_per_tier = max(1, self._mode_total_cups // 4)
             new_tier = min(4, (self.cup_manager.cup_number // cups_per_tier) + 1)
             if new_tier != self._current_tier:
                 self._current_tier = new_tier
@@ -1137,9 +1164,12 @@ class GameSession:
 
             if self._profile:
                 skip_history = (
-                    self.control_mode in ("bci", "bci_failed", "keyboard")
-                    and self.bci_mode
-                    and not self.bci_available
+                    self._infinite
+                    or (
+                        self.control_mode in ("bci", "bci_failed", "keyboard")
+                        and self.bci_mode
+                        and not self.bci_available
+                    )
                 )
                 if skip_history:
                     is_upgraded = False

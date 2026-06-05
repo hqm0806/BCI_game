@@ -64,7 +64,6 @@ BCI_game/
 ├── data/                           # 数据管理
 │   ├── score_manager.py            # 得分/金钱管理
 │   ├── player_profile.py           # 玩家档案（等级、营业额、历史、增删查）
-│   ├── recipes.py                  # 创意模式配方评分
 │   ├── memory_recipes.py           # 记忆模式配方库（2~5食材组合，35个配方）
 │   └── ingredient_config.py        # 食材属性配置
 │
@@ -198,8 +197,8 @@ x = random.randint(lane * LANE_WIDTH, (lane + 1) * LANE_WIDTH - INGREDIENT_SIZE)
 
 | 注意力范围（平滑后） | 速度                       | 含义           |
 | -------------------- | -------------------------- | -------------- |
-| 0 ~ 20               | 冻结                       | 画面和时间停止 |
-| 20 ~ 46              | `WARMUP_SPEED_MAX` (6.0) | 快速（不专注） |
+| 0 ~ 15               | 冻结                       | 画面和时间停止 |
+| 15 ~ 46              | `WARMUP_SPEED_MAX` (6.0) | 快速（不专注） |
 | 47 ~ 72              | 中速 (3.75)                | 中等           |
 | 73 ~ 100             | `WARMUP_SPEED_MIN` (1.5) | 慢速（高专注） |
 
@@ -207,8 +206,8 @@ x = random.randint(lane * LANE_WIDTH, (lane + 1) * LANE_WIDTH - INGREDIENT_SIZE)
 
 ### 低注意力冻结机制
 
-- **冻结触发**：实际注意力值**持续 5 秒 ≤ 15** → 画面和时间冻结，显示"请调整身心状态"
-- **解冻恢复**：注意力**持续 5 秒 > 15** → 恢复正常游戏和倒计时
+- **冻结触发**：实际注意力值**持续 5 秒 ≤ 10** → 画面和时间冻结，显示"请调整身心状态"
+- **解冻恢复**：注意力**持续 3 秒 > 15** → 恢复正常游戏和倒计时
 - 冻结期间杯子仍可移动，食材和倒计时暂停
 
 ### 热身结束 — 归一化基准计算
@@ -217,7 +216,7 @@ x = random.randint(lane * LANE_WIDTH, (lane + 1) * LANE_WIDTH - INGREDIENT_SIZE)
 
 ```
 上界 = 最后30秒最高注意力（上限 100）
-下界 = 最后30秒平均注意力 - 10（下限 0）
+下界 = 最后30秒平均注意力 - 25（下限 0）
 范围 = [下界, 上界]
 
 若 上界 - 下界 < 10：向两侧各扩展 5，保证范围宽度至少为 10
@@ -335,8 +334,8 @@ offset_i = 实时注意力_i - 上杯基线
 
 ### 低专注保护（正式游戏）
 
-- 注意力 **≤ 15 持续 5 秒** → 游戏暂停，半透明黑化遮罩，大字提示"请调整身心状态"
-- 注意力 **> 15 持续 5 秒** → 恢复游戏
+- 注意力 **≤ 10 持续 5 秒** → 游戏暂停，半透明黑化遮罩，大字提示"请调整身心状态"
+- 注意力 **> 15 持续 3 秒** → 恢复游戏
 - 遮罩透明度以指数平滑过渡：`α += (target - α) × 0.05`
 
 ### 秘方触发机制
@@ -344,7 +343,8 @@ offset_i = 实时注意力_i - 上杯基线
 **BCI 模式** — 基于持续高专注触发：
 
 ```
-threshold = min(88.0, 40 + SECRET_RECIPE_OFFSET) = min(88, 45) = 45
+第1杯阈值 = 热身最后30s平均专注力 + 10
+第N杯阈值 = 第N-1杯平均专注力 + 10
 若 注意力 > threshold 持续 4 秒 → 触发秘方！
 ```
 
@@ -508,19 +508,7 @@ x = random(center-30, center+30)  # 微调 x 坐标
 - **批量消费**：每帧处理缓冲区中**所有**到达的消息，只保留最新值，消除积压延迟
 - **超时断开**：超过 2 秒未收到新数据 → 自动标记连接断开
 - **阻塞分离**：socket 设为非阻塞，用 `BlockingIOError` 处理无数据情况
-
-### 3 秒滚动注意力平均
-
-```python
-# 保留最近 3 秒的 (时间戳, 注意力值) 记录
-_attention_history = [(t1, v1), (t2, v2), ...]
-# 剔除过期记录
-valid = [(t, v) for t, v in history if now - t <= 3.0]
-# 取均值
-rolling_avg = mean(v for _, v in valid)
-```
-
-用于热身阶段速度计算和 HUD 显示。
+- **实时显示**：注意力数据不使用平滑，直接实时反映变化
 
 ---
 
@@ -619,23 +607,7 @@ y = sign(x) × base_sensitivity × |x| ^ exponent
 
 专注力越高 → 食材越慢 → 更易接住；专注力越低 → 食材越快。
 
-### 5. 专注力评分映射（AttentionMappingCurve）
-
-用于创意模式，将专注力转换为配方评分加成倍率：
-
-```
-倍率(attn) = ┌ 0.5 + attn/30 × 0.3                    , attn < 30
-             │ 0.8 + (attn-30)/40 × 0.2                , 30 ≤ attn < 70
-             └ 1.0 + ((attn-70)/30)^0.7 × 0.5          , 70 ≤ attn ≤ 100
-```
-
-| 专注力范围 | 倍率范围  | 等级     |
-| ---------- | --------- | -------- |
-| 0 ~ 30     | 0.5 ~ 0.8 | 分心状态 |
-| 30 ~ 70    | 0.8 ~ 1.0 | 平稳专注 |
-| 70 ~ 100   | 1.0 ~ 1.5 | 高度专注 |
-
-### 6. 难度自适应（DifficultyAdapter）
+### 5. 难度自适应（DifficultyAdapter）
 
 根据 30 秒滚动窗口内的平均专注力动态调整难度基线，同时结合**逐杯基线**（每杯独立计算均值作为下杯参考）：
 
@@ -645,7 +617,7 @@ avg = mean(samples)                                   # 窗口均值
 baseline = clamp(avg, DIFFICULTY_BASELINE_MIN, DIFFICULTY_BASELINE_MAX)
 ```
 
-基线用于秘方触发阈值计算：`secret_threshold = min(88.0, baseline + SECRET_RECIPE_OFFSET)`
+基线用于秘方触发阈值计算：`secret_threshold = baseline + 10`
 
 **逐杯基线**（`_update_attention_variance` 方差计算的偏移基准）：
 
@@ -753,9 +725,9 @@ baseline = clamp(avg, DIFFICULTY_BASELINE_MIN, DIFFICULTY_BASELINE_MAX)
 | 参数                     | 默认值 | 说明                     |
 | ------------------------ | ------ | ------------------------ |
 | `WARMUP_DURATION`      | 180    | 热身时长（秒）           |
-| `WARMUP_LOW_THRESHOLD` | 15     | 低注意力阈值             |
+| `WARMUP_LOW_THRESHOLD` | 10     | 冻结注意力阈值           |
 | `WARMUP_FREEZE_TIME`   | 5.0    | 低专注持续多久冻结（秒） |
-| `WARMUP_RESUME_TIME`   | 5.0    | 恢复后多久解冻（秒）     |
+| `WARMUP_RESUME_TIME`   | 3.0    | 恢复后多久解冻（秒）     |
 | `WARMUP_SMOOTH_WINDOW` | 3.0    | 速度平滑窗口（秒）       |
 | `WARMUP_SPEED_MIN`     | 1.5    | 热身最低速度             |
 | `WARMUP_SPEED_MAX`     | 6.0    | 热身最高速度             |
@@ -787,10 +759,9 @@ baseline = clamp(avg, DIFFICULTY_BASELINE_MIN, DIFFICULTY_BASELINE_MAX)
 
 ### 秘方
 
-| 参数                      | 默认值 | 说明                   |
-| ------------------------- | ------ | ---------------------- |
+| 参数                      | 默认值 | 说明               |
+| ------------------------- | ------ | ------------------ |
 | `SECRET_RECIPE_SUSTAIN` | 4      | 秘方触发需持续专注秒数 |
-| `SECRET_RECIPE_OFFSET`  | 5      | 秘方阈值偏移量         |
 
 ### 难度自适应
 
@@ -853,7 +824,7 @@ pyinstaller CrazyMilkTea.spec
 - [X] 12 分钟正式游戏（20s × 36 杯）
 - [X] 专注力收益系数（专注意义化分段函数）
 - [X] 3 信号滤波器（死区 + 指数平滑 + 灵敏度曲线）
-- [X] 3 注意力映射曲线（速度、评分加成、难度基线）
+- [X] 4 级食材 + 等级系统
 - [X] 记忆模式（配方记忆 + 顺序验证 + 难度进阶）
 - [X] 历史记录界面（左右分栏 + 趋势曲线 + 增删管理）
 - [X] 最后 5 分钟平均专注力记录

@@ -12,9 +12,6 @@ from typing import Any
 import pygame
 
 from bci.data_reader import BCIDataReader
-from bci.filter import (
-    AttentionMappingCurve,
-)
 from config import (
     ARTIFACT_ATTENTION_THRESHOLD,
     ARTIFACT_PENALTY_DURATION,
@@ -33,7 +30,6 @@ from config import (
     NUM_LANES,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
-    SECRET_RECIPE_OFFSET,
     SECRET_RECIPE_SUSTAIN,
     TOP_BAR_IMG,
     TOTAL_CUPS,
@@ -46,7 +42,6 @@ from config import (
     WARMUP_SPEED_MIN,
     get_attention_coefficient,
 )
-from data.recipes import evaluate_recipe
 from data.score_manager import ScoreManager
 from game.cup_manager import CupManager
 from game.font_utils import load_chinese_font
@@ -88,13 +83,9 @@ class GameSession:
 
     bci_reader: BCIDataReader
     bci_available: bool
-    attention_curve: AttentionMappingCurve | None
 
     background: pygame.Surface | None
     has_background: bool
-
-    creative_ingredients: list[str]
-    recipe_result: dict[str, Any] | None
 
     running: bool
     show_summary: bool
@@ -207,10 +198,6 @@ class GameSession:
         if self.bci_mode and self.control_mode not in ("keyboard", "bci_failed"):
             self.bci_available = self.bci_reader.connect()
 
-        self.attention_curve = None
-        if self.free_combine:
-            self.attention_curve = AttentionMappingCurve()
-
     def _load_background(self) -> None:
         self.background = None
         self.has_background = False
@@ -231,9 +218,6 @@ class GameSession:
                 pass
 
     def _init_state(self) -> None:
-        self.creative_ingredients = []
-        self.recipe_result = None
-
         self.running = True
         self.show_summary = False
         self.use_yaw_control = self.bci_available
@@ -388,9 +372,12 @@ class GameSession:
         if self.attention <= WARMUP_LOW_THRESHOLD:
             self.warmup_low_timer += dt_sec
             self.warmup_high_timer = 0.0
-        else:
+        elif self.attention > 15:
             self.warmup_high_timer += dt_sec
             self.warmup_low_timer = 0.0
+        else:
+            self.warmup_low_timer = 0.0
+            self.warmup_high_timer = 0.0
 
         if not self.warmup_paused and self.warmup_low_timer >= WARMUP_FREEZE_TIME:
             self.warmup_paused = True
@@ -402,7 +389,7 @@ class GameSession:
             self.warmup_low_timer = 0.0
             self.warmup_high_timer = 0.0
             self.ingredient_manager.reset_spawn_timer()
-            logger.info("热身恢复：注意力连续 5 秒高于 15")
+            logger.info("热身恢复：注意力连续 %d 秒高于 15", int(WARMUP_RESUME_TIME))
 
     def _transition_to_formal(self) -> None:
         warmup_last_30s_frames = int(30 * 60)
@@ -416,7 +403,7 @@ class GameSession:
             avg_attn = sum(last_30s) / len(last_30s)
             self.warmup_summary_max = max_attn
             self.warmup_summary_avg = avg_attn
-            self.normalization_lower = max(avg_attn - 10.0, 0.0)
+            self.normalization_lower = max(avg_attn - 25.0, 0.0)
             self.normalization_upper = min(max_attn, 100.0)
             if self.normalization_upper - self.normalization_lower < 10.0:
                 mid = (self.normalization_upper + self.normalization_lower) / 2.0
@@ -524,9 +511,12 @@ class GameSession:
         if self.attention <= WARMUP_LOW_THRESHOLD:
             self._low_attn_seconds += dt_sec
             self._high_attn_seconds = 0.0
-        else:
+        elif self.attention > 15:
             self._high_attn_seconds += dt_sec
             self._low_attn_seconds = 0.0
+        else:
+            self._low_attn_seconds = 0.0
+            self._high_attn_seconds = 0.0
 
         if not self._paused and self._low_attn_seconds >= WARMUP_FREEZE_TIME:
             self._paused = True
@@ -762,7 +752,7 @@ class GameSession:
             return
 
         if self.bci_mode:
-            threshold = min(88.0, 40.0 + SECRET_RECIPE_OFFSET)
+            threshold = self._cup_baseline + 10
             attn = self.attention if self.attention is not None else 50.0
             if attn > threshold:
                 self.focus_above_seconds += dt_sec
@@ -802,8 +792,6 @@ class GameSession:
             if self._audio and cup_money > 0:
                 self._audio.play_sfx("音效/加金币.wav", volume=0.5)
             self.score_manager.reset_cup_ingredients()
-            self.creative_ingredients = []
-            self.recipe_result = None
             self.focus_above_seconds = 0.0
 
             if not self._infinite:
@@ -851,7 +839,7 @@ class GameSession:
         threshold_y = self.cup.rect.top + self.cup.rect.height * 0.8
         hits = pygame.sprite.spritecollide(self.cup, self.ingredients, False)
 
-        self.creative_ingredients, self.recipe_result = _handle_catches(
+        _handle_catches(
             hits,
             self.cup,
             threshold_y,
@@ -861,9 +849,6 @@ class GameSession:
             self.particles,
             self.score_manager,
             self.cup_manager,
-            self.free_combine,
-            self.creative_ingredients,
-            self.recipe_result,
             audio=self._audio,
         )
 
@@ -1047,7 +1032,6 @@ class GameSession:
             attention=self.attention,
             bci_mode=self.bci_mode,
             free_combine=self.free_combine,
-            attention_curve=self.attention_curve,
             bci_connected=self.bci_available,
             focus_above_seconds=self.focus_above_seconds,
             raw_gyro_x=self.raw_gyro_x,
@@ -1057,7 +1041,6 @@ class GameSession:
             platform_focus_y=self.platform_focus_y,
             cup_x=self.cup.rect.centerx,
             cup_y=self.cup.rect.centery,
-            rolling_attention=self.bci_reader.get_rolling_attention() if self.bci_mode else 0.0,
             attn_variance=self._attn_variance,
             attn_mode=self._attn_mode,
             attn_baseline=40.0,
@@ -1084,7 +1067,7 @@ class GameSession:
                     (SCREEN_WIDTH // 2 - pause_text.get_width() // 2, SCREEN_HEIGHT // 2 - 60),
                 )
                 sub_text = self.hint_font.render(
-                    f"保持专注力 >15 持续 {max(0, 5 - self._high_attn_seconds):.0f}s 恢复游戏",
+                    f"保持专注力 >15 持续 {max(0, int(WARMUP_RESUME_TIME) - self._high_attn_seconds):.0f}s 恢复游戏",
                     True,
                     (200, 200, 200),
                 )
@@ -1240,11 +1223,8 @@ def _handle_catches(
     particles: pygame.sprite.Group,
     score_manager: ScoreManager,
     cup_manager: CupManager,
-    free_combine: bool,
-    creative_ingredients: list[str],
-    recipe_result: dict[str, Any] | None,
     audio=None,
-) -> tuple[list[str], dict[str, Any] | None]:
+) -> None:
     for hit in hits:
         if hit.rect.bottom > threshold_y:
             hit.rect.bottom = int(threshold_y)
@@ -1269,10 +1249,6 @@ def _handle_catches(
             score_manager.add_ingredient(hit.type, is_required=hit.is_required)
             cup_manager.add_catch(hit.type, is_required=hit.is_required)
 
-            if free_combine:
-                creative_ingredients.append(hit.type)
-                recipe_result = evaluate_recipe(creative_ingredients)
-
             cup.update_level(cup_manager.catch_count)
             logger.info("接住 %s！收益: %s", hit.type, score_manager.total_money)
 
@@ -1281,8 +1257,6 @@ def _handle_catches(
                     audio.play_sfx("音效/接到必接食材.wav", volume=0.3)
                 else:
                     audio.play_sfx("音效/接到食材.wav", volume=0.2)
-
-    return creative_ingredients, recipe_result
 
 
 def _handle_misses(

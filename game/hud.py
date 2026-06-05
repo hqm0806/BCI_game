@@ -29,7 +29,6 @@ def draw_hud(
     attention=None,
     bci_mode=False,
     free_combine=False,
-    attention_curve=None,
     bci_connected=False,
     focus_above_seconds=0.0,
     raw_gyro_x=0.0,
@@ -39,7 +38,6 @@ def draw_hud(
     platform_focus_y=620.0,
     cup_x=0,
     cup_y=0,
-    rolling_attention=0.0,
     attn_variance=0.0,
     attn_mode="",
     attn_baseline=0.0,
@@ -127,17 +125,7 @@ def draw_hud(
         bl_text = hint_font.render(f"基线: {attn_baseline:.0f}", True, (200, 200, 200))
         screen.blit(bl_text, (10, 120))
 
-    if bci_mode and attention is not None:
-        if free_combine and attention_curve:
-            multiplier = attention_curve.map_attention(attention)
-            tier = attention_curve.get_rating_tier(attention)
-            bci_text = hint_font.render(
-                f"{tier} x{multiplier:.2f}",
-                True,
-                (255, 255, 255),
-            )
-            screen.blit(bci_text, (10, 235))
-    elif bci_mode and attention is None:
+    if bci_mode and attention is None:
         bci_text = hint_font.render("BCI设备未连接", True, (200, 0, 0))
         screen.blit(bci_text, (10, 235))
 

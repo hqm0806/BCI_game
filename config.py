@@ -267,8 +267,7 @@ BCI_CONNECTION_TIMEOUT = 5  # 连接超时时间（秒）
 # ============================================================
 CUP_DURATION = 20  # 每杯时间上限 T（秒），超时则结算
 TOTAL_CUPS = 36  # 本局共需制作的奶茶杯数，游戏最大时长 = TOTAL_CUPS × CUP_DURATION（12分钟=720秒）
-SECRET_RECIPE_SUSTAIN = 4  # 秘方触发所需持续专注秒数 a
-SECRET_RECIPE_OFFSET = 5  # 秘方阈值偏移量 m，阈值 = min(基线 + m, 88)
+SECRET_RECIPE_SUSTAIN = 4  # 秘方触发所需持续专注秒数
 DIFFICULTY_BASELINE = 60  # 难度基线初始值（0-100），自适应调节
 DIFFICULTY_ADAPT_WINDOW = 30  # 难度自适应窗口（秒），取此窗口内平均专注力更新基线
 CUP_SPEED_MIN = 2.0  # 专注力高时的最低食材速度（px/frame），约可接住 ≥8 个/杯
@@ -281,7 +280,7 @@ DIFFICULTY_BASELINE_MAX = 80  # 基线调节上限
 # 进入正式游戏前进行 3 分钟热身，收集注意力数据用于归一化
 # ============================================================
 WARMUP_DURATION = 180  # 热身阶段时长（秒），修改此项可改变热身时间
-WARMUP_LOW_THRESHOLD = 15  # 低注意力阈值，注意力低于此值时开始计时冻结（与正式游戏一致）
+WARMUP_LOW_THRESHOLD = 10  # 低注意力阈值，注意力低于此值时开始计时冻结（与正式游戏一致）
 WARMUP_FREEZE_TIME = 5.0  # 低注意力持续多久冻结画面（秒），与正式游戏一致
 
 # ============================================================
@@ -310,7 +309,7 @@ def get_attention_coefficient(normalized_attn: float) -> float:
         return 0.5
 
 
-WARMUP_RESUME_TIME = 5.0  # 注意力恢复后持续多久解冻（秒）
+WARMUP_RESUME_TIME = 3.0  # 注意力恢复后持续多久解冻（秒）
 WARMUP_SMOOTH_WINDOW = 3.0  # 注意力平滑窗口（秒），用于速度计算
 WARMUP_SPEED_MIN = 1.5  # 热身阶段最低速度（专注力高时，pixels/frame）
 WARMUP_SPEED_MAX = 6.0  # 热身阶段最高速度（专注力低时，pixels/frame），变化幅度大、感知明显

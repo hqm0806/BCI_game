@@ -150,6 +150,7 @@ class GameSession:
         self._load_mode_config()
         self._load_fonts()
         self._init_game_objects()
+        self._cache_secret_popup_image()
         self._init_bci()
         self._load_background()
         self._init_state()
@@ -1119,6 +1120,13 @@ class GameSession:
         if self._secret_popup_timer > 0:
             self._draw_secret_popup()
 
+    def _cache_secret_popup_image(self) -> None:
+        self._secret_img = None
+        img_path = INGREDIENT_IMGS.get("秘方", "")
+        if img_path and os.path.exists(img_path):
+            img = pygame.image.load(img_path).convert_alpha()
+            self._secret_img = pygame.transform.scale(img, (80, 80))
+
     def _draw_secret_popup(self) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 80))
@@ -1134,14 +1142,11 @@ class GameSession:
         text_surf = self.font.render("触发秘方！", True, (255, 220, 100))
         self.screen.blit(text_surf, (popup_x + (popup_w - text_surf.get_width()) // 2, popup_y + 25))
 
-        img_path = INGREDIENT_IMGS.get("秘方", "")
-        if img_path and os.path.exists(img_path):
-            img = pygame.image.load(img_path).convert_alpha()
-            img = pygame.transform.scale(img, (80, 80))
+        if self._secret_img is not None:
             t = pygame.time.get_ticks() / 1000.0
             wobble_x = int(math.sin(t * 4) * 10)
             angle = math.sin(t * 3) * 5
-            rotated = pygame.transform.rotate(img, angle)
+            rotated = pygame.transform.rotate(self._secret_img, angle)
             rx = popup_x + (popup_w - rotated.get_width()) // 2 + wobble_x
             ry = popup_y + 80 + (rotated.get_height() - 80) // 2
             self.screen.blit(rotated, (rx, ry))

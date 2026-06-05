@@ -74,7 +74,6 @@ class GameSession:
 
     font: pygame.font.Font
     hint_font: pygame.font.Font
-    recipe_font: pygame.font.Font
 
     cup: Cup
     all_sprites: pygame.sprite.Group
@@ -697,7 +696,8 @@ class GameSession:
             return
         if self.bci_available:
             result = self.bci_reader.read_with_timeout()
-            if result[0] is not None:
+            self.bci_available = self.bci_reader.connected
+            if self.bci_available and result[0] is not None:
                 (
                     self.attention,
                     self.platform_focus_x,
@@ -954,8 +954,8 @@ class GameSession:
             )
             self.screen.blit(
                 sub_text,
-                    (SCREEN_WIDTH // 2 - sub_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20),
-                )
+                (SCREEN_WIDTH // 2 - sub_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20),
+            )
 
     def _render_warmup_summary_overlay(self) -> None:
         mask = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
@@ -1044,12 +1044,9 @@ class GameSession:
             game_start_time=self.game_start_time,
             font=self.font,
             hint_font=self.hint_font,
-            recipe_font=self.recipe_font,
             attention=self.attention,
             bci_mode=self.bci_mode,
             free_combine=self.free_combine,
-            recipe_result=self.recipe_result if self.control_mode not in ("keyboard", "bci_failed") else None,
-            creative_ingredients=self.creative_ingredients if self.control_mode not in ("keyboard", "bci_failed") else [],
             attention_curve=self.attention_curve,
             bci_connected=self.bci_available,
             focus_above_seconds=self.focus_above_seconds,
@@ -1168,13 +1165,8 @@ class GameSession:
                 last_5min_avg = sum(last_samples) / len(last_samples)
 
             if self._profile:
-                skip_history = (
-                    self._infinite
-                    or (
-                        self.control_mode in ("bci", "bci_failed", "keyboard")
-                        and self.bci_mode
-                        and not self.bci_available
-                    )
+                skip_history = self._infinite or (
+                    self.control_mode in ("bci", "bci_failed", "keyboard") and self.bci_mode and not self.bci_available
                 )
                 if skip_history:
                     is_upgraded = False

@@ -26,12 +26,9 @@ def draw_hud(
     game_start_time,
     font,
     hint_font,
-    recipe_font,
     attention=None,
     bci_mode=False,
     free_combine=False,
-    recipe_result=None,
-    creative_ingredients=None,
     attention_curve=None,
     bci_connected=False,
     focus_above_seconds=0.0,
@@ -155,21 +152,6 @@ def draw_hud(
         if fill_w > 0:
             bar_color = (255, 215, 0) if progress >= 1.0 else (100, 200, 100)
             pygame.draw.rect(screen, bar_color, (bar_x, bar_y, fill_w, bar_h), border_radius=5)
-
-    if free_combine and recipe_result:
-        recipe_name = recipe_result["recipe_name"]
-        rating = recipe_result["rating"]
-        total_score = recipe_result["total_score"]
-
-        name_surf = recipe_font.render(f"{rating['emoji']} {recipe_name}", True, rating["color"])
-        screen.blit(name_surf, (SCREEN_WIDTH // 2 - name_surf.get_width() // 2, 140))
-
-        grade_surf = recipe_font.render(f"评分: {rating['name']} ({total_score})", True, rating["color"])
-        screen.blit(grade_surf, (SCREEN_WIDTH // 2 - grade_surf.get_width() // 2, 175))
-
-        if creative_ingredients:
-            ing_text = hint_font.render(f"食材: {' + '.join(creative_ingredients)}", True, (80, 80, 80))
-            screen.blit(ing_text, (SCREEN_WIDTH // 2 - ing_text.get_width() // 2, 210))
 
     if bci_mode:
         hint_text = "脑机接口模式 | ESC 返回"

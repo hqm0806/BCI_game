@@ -171,7 +171,9 @@ class MemoryGameState(State):
 
     def enter(self) -> GameState | None:
         audio = self._context.get("audio")
-        result = run_memory_game(self.screen, self.clock, audio=audio)
+        control_mode = self._context.get("control_mode", "bci")
+        profile = self._context.get("profile")
+        result = run_memory_game(self.screen, self.clock, audio=audio, control_mode=control_mode, profile=profile)
         if result == "quit":
             return GameState.QUIT
         return GameState.MENU

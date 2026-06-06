@@ -131,12 +131,13 @@ class MainMenu:
         reader = BCIDataReader()
         return reader.connect()
 
-    def _show_dialog(self, text: str, pending_mode: str = "bci") -> None:
+    def _show_dialog(self, text: str, pending_mode: str = "bci", pending_result: str = "start") -> None:
         self._dialog_active = True
         self._dialog_text = text
         self._dialog_result = None
         self._dialog_click_frames = 0
         self._dialog_pending_mode = pending_mode
+        self._dialog_pending_result = pending_result
         w = 160
         h = 50
         self._dialog_confirm_rect = pygame.Rect(
@@ -161,10 +162,14 @@ class MainMenu:
             self._control_mode = "keyboard"
             click_frames[0] = 15
         elif control_key == "memory":
-            self.result = "start_memory"
-            self.current_mode = "bci"
-            self._control_mode = "bci"
-            click_frames[0] = 15
+            if self._try_bci_connect():
+                self.result = "start_memory"
+                self.current_mode = "bci"
+                self._control_mode = "bci"
+                click_frames[0] = 15
+            else:
+                self._show_dialog("BCI头环未连接，将使用键盘控制",
+                                  pending_mode="bci", pending_result="start_memory")
         elif control_key == "infinite":
             if self._try_bci_connect():
                 self.result = "start"
@@ -190,14 +195,14 @@ class MainMenu:
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         if self._dialog_confirm_rect.collidepoint(event.pos):
                             self._dialog_active = False
-                            self.result = "start"
+                            self.result = getattr(self, "_dialog_pending_result", "start")
                             self.current_mode = getattr(self, "_dialog_pending_mode", "bci")
                             self._control_mode = "bci_failed"
                             click_frames[0] = 15
                     elif event.type == pygame.KEYDOWN:
                         if event.key in (pygame.K_RETURN, pygame.K_SPACE):
                             self._dialog_active = False
-                            self.result = "start"
+                            self.result = getattr(self, "_dialog_pending_result", "start")
                             self.current_mode = getattr(self, "_dialog_pending_mode", "bci")
                             self._control_mode = "bci_failed"
                             click_frames[0] = 15

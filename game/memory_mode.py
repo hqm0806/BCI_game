@@ -48,10 +48,13 @@ class _MemoryParticle(pygame.sprite.Sprite):
 
 
 class MemorySession:
-    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, audio=None) -> None:
+    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, audio=None,
+                 control_mode: str = "keyboard", profile=None) -> None:
         self.screen = screen
         self.clock = clock
         self._audio = audio
+        self._control_mode = control_mode
+        self._profile = profile
         self.font = load_chinese_font(36)
         self.big_font = load_chinese_font(48)
         self.small_font = load_chinese_font(20)
@@ -105,6 +108,21 @@ class MemorySession:
         self._total_success = 0
 
         self._catch_success_timer = 0.0
+
+        self._bci_available = False
+        self._bci_reader = None
+        self._use_yaw = False
+        self._platform_focus_x = float(SCREEN_WIDTH // 2)
+        self._focus_min = 40
+        self._focus_max = SCREEN_WIDTH - 40
+
+        if self._control_mode not in ("keyboard", "bci_failed"):
+            from bci.data_reader import BCIDataReader
+            self._bci_reader = BCIDataReader()
+            self._bci_available = self._bci_reader.connect()
+            if self._bci_available:
+                self._use_yaw = True
+                self.cup.yaw_control = True
 
     def _load_bg(self) -> pygame.Surface | None:
         if os.path.exists(BACKGROUND_IMG):
@@ -251,14 +269,25 @@ class MemorySession:
                     self._enter_phase("playing")
 
             elif self._phase == "playing":
+                if self._bci_available:
+                    result = self._bci_reader.read_with_timeout()
+                    if result[1] is not None:
+                        self._platform_focus_x = float(result[1])
+
                 keys = pygame.key.get_pressed()
-                self.cup.update(
-                    keys={
-                        pygame.K_LEFT: keys[pygame.K_LEFT],
-                        pygame.K_RIGHT: keys[pygame.K_RIGHT],
-                    },
-                    dt=dt,
-                )
+                kb_pressed = keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
+
+                if self._use_yaw and not kb_pressed:
+                    fx = int(self._platform_focus_x)
+                    self.cup.rect.centerx = max(self._focus_min, min(self._focus_max, fx))
+                else:
+                    self.cup.update(
+                        keys={
+                            pygame.K_LEFT: keys[pygame.K_LEFT],
+                            pygame.K_RIGHT: keys[pygame.K_RIGHT],
+                        },
+                        dt=dt,
+                    )
 
                 n = len(self._recipe_ingredients)
                 if n == 0:
@@ -330,6 +359,8 @@ class MemorySession:
             self._draw()
             pygame.display.flip()
 
+        if self._bci_available and self._bci_reader:
+            self._bci_reader.disconnect()
         return "menu"
 
     def _draw(self) -> None:
@@ -495,6 +526,7 @@ class MemorySession:
         self.screen.blit(lvl_text, (SCREEN_WIDTH // 2 - lvl_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20))
 
 
-def run_memory_game(screen: pygame.Surface, clock: pygame.time.Clock, audio=None) -> str:
-    session = MemorySession(screen, clock, audio=audio)
+def run_memory_game(screen: pygame.Surface, clock: pygame.time.Clock, audio=None,
+                    control_mode: str = "keyboard", profile=None) -> str:
+    session = MemorySession(screen, clock, audio=audio, control_mode=control_mode, profile=profile)
     return session.run()

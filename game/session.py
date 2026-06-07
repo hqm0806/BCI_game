@@ -825,13 +825,13 @@ class GameSession:
                 ice_prob = 0.2
             elif self._attn_variance < 150:
                 self._attn_mode = "中等模式"
-                ice_prob = 0.25
+                ice_prob = 0.5
             else:
                 self._attn_mode = "困难模式"
                 if self.attention is not None and self.attention < 20:
                     ice_prob = 1.0
                 else:
-                    ice_prob = 0.5
+                    ice_prob = 0.8
 
             self.ingredient_manager.set_ice_probability(ice_prob)
 

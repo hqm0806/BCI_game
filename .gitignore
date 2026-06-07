@@ -10,7 +10,7 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-# dist/
+dist/
 downloads/
 eggs/
 .eggs/
@@ -80,6 +80,10 @@ Thumbs.db
 # Project specific
 .ruff_cache/
 game.log
+*.bdf
+log*.txt
+player_profile.json
+数据测试/*.png
 
 HybridBCI脑机接口科研科创平台使用说明_3_25.pdf
 基础篇案例开发文档_4_2

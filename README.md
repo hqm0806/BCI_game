@@ -31,7 +31,6 @@ BCI_game/
 ├── main.py                         # 游戏主入口，状态机管理界面跳转
 ├── config.py                       # 全局配置（分辨率、食材属性、BCI参数、等级等）
 ├── requirements.txt
-├── CrazyMilkTea.spec               # PyInstaller 打包配置
 │
 ├── menu/                           # 菜单系统
 │   ├── login.py                    # 登录/注册界面
@@ -81,8 +80,23 @@ BCI_game/
 │   ├── fonts/                      # ZCOOLKuaiLe-Regular.ttf
 │   └── sounds/                     # 音频文件
 │
+├── tests/                           # 测试
+│   ├── test_filters.py              # 信号滤波器单元测试
+│   ├── test_score_manager.py        # 分数结算单元测试
+│   └── metrics/                     # 游戏平衡性测试
+│       ├── test_helpers.py          # 游戏逻辑模拟器
+│       ├── test_metrics_normalization.py  # 归一化算法测试
+│       ├── test_metrics_speed_ice.py      # 速度/冰块测试
+│       └── test_metrics_game_balance.py   # 等级成长测试
+│
 ├── profiles/                       # 各用户游戏存档（JSON）
-└── accounts.json                   # 账号密码存储
+├── accounts.json                   # 账号密码存储
+├── bci_config.json                 # BCI 连接配置
+├── .gitignore
+├── .pre-commit-config.yaml
+├── pyproject.toml
+├── README.md
+└── TECHNICAL.md
 ```
 
 ---
@@ -216,7 +230,7 @@ x = random.randint(lane * LANE_WIDTH, (lane + 1) * LANE_WIDTH - INGREDIENT_SIZE)
 
 ```
 上界 = 最后30秒最高注意力（上限 100）
-下界 = 最后30秒平均注意力 - 25（下限 0）
+下界 = 最后30秒平均注意力 - 15（下限 0）
 范围 = [下界, 上界]
 
 若 上界 - 下界 < 10：向两侧各扩展 5，保证范围宽度至少为 10
@@ -303,9 +317,9 @@ x = random.randint(lane * LANE_WIDTH, (lane + 1) * LANE_WIDTH - INGREDIENT_SIZE)
 | 等级 | 升级条件    | 可用食材（含前级）              | 必接食材（含前级） |
 | ---- | ----------- | ------------------------------- | ------------------ |
 | Lv.1 | 默认        | 珍珠、椰果、牛奶、红茶、绿茶    | 牛奶、红茶、绿茶   |
-| Lv.2 | 累计 ≥ 80  | +芋圆、脆啵啵                   | +芒果、椰奶        |
-| Lv.3 | 累计 ≥ 250 | +草莓、芋泥                     | +燕麦奶、咖啡      |
-| Lv.4 | 累计 ≥ 600 | +特调稀奶油顶、米酿、咸芝士奶盖 | +茉莉花茶          |
+| Lv.2 | 累计 ≥ 150 | +芋圆、脆啵啵                   | +芒果、椰奶        |
+| Lv.3 | 累计 ≥ 400 | +草莓、芋泥                     | +燕麦奶、咖啡      |
+| Lv.4 | 累计 ≥ 1000 | +特调稀奶油顶、米酿、咸芝士奶盖 | +茉莉花茶          |
 
 每级保留所有前级食材，等级越高可选种类越多。
 
@@ -345,7 +359,7 @@ offset_i = 实时注意力_i - 上杯基线
 ```
 第1杯阈值 = 热身最后30s平均专注力 + 10
 第N杯阈值 = 第N-1杯平均专注力 + 10
-若 注意力 > threshold 持续 4 秒 → 触发秘方！
+若 注意力 > threshold 持续 8 秒 → 触发秘方！
 ```
 
 **非 BCI 模式** — 基于杯序周期性触发：
@@ -358,7 +372,7 @@ offset_i = 实时注意力_i - 上杯基线
 
 正常专注时头部有 1-2 度自然微抖，若检测到异常（刻意咬牙、僵直）则触发惩罚：
 
-- **检测条件**：陀螺仪三轴变化 **均 < 0.5°** 且专注力 **> 80**，持续 **5 秒**
+- **检测条件**：陀螺仪三轴变化 **均 < 0.5°** 且专注力 **> 80**，持续 **2 秒**
 - **惩罚**：屏幕提示"请放松面部肌肉"，画面和时间冻结 **5 秒**，自动恢复
 - 恢复后重置陀螺仪基准，防止连续触发
 
@@ -660,9 +674,9 @@ baseline = clamp(avg, DIFFICULTY_BASELINE_MIN, DIFFICULTY_BASELINE_MAX)
 | 等级 | 累计营业额门槛 |
 | ---- | -------------- |
 | Lv.1 | 0              |
-| Lv.2 | 80             |
-| Lv.3 | 250            |
-| Lv.4 | 600            |
+| Lv.2 | 150             |
+| Lv.3 | 400            |
+| Lv.4 | 1000            |
 
 ### 存档操作
 
@@ -744,7 +758,7 @@ baseline = clamp(avg, DIFFICULTY_BASELINE_MIN, DIFFICULTY_BASELINE_MAX)
 | 参数                             | 默认值 | 说明                     |
 | -------------------------------- | ------ | ------------------------ |
 | `ARTIFACT_STILL_THRESHOLD`     | 0.5    | 陀螺仪静止判定阈值（度） |
-| `ARTIFACT_STILL_DURATION`      | 5.0    | 静止持续时间（秒）       |
+| `ARTIFACT_STILL_DURATION`      | 2.0    | 静止持续时间（秒）       |
 | `ARTIFACT_ATTENTION_THRESHOLD` | 80     | 专注力异常阈值           |
 | `ARTIFACT_PENALTY_DURATION`    | 5.0    | 惩罚冻结时长（秒）       |
 
@@ -761,7 +775,7 @@ baseline = clamp(avg, DIFFICULTY_BASELINE_MIN, DIFFICULTY_BASELINE_MAX)
 
 | 参数                      | 默认值 | 说明               |
 | ------------------------- | ------ | ------------------ |
-| `SECRET_RECIPE_SUSTAIN` | 4      | 秘方触发需持续专注秒数 |
+| `SECRET_RECIPE_SUSTAIN` | 8      | 秘方触发需持续专注秒数 |
 
 ### 难度自适应
 
@@ -796,10 +810,10 @@ baseline = clamp(avg, DIFFICULTY_BASELINE_MIN, DIFFICULTY_BASELINE_MAX)
 使用 PyInstaller 打包为独立 `.exe`：
 
 ```bash
-pyinstaller CrazyMilkTea.spec
+pyinstaller 疯狂奶茶杯.spec
 ```
 
-打包配置（`CrazyMilkTea.spec`）：
+打包配置：
 
 - 主入口：`main.py`
 - 包含 `assets/` 目录为数据文件
@@ -824,7 +838,6 @@ pyinstaller CrazyMilkTea.spec
 - [X] 12 分钟正式游戏（20s × 36 杯）
 - [X] 专注力收益系数（专注意义化分段函数）
 - [X] 3 信号滤波器（死区 + 指数平滑 + 灵敏度曲线）
-- [X] 4 级食材 + 等级系统
 - [X] 记忆模式（配方记忆 + 顺序验证 + 难度进阶）
 - [X] 历史记录界面（左右分栏 + 趋势曲线 + 增删管理）
 - [X] 最后 5 分钟平均专注力记录

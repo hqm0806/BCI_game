@@ -406,7 +406,7 @@ class GameSession:
             avg_attn = sum(last_30s) / len(last_30s)
             self.warmup_summary_max = max_attn
             self.warmup_summary_avg = avg_attn
-            self.normalization_lower = max(avg_attn - 25.0, 0.0)
+            self.normalization_lower = max(avg_attn - 15.0, 0.0)
             self.normalization_upper = min(max_attn, 100.0)
             if self.normalization_upper - self.normalization_lower < 10.0:
                 mid = (self.normalization_upper + self.normalization_lower) / 2.0

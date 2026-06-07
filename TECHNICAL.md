@@ -629,9 +629,9 @@ Vmin = 1.5 px/frame, Vmax = 6.0 px/frame (热身, 故意拉大感知度)
 attn_offsets = [|attn_i - cup_baseline| for last 60 frames]
 variance = mean(attn_offsets)
 
-variance < 50   → ice_prob = 30% (低干扰)
+variance < 50   → ice_prob = 20% (低干扰)
 50 ≤ var < 150  → ice_prob = 50% (中干扰)
-var ≥ 150       → ice_prob = 70% (高干扰)
+var ≥ 150       → ice_prob = 80% (高干扰)
 var > 150 & attn < 20 → ice_prob = 100% (冰雪风暴)
 ```
 

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-LEVEL_THRESHOLDS = [0, 80, 250, 600]
+LEVEL_THRESHOLDS = [0, 150, 400, 1000]
 PROFILES_DIR = "profiles"
 
 
@@ -98,6 +98,8 @@ class PlayerProfile:
             entry["focus_samples"] = focus_samples[::step]
         self.games_history.append(entry)
         self._check_level_up()
+        if self.level > old_level + 1:
+            self.level = old_level + 1
         if self.level > old_level:
             return self.level
         return 0

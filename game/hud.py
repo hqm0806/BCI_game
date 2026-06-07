@@ -94,52 +94,48 @@ def draw_hud(
     )
     screen.blit(cup_timer_text, (SCREEN_WIDTH - cup_timer_text.get_width() - 12, SCREEN_HEIGHT - 60))
 
-    if bci_mode:
-        gyro_x = SCREEN_WIDTH - 300
-        gyro_y = 52
-        line_h = 22
-        gyro_data = [
-            f"偏航角: {raw_gyro_x:.2f}",
-            f"俯仰角: {raw_gyro_y:.2f}",
-            f"翻滚角: {raw_gyro_z:.2f}",
-            f"平台焦点X: {platform_focus_x:.0f}",
-            f"平台焦点Y: {platform_focus_y:.0f}",
-            f"杯子屏幕X: {cup_x}",
-            f"杯子屏幕Y: {cup_y}",
-        ]
-        if attn_mode:
-            gyro_data.append(f"--必接概率调整--")
-            gyro_data.append(f"方差: {attn_variance:.0f} | {attn_mode}")
-        bg_rect = pygame.Rect(gyro_x - 8, gyro_y - 4, 290, line_h * len(gyro_data) + 8)
-        bg_surf = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
-        bg_surf.fill((0, 0, 0, 120))
-        screen.blit(bg_surf, (bg_rect.x, bg_rect.y))
-        for i, line in enumerate(gyro_data):
-            color = (200, 200, 200)
-            if "平台焦点" in line:
-                color = (100, 255, 100)
-            txt = hint_font.render(line, True, color)
-            screen.blit(txt, (gyro_x, gyro_y + i * line_h))
-
-    if bci_mode and attn_baseline > 0:
-        bl_text = hint_font.render(f"基线: {attn_baseline:.0f}", True, (200, 200, 200))
-        screen.blit(bl_text, (10, 120))
+    # if bci_mode:
+    #     gyro_x = SCREEN_WIDTH - 300
+    #     gyro_y = 52
+    #     line_h = 22
+    #     gyro_data = [
+    #         f"偏航角: {raw_gyro_x:.2f}",
+    #         f"俯仰角: {raw_gyro_y:.2f}",
+    #         f"翻滚角: {raw_gyro_z:.2f}",
+    #         f"平台焦点X: {platform_focus_x:.0f}",
+    #         f"平台焦点Y: {platform_focus_y:.0f}",
+    #         f"杯子屏幕X: {cup_x}",
+    #         f"杯子屏幕Y: {cup_y}",
+    #     ]
+    #     if attn_mode:
+    #         gyro_data.append(f"--必接概率调整--")
+    #         gyro_data.append(f"方差: {attn_variance:.0f} | {attn_mode}")
+    #     bg_rect = pygame.Rect(gyro_x - 8, gyro_y - 4, 290, line_h * len(gyro_data) + 8)
+    #     bg_surf = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
+    #     bg_surf.fill((0, 0, 0, 120))
+    #     screen.blit(bg_surf, (bg_rect.x, bg_rect.y))
+    #     for i, line in enumerate(gyro_data):
+    #         color = (200, 200, 200)
+    #         if "平台焦点" in line:
+    #             color = (100, 255, 100)
+    #         txt = hint_font.render(line, True, color)
+    #         screen.blit(txt, (gyro_x, gyro_y + i * line_h))
 
     if bci_mode and attention is None:
         bci_text = hint_font.render("BCI设备未连接", True, (200, 0, 0))
         screen.blit(bci_text, (10, 235))
 
-    if bci_mode and not cup_manager.secret_recipe_spawned:
-        progress = min(1.0, focus_above_seconds / SECRET_RECIPE_SUSTAIN)
-        bar_x = SCREEN_WIDTH // 2 - 60
-        bar_y = SCREEN_HEIGHT - 50
-        bar_w = 120
-        bar_h = 10
-        pygame.draw.rect(screen, (80, 80, 80), (bar_x, bar_y, bar_w, bar_h), border_radius=5)
-        fill_w = int(bar_w * progress)
-        if fill_w > 0:
-            bar_color = (255, 215, 0) if progress >= 1.0 else (100, 200, 100)
-            pygame.draw.rect(screen, bar_color, (bar_x, bar_y, fill_w, bar_h), border_radius=5)
+    # if bci_mode and not cup_manager.secret_recipe_spawned:
+    #     progress = min(1.0, focus_above_seconds / SECRET_RECIPE_SUSTAIN)
+    #     bar_x = SCREEN_WIDTH // 2 - 60
+    #     bar_y = SCREEN_HEIGHT - 50
+    #     bar_w = 120
+    #     bar_h = 10
+    #     pygame.draw.rect(screen, (80, 80, 80), (bar_x, bar_y, bar_w, bar_h), border_radius=5)
+    #     fill_w = int(bar_w * progress)
+    #     if fill_w > 0:
+    #         bar_color = (255, 215, 0) if progress >= 1.0 else (100, 200, 100)
+    #         pygame.draw.rect(screen, bar_color, (bar_x, bar_y, fill_w, bar_h), border_radius=5)
 
     if bci_mode:
         hint_text = "脑机接口模式 | ESC 返回"

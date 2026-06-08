@@ -122,10 +122,6 @@ def draw_hud(
     #         txt = hint_font.render(line, True, color)
     #         screen.blit(txt, (gyro_x, gyro_y + i * line_h))
 
-    if bci_mode and attention is None:
-        bci_text = hint_font.render("BCI设备未连接", True, (200, 0, 0))
-        screen.blit(bci_text, (10, 235))
-
     # if bci_mode and not cup_manager.secret_recipe_spawned:
     #     progress = min(1.0, focus_above_seconds / SECRET_RECIPE_SUSTAIN)
     #     bar_x = SCREEN_WIDTH // 2 - 60

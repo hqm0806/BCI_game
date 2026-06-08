@@ -49,7 +49,7 @@ class _MemoryParticle(pygame.sprite.Sprite):
 
 class MemorySession:
     def __init__(
-        self, screen: pygame.Surface, clock: pygame.time.Clock, audio=None, control_mode: str = "keyboard", profile=None
+        self, screen: pygame.Surface, clock: pygame.time.Clock, audio=None, control_mode: str = "bci", profile=None
     ) -> None:
         self.screen = screen
         self.clock = clock
@@ -117,7 +117,7 @@ class MemorySession:
         self._focus_min = 40
         self._focus_max = SCREEN_WIDTH - 40
 
-        if self._control_mode not in ("keyboard", "bci_failed"):
+        if self._control_mode != "bci_failed":
             from bci.data_reader import BCIDataReader
 
             self._bci_reader = BCIDataReader()
@@ -399,9 +399,7 @@ class MemorySession:
             self._draw_rest()
 
     def _draw_hud(self) -> None:
-        hud_color = (
-            (139, 0, 0) if (self._control_mode not in ("keyboard",) and not self._bci_available) else (200, 180, 140)
-        )
+        hud_color = (139, 0, 0) if not self._bci_available else (200, 180, 140)
         level_text = self.small_font.render(
             f"忆调模式 | 难度 Lv.{self._current_level - 1} | 配方 {self._current_level}食材 | 得分 {self._total_score} | ESC 退出",
             True,
@@ -532,7 +530,7 @@ class MemorySession:
 
 
 def run_memory_game(
-    screen: pygame.Surface, clock: pygame.time.Clock, audio=None, control_mode: str = "keyboard", profile=None
+    screen: pygame.Surface, clock: pygame.time.Clock, audio=None, control_mode: str = "bci", profile=None
 ) -> str:
     session = MemorySession(screen, clock, audio=audio, control_mode=control_mode, profile=profile)
     return session.run()

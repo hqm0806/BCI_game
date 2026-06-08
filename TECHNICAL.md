@@ -223,7 +223,7 @@ GameSession(
     screen,           # pygame.Surface
     clock,            # pygame.time.Clock
     game_mode="bci",  # "regular" | "bci"
-    control_mode="bci",# "bci" | "keyboard" | "bci_failed"
+    control_mode="bci",# "bci" | "bci_failed"
     profile=None,     # PlayerProfile
     audio=None,       # AudioManager
 )
@@ -267,7 +267,7 @@ warmup_intro (3s 渐入) → warmup (180s 热身)
 
 | 类 | 父类 | 说明 |
 |----|------|------|
-| `Cup` | `pygame.sprite.Sprite` | 奶茶杯，3 级图片切换，yaw/键盘双控，倾斜动画，弹跳特效 |
+| `Cup` | `pygame.sprite.Sprite` | 奶茶杯，3 级图片切换，yaw 头动控制+键盘备用，倾斜动画，弹跳特效 |
 | `Ingredient` | `pygame.sprite.Sprite` | 下落食材，浮动动画 (±5px sin)，必接标记 (红框)，粒子拖尾 |
 | `Particle` | `pygame.sprite.Sprite` | 爆炸粒子，重力模拟，alpha 衰减 |
 | `CatchEffect` | `pygame.sprite.Sprite` | 接住特效，飞向杯子 + 缩小 |
@@ -275,7 +275,7 @@ warmup_intro (3s 渐入) → warmup (180s 热身)
 
 **Cup 控制**:
 ```python
-# 键盘模式:
+# 特调模式:
 cup.rect.x += (right - left) * cup.speed
 
 # BCI 模式:
@@ -798,7 +798,6 @@ GAME_MODES = {
 CONTROL_MODES = [
     {"key": "bci_normal", "name": "特调模式", "desc": "BCI头环控制杯子"},
     {"key": "memory",     "name": "忆调模式", "desc": "记忆食材序列"},
-    {"key": "keyboard",   "name": "键盘模式", "desc": "键盘控制杯子移动"},
 ]
 ```
 

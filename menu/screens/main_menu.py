@@ -156,11 +156,6 @@ class MainMenu:
                 click_frames[0] = 15
             else:
                 self._show_dialog("BCI头环未连接，将使用键盘控制", pending_mode="bci")
-        elif control_key == "keyboard":
-            self.result = "start"
-            self.current_mode = "bci"
-            self._control_mode = "keyboard"
-            click_frames[0] = 15
         elif control_key == "memory":
             if self._try_bci_connect():
                 self.result = "start_memory"

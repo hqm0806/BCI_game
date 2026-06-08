@@ -143,9 +143,7 @@ class GameSession:
         self._mode_secret_interval = mode_config.get("secret_recipe_cup_interval", 3)
         self._infinite = mode_config.get("infinite", False)
 
-        if self.control_mode == "keyboard":
-            self.mode_name = "键盘模式"
-        elif self.control_mode in ("bci", "bci_failed"):
+        if self.control_mode in ("bci", "bci_failed"):
             self.mode_name = "特调模式"
 
     def _load_fonts(self) -> None:
@@ -183,7 +181,7 @@ class GameSession:
     def _init_bci(self) -> None:
         self.bci_reader = BCIDataReader()
         self.bci_available = False
-        if self.bci_mode and self.control_mode not in ("keyboard", "bci_failed"):
+        if self.bci_mode and self.control_mode != "bci_failed":
             self.bci_available = self.bci_reader.connect()
 
     def _load_background(self) -> None:
@@ -539,9 +537,6 @@ class GameSession:
         )
 
     def _update_bci_data(self) -> None:
-        if self.control_mode == "keyboard":
-            self.attention = 50.0
-            return
         if self.bci_available:
             result = self.bci_reader.read_with_timeout()
             self.bci_available = self.bci_reader.connected
@@ -886,7 +881,7 @@ class GameSession:
 
             if self._profile:
                 skip_history = self._infinite or (
-                    self.control_mode in ("bci", "bci_failed", "keyboard") and self.bci_mode and not self.bci_available
+                    self.control_mode in ("bci", "bci_failed") and self.bci_mode and not self.bci_available
                 )
                 if skip_history:
                     is_upgraded = False

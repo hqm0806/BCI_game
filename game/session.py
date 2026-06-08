@@ -143,6 +143,11 @@ class GameSession:
         self._mode_secret_interval = mode_config.get("secret_recipe_cup_interval", 3)
         self._infinite = mode_config.get("infinite", False)
 
+        if self.control_mode == "keyboard":
+            self.mode_name = "键盘模式"
+        elif self.control_mode in ("bci", "bci_failed"):
+            self.mode_name = "特调模式"
+
     def _load_fonts(self) -> None:
         self.font = load_chinese_font(36)
         self.hint_font = load_chinese_font(20)

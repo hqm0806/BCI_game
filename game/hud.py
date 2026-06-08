@@ -64,7 +64,8 @@ def draw_hud(
     cy = bar_y + (bar_h - money_text.get_height()) // 2
     screen.blit(money_text, (bar_center_x - money_text.get_width() // 2, cy))
 
-    mode_text = bar_font.render(mode_name, True, (20, 20, 20))
+    mode_color = (139, 0, 0) if (bci_mode and not bci_connected) else (20, 20, 20)
+    mode_text = bar_font.render(mode_name, True, mode_color)
     screen.blit(mode_text, (bar_x + spacing, cy))
 
     if is_infinite:

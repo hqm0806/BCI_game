@@ -399,10 +399,13 @@ class MemorySession:
             self._draw_rest()
 
     def _draw_hud(self) -> None:
+        hud_color = (
+            (139, 0, 0) if (self._control_mode not in ("keyboard",) and not self._bci_available) else (200, 180, 140)
+        )
         level_text = self.small_font.render(
-            f"难度 Lv.{self._current_level - 1} | 配方 {self._current_level}食材 | 得分 {self._total_score} | ESC 退出",
+            f"忆调模式 | 难度 Lv.{self._current_level - 1} | 配方 {self._current_level}食材 | 得分 {self._total_score} | ESC 退出",
             True,
-            (200, 180, 140),
+            hud_color,
         )
         self.screen.blit(level_text, (SCREEN_WIDTH // 2 - level_text.get_width() // 2, 10))
 

@@ -1,4 +1,4 @@
-"""记忆模式游戏会话 - 记忆配方→按序接食材"""
+"""忆调模式游戏会话 - 忆配方→按序接食材"""
 
 from __future__ import annotations
 
@@ -48,8 +48,9 @@ class _MemoryParticle(pygame.sprite.Sprite):
 
 
 class MemorySession:
-    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, audio=None,
-                 control_mode: str = "keyboard", profile=None) -> None:
+    def __init__(
+        self, screen: pygame.Surface, clock: pygame.time.Clock, audio=None, control_mode: str = "keyboard", profile=None
+    ) -> None:
         self.screen = screen
         self.clock = clock
         self._audio = audio
@@ -96,7 +97,7 @@ class MemorySession:
         self._max_per_lane = 1
 
         self._rules_display_time = 3.5
-        self._memorize_time = 2.0   # 每轮记忆阶段持续时间
+        self._memorize_time = 2.0  # 每轮记忆阶段持续时间
         self._drop_window = 15.0
         self._result_time = 1.5
         self._rest_time = 2.0
@@ -118,6 +119,7 @@ class MemorySession:
 
         if self._control_mode not in ("keyboard", "bci_failed"):
             from bci.data_reader import BCIDataReader
+
             self._bci_reader = BCIDataReader()
             self._bci_available = self._bci_reader.connect()
             if self._bci_available:
@@ -432,7 +434,7 @@ class MemorySession:
         pygame.draw.rect(popup, (255, 180, 100, 100), (0, 0, 700, 340), 3, border_radius=20)
 
         lines = [
-            ("记忆模式", self.big_font, (255, 200, 100)),
+            ("忆调模式", self.big_font, (255, 200, 100)),
             ("", self.small_font, (255, 255, 255)),
             ("1. 请记住屏幕中央的配方食材组合", self.font, (255, 255, 255)),
             ("2. 食材消失后，按顺序接住配方中的食材", self.font, (255, 255, 255)),
@@ -526,7 +528,8 @@ class MemorySession:
         self.screen.blit(lvl_text, (SCREEN_WIDTH // 2 - lvl_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20))
 
 
-def run_memory_game(screen: pygame.Surface, clock: pygame.time.Clock, audio=None,
-                    control_mode: str = "keyboard", profile=None) -> str:
+def run_memory_game(
+    screen: pygame.Surface, clock: pygame.time.Clock, audio=None, control_mode: str = "keyboard", profile=None
+) -> str:
     session = MemorySession(screen, clock, audio=audio, control_mode=control_mode, profile=profile)
     return session.run()

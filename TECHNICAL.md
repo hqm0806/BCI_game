@@ -343,7 +343,7 @@ class DifficultyAdapter:
 
 #### 4.3.5 MemorySession (`game/memory_mode.py`, 500 行)
 
-独立的记忆模式，回合制规则。
+独立的忆调模式，回合制规则。
 
 **阶段流程**:
 ```
@@ -486,7 +486,7 @@ def evaluate_recipe(ingredients: set) → dict:
 
 #### 4.5.4 MemoryRecipes (`data/memory_recipes.py`)
 
-35 个记忆模式配方，按食材数分组:
+35 个忆调模式配方，按食材数分组:
 - 2 种: 11 个 | 3 种: 10 个 | 4 种: 8 个 | 5 种: 6 个
 
 ---
@@ -774,7 +774,7 @@ while len(recv_buffer) >= 4:
 ```python
 GAME_MODES = {
     "regular": {
-        "name": "常规模式",
+        "name": "特调模式",
         "has_required": True,       # 有必接食材
         "free_combine": False,      # 固定配方
         "bci_mode": False,
@@ -796,8 +796,8 @@ GAME_MODES = {
 }
 
 CONTROL_MODES = [
-    {"key": "bci_normal", "name": "常规模式", "desc": "BCI头环控制杯子"},
-    {"key": "memory",     "name": "记忆模式", "desc": "记忆食材序列"},
+    {"key": "bci_normal", "name": "特调模式", "desc": "BCI头环控制杯子"},
+    {"key": "memory",     "name": "忆调模式", "desc": "记忆食材序列"},
     {"key": "keyboard",   "name": "键盘模式", "desc": "键盘控制杯子移动"},
 ]
 ```
@@ -873,7 +873,7 @@ BCI_game/
 │   ├── ingredient_manager.py  # 食材生成管理 (111 行)
 │   ├── cup_manager.py         # 单杯生命周期 (172 行)
 │   ├── hud.py                 # HUD 渲染 (184 行)
-│   ├── memory_mode.py         # 记忆模式 (500 行)
+│   ├── memory_mode.py         # 忆调模式 (500 行)
 │   └── font_utils.py          # 中文字体加载
 │
 ├── menu/
@@ -895,7 +895,7 @@ BCI_game/
 │   ├── player_profile.py      # 玩家存档 (134 行)
 │   ├── score_manager.py       # 得分管理
 │   ├── recipes.py             # 创意配方库 (346 行)
-│   ├── memory_recipes.py      # 记忆模式配方
+│   ├── memory_recipes.py      # 忆调模式配方
 │   └── ingredient_config.py   # 食材配置 (遗留)
 │
 ├── tests/

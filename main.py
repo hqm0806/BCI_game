@@ -83,7 +83,9 @@ class MenuState(State):
         profile = self._context.get("profile")
         player_level = profile.level if profile else 1
         history_games = profile.games_history if profile else []
-        menu = MainMenu(self.screen, self.font, self.title_font, player_level, history_games, profile=profile, audio=self._audio)
+        menu = MainMenu(
+            self.screen, self.font, self.title_font, player_level, history_games, profile=profile, audio=self._audio
+        )
         result, game_mode, control_mode = menu.run()
         result = result or "quit"
         game_mode = game_mode or "bci"
@@ -162,7 +164,7 @@ class TransitionState(State):
 
 
 class MemoryGameState(State):
-    """记忆模式游戏状态"""
+    """忆调模式游戏状态"""
 
     def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, context: dict) -> None:
         self.screen = screen
@@ -198,7 +200,9 @@ class GameStateImpl(State):
         control_mode = self._context.get("control_mode", "bci")
         profile = self._context.get("profile")
         audio = self._context.get("audio")
-        game_result = run_game(self.screen, self.clock, game_mode=game_mode, profile=profile, control_mode=control_mode, audio=audio)
+        game_result = run_game(
+            self.screen, self.clock, game_mode=game_mode, profile=profile, control_mode=control_mode, audio=audio
+        )
         if profile:
             profile.save()
         if game_result == "quit":

@@ -114,7 +114,7 @@ class HistoryScreen:
                 date = self.hint_font.render(g.get("date", "未知"), True, (255, 255, 255))
                 self.screen.blit(date, (row_rect.x + 10, row_rect.y + 6))
 
-                mode_name = {"regular": "常规", "challenge": "挑战", "creative": "创意", "bci": "BCI"}.get(
+                mode_name = {"regular": "特调", "challenge": "挑战", "creative": "创意", "bci": "BCI"}.get(
                     g.get("mode", ""), ""
                 )
                 mins = int(g.get("duration", 0)) // 60
@@ -134,8 +134,10 @@ class HistoryScreen:
                 btn_text = self.small_font.render("一键清除", True, (255, 255, 255))
                 self.screen.blit(
                     btn_text,
-                    (clear_btn_rect.centerx - btn_text.get_width() // 2,
-                     clear_btn_rect.centery - btn_text.get_height() // 2),
+                    (
+                        clear_btn_rect.centerx - btn_text.get_width() // 2,
+                        clear_btn_rect.centery - btn_text.get_height() // 2,
+                    ),
                 )
 
             right_bg = pygame.Surface((RIGHT_W, SCREEN_HEIGHT), pygame.SRCALPHA)
@@ -181,7 +183,7 @@ class HistoryScreen:
             draw_centered(self.screen, self.font, date, y, (200, 200, 200))
             y += 40
 
-            mode_name = {"regular": "常规模式", "challenge": "挑战模式", "creative": "创意模式", "bci": "BCI模式"}.get(
+            mode_name = {"regular": "特调模式", "challenge": "挑战模式", "creative": "创意模式", "bci": "BCI模式"}.get(
                 game.get("mode", ""), ""
             )
             draw_centered(self.screen, self.font, mode_name, y, (180, 180, 220))
@@ -273,7 +275,7 @@ class HistoryScreen:
         self.screen.blit(y_label, (graph_x - 30, graph_y - 18))
 
         if not regular_games:
-            no_data = self.font.render("暂无常规模式数据", True, (150, 150, 150))
+            no_data = self.font.render("暂无特调模式数据", True, (150, 150, 150))
             self.screen.blit(
                 no_data,
                 (graph_x + graph_w // 2 - no_data.get_width() // 2, graph_y + graph_h // 2 - 10),
@@ -317,9 +319,7 @@ class HistoryScreen:
         text_box_y = graph_y + graph_h + 45
         text_box_h = SCREEN_HEIGHT - text_box_y - 40
         pygame.draw.rect(self.screen, (40, 40, 60), (graph_x, text_box_y, graph_w, text_box_h), border_radius=6)
-        pygame.draw.rect(
-            self.screen, (100, 100, 140), (graph_x, text_box_y, graph_w, text_box_h), 2, border_radius=6
-        )
+        pygame.draw.rect(self.screen, (100, 100, 140), (graph_x, text_box_y, graph_w, text_box_h), 2, border_radius=6)
 
         placeholder = self.hint_font.render("（文字框预留）", True, (100, 100, 120))
         self.screen.blit(
@@ -388,11 +388,20 @@ class HistoryScreen:
         pygame.draw.rect(self.screen, confirm_fill, confirm_rect, border_radius=8)
         pygame.draw.rect(self.screen, (220, 100, 80), confirm_rect, 2, border_radius=8)
         confirm_text = self.hint_font.render("确认", True, (255, 255, 255))
-        self.screen.blit(confirm_text, (confirm_rect.centerx - confirm_text.get_width() // 2, confirm_rect.centery - confirm_text.get_height() // 2))
+        self.screen.blit(
+            confirm_text,
+            (
+                confirm_rect.centerx - confirm_text.get_width() // 2,
+                confirm_rect.centery - confirm_text.get_height() // 2,
+            ),
+        )
 
         x_hover = cancel_rect.collidepoint(mx, my)
         cancel_fill = (100, 100, 110) if x_hover else (70, 70, 80)
         pygame.draw.rect(self.screen, cancel_fill, cancel_rect, border_radius=8)
         pygame.draw.rect(self.screen, (140, 140, 150), cancel_rect, 2, border_radius=8)
         cancel_text = self.hint_font.render("取消", True, (255, 255, 255))
-        self.screen.blit(cancel_text, (cancel_rect.centerx - cancel_text.get_width() // 2, cancel_rect.centery - cancel_text.get_height() // 2))
+        self.screen.blit(
+            cancel_text,
+            (cancel_rect.centerx - cancel_text.get_width() // 2, cancel_rect.centery - cancel_text.get_height() // 2),
+        )

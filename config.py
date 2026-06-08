@@ -326,7 +326,7 @@ FORMAL_SPEED_MAX = 4.5  # 正式游戏最高速度（归一化值=1时，pixels/
 # ============================================================
 GAME_MODES = {
     "regular": {
-        "name": "常规模式",
+        "name": "特调模式",
         "description": "接住必接食材，完成标准配方",
         "has_required": True,
         "free_combine": False,
@@ -350,8 +350,8 @@ GAME_MODES = {
         "secret_recipe_cup_interval": 3,
     },
     "infinite": {
-        "name": "无限模式",
-        "description": "无限挑战，持续接食材创造最高收益",
+        "name": "原萃模式",
+        "description": "原萃模式即将上线，敬请期待",
         "has_required": False,
         "free_combine": True,
         "bci_mode": True,
@@ -366,13 +366,13 @@ GAME_MODES = {
 
 # ============================================================
 # 控制模式配置（主菜单模式选择器使用）
-# 常规模式/键盘模式均使用 bci 游戏底层配置（热身→正式、36杯、自由搭配）
-# 区别仅在于控制方式：常规模式用头环，键盘模式用键盘
+# 特调模式/键盘模式均使用 bci 游戏底层配置（热身→正式、36杯、自由搭配）
+# 区别仅在于控制方式：特调模式用头环，键盘模式用键盘
 # ============================================================
 CONTROL_MODES = [
     {
         "key": "bci_normal",
-        "name": "常规模式",
+        "name": "特调模式",
         "desc": "BCI头环控制杯子，未连接时键盘控制",
         "enabled": True,
         "color": (0, 150, 200),
@@ -380,7 +380,7 @@ CONTROL_MODES = [
     },
     {
         "key": "memory",
-        "name": "记忆模式",
+        "name": "忆调模式",
         "desc": "记忆食材序列",
         "enabled": True,
         "color": (100, 100, 100),
@@ -396,8 +396,8 @@ CONTROL_MODES = [
     },
     {
         "key": "infinite",
-        "name": "无限模式",
-        "desc": "无限挑战 · 最高收益",
+        "name": "原萃模式",
+        "desc": "即将上线 · 敬请期待",
         "enabled": True,
         "color": (200, 100, 50),
         "glow": (255, 150, 100),

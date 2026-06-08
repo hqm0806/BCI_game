@@ -468,14 +468,14 @@ class GameSession:
         if self._esc_dialog_selected == 0:
             self._esc_dialog_active = False
         else:
-            self.show_summary = True
+            self.show_summary = False
             self.running = False
 
     def _handle_esc_dialog_click(self, pos: tuple[int, int]) -> None:
         if hasattr(self, "_esc_continue_rect") and self._esc_continue_rect.collidepoint(pos):
             self._esc_dialog_active = False
         elif hasattr(self, "_esc_exit_rect") and self._esc_exit_rect.collidepoint(pos):
-            self.show_summary = True
+            self.show_summary = False
             self.running = False
 
     def _draw_esc_dialog(self) -> None:
@@ -930,7 +930,7 @@ class GameSession:
 
         if self.bci_available:
             self.bci_reader.disconnect()
-        return "quit"
+        return ""
 
 
 def run_game(

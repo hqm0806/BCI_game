@@ -351,16 +351,15 @@ GAME_MODES = {
     },
     "infinite": {
         "name": "原萃模式",
-        "description": "原萃模式即将上线，敬请期待",
+        "description": "原始注意力驱动，专注力直接控制食材速度",
         "has_required": False,
         "free_combine": True,
         "bci_mode": True,
         "ingredient_speed": 3,
         "spawn_interval": 1000,
         "ui_color": (200, 100, 50),
-        "total_cups": -1,
         "secret_recipe_cup_interval": 3,
-        "skip_warmup": True,
+        "raw_attention": True,
     },
 }
 
@@ -388,7 +387,7 @@ CONTROL_MODES = [
     {
         "key": "infinite",
         "name": "原萃模式",
-        "desc": "即将上线 · 敬请期待",
+        "desc": "专注力直驱食材速度，不进行归一化",
         "enabled": True,
         "color": (200, 100, 50),
         "glow": (255, 150, 100),

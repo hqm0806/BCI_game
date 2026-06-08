@@ -32,9 +32,9 @@
 **关键特性**:
 - TCP 实时通信 HybridBCI 科创平台，获取专注力/头动/陀螺仪数据
 - 多级信号滤波管线（死区 → 指数平滑 → 灵敏度映射）
-- 热身归一化 + 方差驱动的动态难度自适应
+- 第一杯归一化 + 方差驱动的动态难度自适应
 - 陀螺仪-专注力双阈值防作弊仲裁
-- 4 级累进式等级系统，3 种游戏模式（常规/记忆/键盘）
+- 4 级累进式等级系统，3 种控制模式（特调/忆调/原萃）
 - JSON 持久化存档，PyInstaller 独立打包
 
 ---
@@ -235,16 +235,18 @@ GameSession(
 - `ScoreManager` — 得分追踪、秘方计数
 - `BCIDataReader` — BCI 数据源
 
-**阶段状态机**:
+**游戏阶段**:
 ```
-warmup_intro (3s 渐入) → warmup (180s 热身)
-→ warmup_summary (5s 归一化展示) → formal (36 杯)
+formal (45 杯，共 15 分钟)
 ```
 
-**热身阶段关键逻辑**:
-1. 采集全程注意力数据 → `warmup_all_attn`
-2. 取最后 30 秒数据 → 计算 `lower = max(μ-10, 0)`, `upper = min(μ+10, 100)`
-3. 归一化: `norm = clamp((raw - lower) / (upper - lower) * 99 + 1, 1, 100)`
+游戏直接进入正式阶段，第一杯结束后计算归一化范围，后续使用该范围进行归一化。原萃模式跳过归一化，直接使用原始注意力值。与特调模式相区别。
+- 特调模式: 归一化后计算速度和收益
+- 原萃模式: 原始注意力直接计算
+
+**关键逻辑**:
+1. 第一杯结束后取该杯注意力数据 → 计算 `lower = max(avg-15, 0)`, `upper = min(max, 100)`
+2. 归一化: `norm = clamp((raw - lower) / (upper - lower) * 99 + 1, 1, 100)`（原萃模式跳过）
 
 **正式阶段关键逻辑** (每帧):
 1. 读取 BCI 数据 → 滤波 → 计算速度/位置
@@ -599,26 +601,31 @@ SummaryScreen → PlayerProfile.add_game_result()
 **目的**: 消除个体基线差异。
 
 ```
-热身最后 30s 采样 → μ (均值)
-lower = max(μ - 10, 0)
-upper = min(μ + 10, 100)
+第一杯结束后采样 → μ (均值), max (最高)
+lower = max(μ - 15, 0)
+upper = min(max, 100)
 width = max(upper - lower, 10)
 
-正式阶段:
+后续正式阶段:
 norm = clamp((raw - lower) / width * 99 + 1, 1, 100)
 ```
 
-### 6.2 注意力 → 速度映射 (AttentionToSpeedCurve)
+**原萃模式**跳过归一化步骤，使用原始注意力值 (0-100) 直接参与速度和收益计算。
 
-3 段线性，以校准基线为中心:
+### 6.2 注意力 → 速度映射
 
+**特调模式** — 归一化后映射:
 ```
-attn ∈ [0,            baseline-20]   → speed = Vmax (最快)
-attn ∈ [baseline-20,  baseline+20]   → speed = Vmax → Vmin (线性)
-attn ∈ [baseline+20,  100]           → speed = Vmin (最慢)
+norm ∈ [1, 100]
+speed = Vmax - (norm - 1) / 99 * (Vmax - Vmin)
+```
 
-Vmin = 2.0 px/frame, Vmax = 4.5 px/frame (正式)
-Vmin = 1.5 px/frame, Vmax = 6.0 px/frame (热身, 故意拉大感知度)
+**原萃模式** — 原始注意力直接映射:
+```
+attn ∈ [0, 100]
+speed = Vmax - (attn / 100) * (Vmax - Vmin)
+
+Vmin = 2.0 px/frame, Vmax = 4.5 px/frame
 ```
 
 ### 6.3 方差驱动的冰块概率
@@ -775,22 +782,33 @@ while len(recv_buffer) >= 4:
 GAME_MODES = {
     "regular": {
         "name": "特调模式",
-        "has_required": True,       # 有必接食材
-        "free_combine": False,      # 固定配方
+        "has_required": True,
+        "free_combine": False,
         "bci_mode": False,
         "ingredient_speed": 3,
-        "spawn_interval": 1000,     # ms
-        "total_cups": 36,
+        "spawn_interval": 1000,
+        "total_cups": 45,
         "secret_recipe_cup_interval": 1,
     },
     "bci": {
         "name": "脑机接口模式",
         "has_required": False,
-        "free_combine": True,       # 自由搭配 + 配方评分
+        "free_combine": True,
         "bci_mode": True,
         "ingredient_speed": 3,
         "spawn_interval": 1200,
-        "total_cups": 36,
+        "total_cups": 45,
+        "secret_recipe_cup_interval": 3,
+    },
+    "infinite": {
+        "name": "原萃模式",
+        "has_required": False,
+        "free_combine": True,
+        "bci_mode": True,
+        "raw_attention": True,
+        "ingredient_speed": 3,
+        "spawn_interval": 1000,
+        "total_cups": 45,
         "secret_recipe_cup_interval": 3,
     },
 }
@@ -798,6 +816,7 @@ GAME_MODES = {
 CONTROL_MODES = [
     {"key": "bci_normal", "name": "特调模式", "desc": "BCI头环控制杯子"},
     {"key": "memory",     "name": "忆调模式", "desc": "记忆食材序列"},
+    {"key": "infinite",   "name": "原萃模式", "desc": "专注力直驱食材速度，不进行归一化"},
 ]
 ```
 

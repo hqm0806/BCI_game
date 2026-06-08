@@ -165,7 +165,13 @@ class MainMenu:
             else:
                 self._show_dialog("BCI头环未连接，将使用键盘控制", pending_mode="bci", pending_result="start_memory")
         elif control_key == "infinite":
-            self._show_dialog("原萃模式即将上线，敬请期待！", pending_mode="bci", pending_result=None)
+            if self._try_bci_connect():
+                self.result = "start"
+                self.current_mode = "infinite"
+                self._control_mode = "bci"
+                click_frames[0] = 15
+            else:
+                self._show_dialog("BCI头环未连接，将使用键盘控制", pending_mode="infinite")
 
     def run(self) -> tuple[str | None, str, str]:
         click_frames = [0]

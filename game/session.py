@@ -101,6 +101,8 @@ class GameSession:
 
     phase: str
 
+    _raw_attention: bool
+
     _esc_dialog_active: bool = False
     _esc_dialog_selected: int = 0
 
@@ -142,9 +144,13 @@ class GameSession:
         self._mode_total_cups = mode_config.get("total_cups", TOTAL_CUPS)
         self._mode_secret_interval = mode_config.get("secret_recipe_cup_interval", 3)
         self._infinite = mode_config.get("infinite", False)
+        self._raw_attention = mode_config.get("raw_attention", False)
 
         if self.control_mode in ("bci", "bci_failed"):
-            self.mode_name = "特调模式"
+            if self.game_mode == "infinite":
+                self.mode_name = "原萃模式"
+            else:
+                self.mode_name = "特调模式"
 
     def _load_fonts(self) -> None:
         self.font = load_chinese_font(36)
@@ -258,7 +264,10 @@ class GameSession:
         logger.info("=" * 50)
         logger.info("疯狂奶茶杯 - %s（一杯制）", self.mode_name)
         logger.info("=" * 50)
-        logger.info("直接开始正式游戏，第一杯结束后计算归一化值")
+        if self._raw_attention:
+            logger.info("原萃模式：使用原始注意力值，不进行归一化")
+        else:
+            logger.info("直接开始正式游戏，第一杯结束后计算归一化值")
         if self.bci_mode:
             logger.info("脑机接口模式规则：")
             if self._infinite:
@@ -308,8 +317,11 @@ class GameSession:
     def _update_formal_speed(self) -> None:
         if self.bci_mode:
             attn = self.attention if self.attention is not None else 50.0
-            norm = self._normalize_to_range(attn)
-            speed = FORMAL_SPEED_MAX - (norm - 1.0) / 99.0 * (FORMAL_SPEED_MAX - FORMAL_SPEED_MIN)
+            if self._raw_attention:
+                speed = FORMAL_SPEED_MAX - (attn / 100.0) * (FORMAL_SPEED_MAX - FORMAL_SPEED_MIN)
+            else:
+                norm = self._normalize_to_range(attn)
+                speed = FORMAL_SPEED_MAX - (norm - 1.0) / 99.0 * (FORMAL_SPEED_MAX - FORMAL_SPEED_MIN)
             self.ingredient_manager.set_current_speed(speed)
             for ing in self.ingredients:
                 ing.speed = speed
@@ -630,7 +642,7 @@ class GameSession:
             if self._cup_attn_samples:
                 self._cup_baseline = sum(self._cup_attn_samples) / len(self._cup_attn_samples)
 
-            if self.cup_manager.cup_number == 1 and self._cup_attn_samples:
+            if self.cup_manager.cup_number == 1 and not self._raw_attention and self._cup_attn_samples:
                 max_attn = max(self._cup_attn_samples)
                 avg_attn = sum(self._cup_attn_samples) / len(self._cup_attn_samples)
                 self.normalization_lower = max(avg_attn - 15.0, 0.0)
@@ -654,7 +666,10 @@ class GameSession:
 
             if self.bci_mode and cup_money > 0:
                 attn = self.attention if self.attention is not None else 50.0
-                norm = self._normalize_to_range(attn)
+                if self._raw_attention:
+                    norm = attn
+                else:
+                    norm = self._normalize_to_range(attn)
                 coeff = get_attention_coefficient(norm)
                 cup_money = int(cup_money * coeff)
 

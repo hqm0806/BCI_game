@@ -50,18 +50,19 @@ class BCIDataReader:
     def _record_attention(self, value: int) -> None:
         self._attention_history.append((time.time(), float(value)))
 
-    def connect(self, ip=None, port=None):
+    def connect(self, ip=None, port=None, connect_timeout=None):
         """连接 BCI 设备并启动陀螺仪算法"""
         if ip:
             self.server_ip = ip
         if port:
             self.server_port = port
 
-        logger.info("[BCI] 尝试连接到 %s:%s...", self.server_ip, self.server_port)
+        timeout = connect_timeout if connect_timeout is not None else BCI_CONNECTION_TIMEOUT
+        logger.info("[BCI] 尝试连接到 %s:%s (超时=%ss)...", self.server_ip, self.server_port, timeout)
 
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.settimeout(BCI_CONNECTION_TIMEOUT)
+            self.socket.settimeout(timeout)
             self.socket.connect((self.server_ip, self.server_port))
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
             self.socket.settimeout(0)

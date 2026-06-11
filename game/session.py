@@ -19,11 +19,18 @@ from config import (
     BACKGROUND_IMG,
     CUP_DURATION,
     CUP_WIDTH,
+    DIGIT_HEIGHT,
+    DIGIT_SPACING,
+    DIGIT_WIDTH,
+    FOCUS_BALL_IMG,
+    FOCUS_BALL_POS,
+    FOCUS_BALL_SIZE,
     FORMAL_SPEED_MAX,
     FORMAL_SPEED_MIN,
     GAME_MODES,
     INGREDIENT_COLORS,
     INGREDIENT_IMGS,
+    NUM_IMG_DIR,
     OUTLET_POSITIONS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -206,6 +213,26 @@ class GameSession:
                 self._top_bar = pygame.transform.smoothscale(self._top_bar, (1280, 60))
             except Exception:
                 pass
+
+        self._focus_ball = None
+        if os.path.exists(FOCUS_BALL_IMG):
+            try:
+                self._focus_ball = pygame.image.load(FOCUS_BALL_IMG).convert_alpha()
+                self._focus_ball = pygame.transform.smoothscale(self._focus_ball, FOCUS_BALL_SIZE)
+            except Exception:
+                pass
+
+        self._digit_imgs: list[pygame.Surface] = []
+        for i in range(10):
+            path = os.path.join(NUM_IMG_DIR, f"{i}.png")
+            try:
+                img = pygame.image.load(path).convert_alpha()
+                img = pygame.transform.smoothscale(img, (DIGIT_WIDTH, DIGIT_HEIGHT))
+                self._digit_imgs.append(img)
+            except Exception:
+                self._digit_imgs.append(
+                    pygame.Surface((DIGIT_WIDTH, DIGIT_HEIGHT), pygame.SRCALPHA)
+                )
 
     def _init_state(self) -> None:
         self.running = True
@@ -744,6 +771,8 @@ class GameSession:
 
         self._render_formal_hud()
 
+        self._draw_focus_ball()
+
         if self._esc_dialog_active:
             self._draw_esc_dialog()
 
@@ -751,6 +780,25 @@ class GameSession:
 
     def _draw_lane_lines(self) -> None:
         pass
+
+    def _draw_focus_ball(self) -> None:
+        if self._focus_ball is None or not self._digit_imgs:
+            return
+
+        bx, by = FOCUS_BALL_POS
+        bw, bh = FOCUS_BALL_SIZE
+        self.screen.blit(self._focus_ball, (bx - bw // 2, by - bh // 2))
+
+        val = int(self.attention) if self.attention is not None else 0
+        s = f"{min(val, 99):02d}"
+        total_w = len(s) * DIGIT_WIDTH + (len(s) - 1) * DIGIT_SPACING
+        start_x = bx - total_w // 2
+        digit_y = by - DIGIT_HEIGHT // 2
+        for ch in s:
+            idx = ord(ch) - 48
+            if 0 <= idx < len(self._digit_imgs):
+                self.screen.blit(self._digit_imgs[idx], (start_x, digit_y))
+            start_x += DIGIT_WIDTH + DIGIT_SPACING
 
     def _render_formal_hud(self) -> None:
         self._draw_lane_lines()

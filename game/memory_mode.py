@@ -174,16 +174,10 @@ class MemorySession:
         idx = self._free_outlet()
         if idx is None:
             return None
-        ox, oy = OUTLET_POSITIONS[idx]
-        x = random.randint(ox - 20, ox + 20)
-        size = 80
-        y = oy - size // 2 + random.randint(-10, 10)
 
-        ing = Ingredient(ing_type, speed=self._ingredient_speed)
-        ing.rect.width = size
-        ing.rect.height = size
-        ing.rect.centerx = x
-        ing.rect.y = y
+        ing = Ingredient(ing_type, speed=self._ingredient_speed, outlet_index=idx)
+        ing.rect.width = 80
+        ing.rect.height = 80
 
         self._all_ingredients.add(ing)
         return ing

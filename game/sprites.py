@@ -270,6 +270,7 @@ class Ingredient(pygame.sprite.Sprite):
         is_required: bool = False,
         speed: float = -1.0,
         allowed_lanes: list[int] | None = None,
+        outlet_index: int | None = None,
         *groups: Any,
     ) -> None:
         super().__init__(*groups)
@@ -292,13 +293,25 @@ class Ingredient(pygame.sprite.Sprite):
             pygame.draw.circle(self.image, color, (size // 2, size // 2), size // 2)
 
         self.rect = self.image.get_rect()
-        ox, oy = self._random_spawn_position(allowed_lanes)
+        if outlet_index is not None:
+            ox, oy = OUTLET_POSITIONS[outlet_index]
+            ox += random.randint(-20, 20)
+            oy += random.randint(-10, 10)
+        else:
+            ox, oy = self._random_spawn_position(allowed_lanes)
+        target_y = oy - size // 2
         self.rect.centerx = ox
-        self.rect.y = oy - size // 2
+        self.rect.y = target_y - 30  # 从出料口上方30px开始
+
         self.speed: float = speed if speed >= 0 else INGREDIENT_SPEED
         self._float_t = random.uniform(0, 6.28)
         self._base_centerx = self.rect.centerx
         self._orig_image = self.image.copy()
+
+        self._anim_frame = 0
+        self._anim_total = 10
+        self._anim_target_y = target_y
+        self._anim_start_y = target_y - 30
 
         self._glow_phase = 0.0
         self._particle_group: pygame.sprite.Group | None = None
@@ -319,6 +332,21 @@ class Ingredient(pygame.sprite.Sprite):
         self._particle_group = group
 
     def update(self) -> None:
+        if self._anim_frame < self._anim_total:
+            self._anim_frame += 1
+            t = self._anim_frame / self._anim_total
+            t_ease = 1.0 - (1.0 - t) * (1.0 - t)
+            self.rect.y = int(self._anim_start_y + (self._anim_target_y - self._anim_start_y) * t_ease)
+            scale = 0.5 + 0.5 * t_ease
+            nw = int(self._orig_image.get_width() * scale)
+            nh = int(self._orig_image.get_height() * scale)
+            self.image = pygame.transform.smoothscale(self._orig_image, (nw, nh))
+            cx, cy = self.rect.centerx, self.rect.centery
+            self.rect = self.image.get_rect(center=(cx, cy))
+            if self._anim_frame >= self._anim_total:
+                self._base_centerx = self.rect.centerx
+            return
+
         self._float_t += 0.05
         self.rect.y += int(self.speed)
 

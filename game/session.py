@@ -750,11 +750,7 @@ class GameSession:
         pygame.display.flip()
 
     def _draw_lane_lines(self) -> None:
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        for ox, oy in OUTLET_POSITIONS:
-            pygame.draw.circle(overlay, (255, 255, 255, 30), (ox, oy), 8, 1)
-            pygame.draw.circle(overlay, (255, 255, 255, 15), (ox, oy), 5)
-        self.screen.blit(overlay, (0, 0))
+        pass
 
     def _render_formal_hud(self) -> None:
         self._draw_lane_lines()

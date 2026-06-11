@@ -1,4 +1,4 @@
-"""通用辉光按钮 - 霓虹发光 + 粒子效果风格（原 BCI 模式按钮改造为通用版）"""
+"""通用辉光按钮 - 支持程序化绘制或图片背景 + 粒子效果"""
 
 from __future__ import annotations
 
@@ -11,17 +11,20 @@ from menu.components import ClickParticle, MenuItem
 
 
 class GlowButton(MenuItem):
-    """通用辉光按钮 - 脉冲光晕边框 + 悬停粒子 + 发光文字
+    """通用辉光按钮 - 脉冲光晕 + 悬停粒子 + 发光文字
 
     参数:
         text: 按钮文字
         x, y: 按钮中心坐标
         font: 按钮字体
         title_font: 标题字体
-        glow_color: 辉光颜色 (R, G, B)，粒子、边框、光晕均基于此色
-        bg_color: 按钮底色 (R, G, B)
-        hover_color: 悬停时的底色
+        glow_color: 辉光颜色 (R, G, B)
+        bg_color: 按钮底色（无图片时使用）
+        hover_color: 悬停时的底色（无图片时使用）
         text_color: 文字颜色
+        width: 固定按钮宽度（可选）
+        padding: 内边距 (horizontal, vertical)，默认 (50, 18)
+        image_path: 按钮背景图片路径（可选），传入后使用图片替代程序化绘制
     """
 
     def __init__(
@@ -37,6 +40,7 @@ class GlowButton(MenuItem):
         text_color: tuple[int, int, int] = (255, 255, 255),
         width: int | None = None,
         padding: tuple[int, int] | None = None,
+        image_path: str | None = None,
     ) -> None:
         self.text = text
         self.font = font
@@ -52,6 +56,17 @@ class GlowButton(MenuItem):
         w = width if width is not None else self._text_surf.get_width() + self.padding[0] * 2
         h = self._text_surf.get_height() + self.padding[1] * 2
         self.rect = pygame.Rect(x - w // 2, y - h // 2, w, h)
+
+        self._bg_image = None
+        self._bg_image_cache = None
+        self._bg_image_last_wh = (0, 0)
+        if image_path:
+            try:
+                self._bg_image = pygame.image.load(image_path)
+                if pygame.display.get_surface():
+                    self._bg_image = self._bg_image.convert_alpha()
+            except (pygame.error, OSError):
+                self._bg_image = None
 
         self.hovered = False
         self.scale_t = 0.0
@@ -104,30 +119,36 @@ class GlowButton(MenuItem):
         h = int(self.rect.height * s)
         surf = pygame.Surface((w, h), pygame.SRCALPHA)
 
-        border_color = self.hover_color if self.hovered else self.glow_color
-        border_alpha = int(180 + pulse * 75)
+        if self._bg_image:
+            if self._bg_image_cache is None or (w, h) != self._bg_image_last_wh:
+                self._bg_image_cache = pygame.transform.smoothscale(self._bg_image, (w, h))
+                self._bg_image_last_wh = (w, h)
+            surf.blit(self._bg_image_cache, (0, 0))
+        else:
+            border_color = self.hover_color if self.hovered else self.glow_color
+            border_alpha = int(180 + pulse * 75)
 
-        for i in range(4, 0, -1):
-            thick = i * 2
-            alpha = border_alpha // (i + 1)
+            for i in range(4, 0, -1):
+                thick = i * 2
+                alpha = border_alpha // (i + 1)
+                pygame.draw.rect(
+                    surf,
+                    (*border_color, alpha),
+                    (-i, -i, w + i * 2, h + i * 2),
+                    thick,
+                    border_radius=int(self.radius * s + i),
+                )
+
             pygame.draw.rect(
                 surf,
-                (*border_color, alpha),
-                (-i, -i, w + i * 2, h + i * 2),
-                thick,
-                border_radius=int(self.radius * s + i),
+                (*border_color, border_alpha),
+                (0, 0, w, h),
+                3,
+                border_radius=int(self.radius * s),
             )
 
-        pygame.draw.rect(
-            surf,
-            (*border_color, border_alpha),
-            (0, 0, w, h),
-            3,
-            border_radius=int(self.radius * s),
-        )
-
-        bg = (*self.bg_color, (180 + (1 if self.hovered else 0) * 40))
-        pygame.draw.rect(surf, bg, (2, 2, w - 4, h - 4), border_radius=int(self.radius * s - 1))
+            bg = (*self.bg_color, (180 + (1 if self.hovered else 0) * 40))
+            pygame.draw.rect(surf, bg, (2, 2, w - 4, h - 4), border_radius=int(self.radius * s - 1))
 
         if self.click_t > 0:
             click_surf = pygame.Surface((w, h), pygame.SRCALPHA)
@@ -136,7 +157,7 @@ class GlowButton(MenuItem):
                 click_surf,
                 (*self.glow_color, click_alpha),
                 (0, 0, w, h),
-                border_radius=int(self.radius * s),
+                border_radius=int(self.radius * s) if not self._bg_image else 0,
             )
             surf.blit(click_surf, (0, 0))
 
@@ -152,9 +173,17 @@ class GlowButton(MenuItem):
         text_glow.set_alpha(int(100 + pulse * 60))
         tw = text_glow.get_width()
         th = text_glow.get_height()
-        surf.blit(text_glow, ((w - tw) // 2 + 1, (h - th) // 2 + 1))
+        tx = (w - tw) // 2 + 1
+        ty = (h - th) // 2 + 1
+        if self._bg_image:
+            tx += 20
+        surf.blit(text_glow, (tx, ty))
 
-        surf.blit(self._text_surf, ((w - tw) // 2, (h - th) // 2))
+        tx = (w - tw) // 2
+        ty = (h - th) // 2
+        if self._bg_image:
+            tx += 20
+        surf.blit(self._text_surf, (tx, ty))
 
         screen.blit(surf, (self.rect.centerx - w // 2, self.rect.centery - h // 2))
 

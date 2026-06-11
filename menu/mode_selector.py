@@ -127,6 +127,7 @@ class ModeSelector(MenuItem):
         control_modes: list[dict] | None = None,
         width: int | None = None,
         padding: tuple[int, int] | None = None,
+        image_path: str | None = None,
     ) -> None:
         self.control_modes = control_modes or CONTROL_MODES
         self.current_index = 0
@@ -146,9 +147,20 @@ class ModeSelector(MenuItem):
         self.radius = 25
 
         self._rebuild_text_surf()
-        w = width if width is not None else self._text_surf.get_width() + padding[0] * 2
-        h = self._text_surf.get_height() + padding[1] * 2
+        w = width if width is not None else self._text_surf.get_width() + self.padding[0] * 2
+        h = self._text_surf.get_height() + self.padding[1] * 2
         self.rect = pygame.Rect(x - w // 2, y - h // 2, w, h)
+
+        self._bg_image = None
+        self._bg_image_cache = None
+        self._bg_image_last_wh = (0, 0)
+        if image_path:
+            try:
+                self._bg_image = pygame.image.load(image_path)
+                if pygame.display.get_surface():
+                    self._bg_image = self._bg_image.convert_alpha()
+            except (pygame.error, OSError):
+                self._bg_image = None
 
         self.click_particles: list[ClickParticle] = []
         self.glow_particles: list[ClickParticle] = []
@@ -270,35 +282,41 @@ class ModeSelector(MenuItem):
         h = int(self.rect.height * s)
         surf = pygame.Surface((w, h), pygame.SRCALPHA)
 
-        bg_color, hover_color = self._bg_color_info
-        color = hover_color if self.hovered else bg_color
+        if self._bg_image:
+            if self._bg_image_cache is None or (w, h) != self._bg_image_last_wh:
+                self._bg_image_cache = pygame.transform.smoothscale(self._bg_image, (w, h))
+                self._bg_image_last_wh = (w, h)
+            surf.blit(self._bg_image_cache, (0, 0))
+        else:
+            bg_color, hover_color = self._bg_color_info
+            color = hover_color if self.hovered else bg_color
 
-        border_color = hover_color if self.hovered else glow
-        border_alpha = int(180 + pulse * 75) if enabled else int(60 + pulse * 25)
+            border_color = hover_color if self.hovered else glow
+            border_alpha = int(180 + pulse * 75) if enabled else int(60 + pulse * 25)
 
-        for i in range(4, 0, -1):
-            thick = i * 2
-            alpha = border_alpha // (i + 1)
+            for i in range(4, 0, -1):
+                thick = i * 2
+                alpha = border_alpha // (i + 1)
+                pygame.draw.rect(
+                    surf,
+                    (*border_color, alpha),
+                    (-i, -i, w + i * 2, h + i * 2),
+                    thick,
+                    border_radius=int(self.radius * s + i),
+                )
+
             pygame.draw.rect(
                 surf,
-                (*border_color, alpha),
-                (-i, -i, w + i * 2, h + i * 2),
-                thick,
-                border_radius=int(self.radius * s + i),
+                (*border_color, border_alpha),
+                (0, 0, w, h),
+                3,
+                border_radius=int(self.radius * s),
             )
 
-        pygame.draw.rect(
-            surf,
-            (*border_color, border_alpha),
-            (0, 0, w, h),
-            3,
-            border_radius=int(self.radius * s),
-        )
-
-        bg_a = 180 + (1 if self.hovered else 0) * 40
-        if not enabled:
-            bg_a = 80
-        pygame.draw.rect(surf, (*color, bg_a), (2, 2, w - 4, h - 4), border_radius=int(self.radius * s - 1))
+            bg_a = 180 + (1 if self.hovered else 0) * 40
+            if not enabled:
+                bg_a = 80
+            pygame.draw.rect(surf, (*color, bg_a), (2, 2, w - 4, h - 4), border_radius=int(self.radius * s - 1))
 
         if self.click_t > 0:
             click_surf = pygame.Surface((w, h), pygame.SRCALPHA)
@@ -307,7 +325,7 @@ class ModeSelector(MenuItem):
                 click_surf,
                 (*glow, click_alpha),
                 (0, 0, w, h),
-                border_radius=int(self.radius * s),
+                border_radius=int(self.radius * s) if not self._bg_image else 0,
             )
             surf.blit(click_surf, (0, 0))
 
@@ -338,11 +356,19 @@ class ModeSelector(MenuItem):
             text_glow.set_alpha(int(100 + pulse * 60))
             tw = text_glow.get_width()
             th = text_glow.get_height()
-            surf.blit(text_glow, ((w - tw) // 2 + 1, (h - th) // 2 + 1))
+            tx = (w - tw) // 2 + 1
+            ty = (h - th) // 2 + 1
+            if self._bg_image:
+                tx += 20
+            surf.blit(text_glow, (tx, ty))
 
         tw = self._text_surf.get_width()
         th = self._text_surf.get_height()
-        surf.blit(self._text_surf, ((w - tw) // 2, (h - th) // 2))
+        tx = (w - tw) // 2
+        ty = (h - th) // 2
+        if self._bg_image:
+            tx += 20
+        surf.blit(self._text_surf, (tx, ty))
 
         screen.blit(surf, (self.rect.centerx - w // 2, self.rect.centery - h // 2))
 

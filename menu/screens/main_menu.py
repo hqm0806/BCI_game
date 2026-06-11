@@ -99,6 +99,7 @@ class MainMenu:
             text_color=(255, 255, 255),
             width=btn_w,
             padding=btn_padding,
+            image_path=os.path.join(IMAGES_DIR, "buttons", "游戏开始.png"),
         )
 
         self.settings_btn = GlowButton(
@@ -113,6 +114,7 @@ class MainMenu:
             text_color=(255, 255, 255),
             width=btn_w,
             padding=btn_padding,
+            image_path=os.path.join(IMAGES_DIR, "buttons", "设置.png"),
         )
 
         self.mode_selector = ModeSelector(
@@ -123,6 +125,7 @@ class MainMenu:
             control_modes=CONTROL_MODES,
             width=btn_w,
             padding=btn_padding,
+            image_path=os.path.join(IMAGES_DIR, "buttons", "选择模式.png"),
         )
 
         self.exit_btn = GlowButton(
@@ -137,6 +140,7 @@ class MainMenu:
             text_color=(255, 255, 255),
             width=btn_w,
             padding=btn_padding,
+            image_path=os.path.join(IMAGES_DIR, "buttons", "退出.png"),
         )
 
         self.btn_cx = SCREEN_WIDTH // 2

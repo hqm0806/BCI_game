@@ -47,7 +47,7 @@ SOUNDS_DIR = os.path.join(ASSETS_DIR, "sounds")  # 音效资源目录
 # 图片资源路径
 # 新增图片时只需将文件放入 images 目录，然后在此处添加路径即可
 # ============================================================
-BACKGROUND_IMG = os.path.join(IMAGES_DIR, "backgrounds", "菜单页1.jpg")  # 背景图
+BACKGROUND_IMG = os.path.join(IMAGES_DIR, "backgrounds", "游戏背景.jpg")  # 游戏背景图
 CUP_IMGS = [  # 杯子阶段图片：0接→1, 1接→2, 2+接→3
     os.path.join(IMAGES_DIR, "cups", "奶茶杯1.png"),
     os.path.join(IMAGES_DIR, "cups", "奶茶杯2.png"),

@@ -24,9 +24,7 @@ from config import (
     GAME_MODES,
     INGREDIENT_COLORS,
     INGREDIENT_IMGS,
-    LANE_LINE_COLOR,
-    LANE_WIDTH,
-    NUM_LANES,
+    OUTLET_POSITIONS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SECRET_RECIPE_SUSTAIN,
@@ -752,13 +750,11 @@ class GameSession:
         pygame.display.flip()
 
     def _draw_lane_lines(self) -> None:
-        lane_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        for i in range(1, NUM_LANES):
-            if i == NUM_LANES // 2:
-                continue
-            x = i * LANE_WIDTH
-            pygame.draw.line(lane_overlay, LANE_LINE_COLOR, (x, 60), (x, SCREEN_HEIGHT), 2)
-        self.screen.blit(lane_overlay, (0, 0))
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        for ox, oy in OUTLET_POSITIONS:
+            pygame.draw.circle(overlay, (255, 255, 255, 30), (ox, oy), 8, 1)
+            pygame.draw.circle(overlay, (255, 255, 255, 15), (ox, oy), 5)
+        self.screen.blit(overlay, (0, 0))
 
     def _render_formal_hud(self) -> None:
         self._draw_lane_lines()

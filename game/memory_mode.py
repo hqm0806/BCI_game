@@ -11,6 +11,8 @@ import pygame
 from config import (
     BACKGROUND_IMG,
     INGREDIENT_IMGS,
+    OUTLET_BLOCK_RADIUS,
+    OUTLET_POSITIONS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
@@ -151,37 +153,37 @@ class MemorySession:
             self._spawn_count = 0
             self._recipe_spawn_index = 0
 
-    def _free_lane(self) -> int | None:
-        lanes = list(range(self._num_lanes))
-        random.shuffle(lanes)
-        for lane in lanes:
-            lane_left = lane * self._lane_w
-            lane_right = lane_left + self._lane_w
-            count = 0
+    def _free_outlet(self) -> int | None:
+        indices = list(range(len(OUTLET_POSITIONS)))
+        random.shuffle(indices)
+        for idx in indices:
+            ox, oy = OUTLET_POSITIONS[idx]
             blocked = False
             for ing in self._all_ingredients:
-                if lane_left <= ing.rect.centerx < lane_right:
-                    count += 1
+                dx = ing.rect.centerx - ox
+                dy = ing.rect.centery - oy
+                if dx * dx + dy * dy < OUTLET_BLOCK_RADIUS * OUTLET_BLOCK_RADIUS:
                     if ing.rect.y < self._lane_spacing:
                         blocked = True
                         break
-            if not blocked and count < self._max_per_lane:
-                return lane
+            if not blocked:
+                return idx
         return None
 
     def _spawn_ingredient(self, ing_type: str) -> Ingredient | None:
-        lane = self._free_lane()
-        if lane is None:
+        idx = self._free_outlet()
+        if idx is None:
             return None
-        center = lane * self._lane_w + self._lane_w // 2
-        x = random.randint(center - 30, center + 30)
-        x = max(lane * self._lane_w + 10, min((lane + 1) * self._lane_w - 90, x))
+        ox, oy = OUTLET_POSITIONS[idx]
+        x = random.randint(ox - 20, ox + 20)
+        size = 80
+        y = oy - size // 2 + random.randint(-10, 10)
 
         ing = Ingredient(ing_type, speed=self._ingredient_speed)
-        ing.rect.width = 80
-        ing.rect.height = 80
+        ing.rect.width = size
+        ing.rect.height = size
         ing.rect.centerx = x
-        ing.rect.y = -80
+        ing.rect.y = y
 
         self._all_ingredients.add(ing)
         return ing

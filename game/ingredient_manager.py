@@ -10,7 +10,7 @@ from typing import Any
 
 import pygame
 
-from config import INGREDIENT_LANE_INDICES, INGREDIENT_SPAWN_INTERVAL, INGREDIENT_TIERS, LANE_WIDTH, SCREEN_HEIGHT
+from config import INGREDIENT_SPAWN_INTERVAL, INGREDIENT_TIERS, OUTLET_BLOCK_RADIUS, OUTLET_POSITIONS, SCREEN_HEIGHT
 from game.sprites import Ingredient
 
 
@@ -63,7 +63,7 @@ class IngredientManager:
     def spawn_ingredient(
         self,
         required_types: list[str] | None = None,
-        allowed_lanes: list[int] | None = None,
+        allowed_outlets: list[int] | None = None,
     ) -> Ingredient:
         types = required_types if required_types else self._available
         available_types = [t for t in types if t != self.last_type]
@@ -81,10 +81,10 @@ class IngredientManager:
             ing_type = "冰块"
             is_required = False
 
-        return Ingredient(ing_type, is_required, self._current_speed, allowed_lanes=allowed_lanes)
+        return Ingredient(ing_type, is_required, self._current_speed, allowed_lanes=allowed_outlets)
 
-    def spawn_secret_recipe(self, allowed_lanes: list[int] | None = None) -> Ingredient:
-        return Ingredient("秘方", is_required=False, speed=self._current_speed, allowed_lanes=allowed_lanes)
+    def spawn_secret_recipe(self, allowed_outlets: list[int] | None = None) -> Ingredient:
+        return Ingredient("秘方", is_required=False, speed=self._current_speed, allowed_lanes=allowed_outlets)
 
     def update(
         self,
@@ -92,7 +92,7 @@ class IngredientManager:
         ingredients_group: pygame.sprite.Group | None = None,
     ) -> Ingredient | None:
         if self.should_spawn():
-            allowed = self._free_lanes(ingredients_group) if ingredients_group else None
+            allowed = self._free_outlets(ingredients_group) if ingredients_group else None
             if allowed is None or allowed:
                 ingredient = self.spawn_ingredient(required_types, allowed)
                 self._on_spawned()
@@ -100,10 +100,13 @@ class IngredientManager:
         return None
 
     @staticmethod
-    def _free_lanes(ingredients_group: pygame.sprite.Group) -> list[int]:
+    def _free_outlets(ingredients_group: pygame.sprite.Group) -> list[int]:
         occupied = set()
         for ing in ingredients_group:
             if ing.rect.y < SCREEN_HEIGHT * 0.35:
-                lane = min(int(ing.rect.centerx) // LANE_WIDTH, 5)
-                occupied.add(lane)
-        return [l for l in INGREDIENT_LANE_INDICES if l not in occupied]
+                for i, (ox, oy) in enumerate(OUTLET_POSITIONS):
+                    dx = ing.rect.centerx - ox
+                    dy = ing.rect.centery - oy
+                    if dx * dx + dy * dy < OUTLET_BLOCK_RADIUS * OUTLET_BLOCK_RADIUS:
+                        occupied.add(i)
+        return [i for i in range(len(OUTLET_POSITIONS)) if i not in occupied]

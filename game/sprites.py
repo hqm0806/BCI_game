@@ -20,10 +20,9 @@ from config import (
     CUP_WIDTH,
     INGREDIENT_COLORS,
     INGREDIENT_IMGS,
-    INGREDIENT_LANE_INDICES,
     INGREDIENT_SIZE,
     INGREDIENT_SPEED,
-    LANE_WIDTH,
+    OUTLET_POSITIONS,
     RED,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -293,8 +292,9 @@ class Ingredient(pygame.sprite.Sprite):
             pygame.draw.circle(self.image, color, (size // 2, size // 2), size // 2)
 
         self.rect = self.image.get_rect()
-        self.rect.x = self._random_spawn_x(size, allowed_lanes)
-        self.rect.y = -size
+        ox, oy = self._random_spawn_position(allowed_lanes)
+        self.rect.centerx = ox
+        self.rect.y = oy - size // 2
         self.speed: float = speed if speed >= 0 else INGREDIENT_SPEED
         self._float_t = random.uniform(0, 6.28)
         self._base_centerx = self.rect.centerx
@@ -305,12 +305,15 @@ class Ingredient(pygame.sprite.Sprite):
         self._particle_timer = 0.0
 
     @staticmethod
-    def _random_spawn_x(size: int, allowed_lanes: list[int] | None = None) -> int:
-        lanes = allowed_lanes if allowed_lanes else INGREDIENT_LANE_INDICES
-        lane = random.choice(lanes)
-        lane_start = lane * LANE_WIDTH
-        lane_end = lane_start + LANE_WIDTH
-        return random.randint(lane_start, max(lane_start, lane_end - size))
+    def _random_spawn_position(allowed_outlets: list[int] | None = None) -> tuple[int, int]:
+        if allowed_outlets is not None and len(allowed_outlets) > 0:
+            idx = random.choice(allowed_outlets)
+        else:
+            idx = random.randrange(len(OUTLET_POSITIONS))
+        ox, oy = OUTLET_POSITIONS[idx]
+        ox += random.randint(-20, 20)
+        oy += random.randint(-10, 10)
+        return ox, oy
 
     def set_particle_group(self, group: pygame.sprite.Group) -> None:
         self._particle_group = group

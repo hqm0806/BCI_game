@@ -145,9 +145,9 @@ class MainMenu:
             image_path=os.path.join(IMAGES_DIR, "buttons", "退出.png"),
         )
 
-        self.btn_cx = SCREEN_WIDTH // 2
+        self.btn_cx = (col1_x + col2_x) // 2  # 标题居中于四个按钮上方
 
-        self.title_y = 135  # 疯狂奶茶杯的y坐标
+        self.title_y = 400  # 疯狂奶茶杯的y坐标
         self.title_phase = 0.0
 
         self._dialog_active = False
@@ -504,8 +504,8 @@ class MainMenu:
         title_offset = math.sin(self.title_phase) * 8
         title_chars = list("疯狂奶茶杯")
         char_spacing = 15
-        char_surfs = [self.big_title_font.render(c, True, (255, 220, 150)) for c in title_chars]
-        char_shadows = [self.big_title_font.render(c, True, (80, 40, 10)) for c in title_chars]
+        char_surfs = [self.big_title_font.render(c, True, (165, 85, 30)) for c in title_chars]
+        char_shadows = [self.big_title_font.render(c, True, (60, 25, 5)) for c in title_chars]
         total_w = sum(s.get_width() for s in char_surfs) + char_spacing * (len(char_surfs) - 1)
 
         tx = self.btn_cx - total_w // 2
@@ -516,8 +516,10 @@ class MainMenu:
             self.screen.blit(surf, (cx, ty))
             cx += surf.get_width() + char_spacing
 
-        sub_surf = self.font.render("接住食材 · 制作属于你的美味奶茶", True, (220, 200, 170))
+        sub_surf = self.font.render("接住食材 · 制作属于你的美味奶茶", True, (200, 160, 125))
+        sub_shadow = self.font.render("接住食材 · 制作属于你的美味奶茶", True, (30, 15, 5))
         sw = sub_surf.get_width()
+        self.screen.blit(sub_shadow, (self.btn_cx - sw // 2 + 2, ty + 62))
         self.screen.blit(sub_surf, (self.btn_cx - sw // 2, ty + 60))
 
         self.start_btn.draw(self.screen)

@@ -164,9 +164,10 @@ class ModeSelector(MenuItem):
 
         self.click_particles: list[ClickParticle] = []
         self.glow_particles: list[ClickParticle] = []
+        panel_h = 15 + len(self.control_modes) * 55
         self.info_display = ModePreviewDisplay(
-            self.rect.right + 20,
-            self.rect.top - 10,
+            self.rect.centerx - 140,
+            self.rect.top - panel_h - 10,
             font,
             font,
             self.control_modes,
@@ -199,9 +200,10 @@ class ModeSelector(MenuItem):
         h = self._text_surf.get_height() + self.padding[1] * 2
         old_center = self.rect.center
         self.rect = pygame.Rect(old_center[0] - w // 2, old_center[1] - h // 2, w, h)
+        panel_h = 15 + len(self.control_modes) * 55
         self.info_display = ModePreviewDisplay(
-            self.rect.right + 20,
-            self.rect.top - 10,
+            self.rect.centerx - 140,
+            self.rect.top - panel_h - 10,
             self.font,
             self.font,
             self.control_modes,

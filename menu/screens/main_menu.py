@@ -79,10 +79,12 @@ class MainMenu:
         area_w = int((1183 - 46) * sx)
         area_h = int((1047 - 761) * sy)
 
-        col1_x = area_left + area_w // 4       # 左列中心
-        col2_x = area_left + area_w * 3 // 4   # 右列中心
-        row1_y = area_top + area_h // 4        # 上行中心
-        row2_y = area_top + area_h * 3 // 4    # 下行中心
+        h_gap = 341   # 按钮水平间距 (原379的90%)
+        v_gap = 86    # 按钮垂直间距 (原96的90%)
+        col1_x = area_left + (area_w - h_gap) // 2
+        col2_x = col1_x + h_gap
+        row1_y = area_top + (area_h - v_gap) // 2
+        row2_y = row1_y + v_gap
         btn_w = 250                             # 固定按钮宽度
         btn_padding = (30, 10)                   # 紧凑垂直padding
         # ==========================================

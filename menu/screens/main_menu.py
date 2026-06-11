@@ -69,49 +69,79 @@ class MainMenu:
         self.steam_spawn_timer = 0
 
         # ==========================================
-        # 按键布局参数
+        # 2×2 按钮布局 - 基于背景图原始坐标 (46,761)-(1183,1047) 映射到 1280x720
+        # 原始图 1920x1078, 缩放比 sx=1280/1920, sy=720/1078
         # ==========================================
-        cx = SCREEN_WIDTH // 2
-        cy = SCREEN_HEIGHT // 2
-        btn_spacing = 105
-        start_y = cy - 50
+        sx = SCREEN_WIDTH / 1920.0
+        sy = SCREEN_HEIGHT / 1078.0
+        area_left = int(46 * sx)
+        area_top = int(761 * sy)
+        area_w = int((1183 - 46) * sx)
+        area_h = int((1047 - 761) * sy)
+
+        col1_x = area_left + area_w // 4       # 左列中心
+        col2_x = area_left + area_w * 3 // 4   # 右列中心
+        row1_y = area_top + area_h // 4        # 上行中心
+        row2_y = area_top + area_h * 3 // 4    # 下行中心
+        btn_w = 250                             # 固定按钮宽度
+        btn_padding = (30, 10)                   # 紧凑垂直padding
         # ==========================================
 
         self.start_btn = GlowButton(
             "游戏开始",
-            cx,
-            start_y,
+            col1_x,
+            row1_y,
             title_font,
             title_font,
             glow_color=(255, 180, 100),
             bg_color=(50, 25, 12),
             hover_color=(85, 40, 20),
             text_color=(255, 255, 255),
-        )
-
-        self.mode_selector = ModeSelector(
-            cx,
-            start_y + btn_spacing,
-            font,
-            title_font,
-            control_modes=CONTROL_MODES,
+            width=btn_w,
+            padding=btn_padding,
         )
 
         self.settings_btn = GlowButton(
             "游戏设置",
-            cx,
-            start_y + btn_spacing * 2,
+            col1_x,
+            row2_y,
             title_font,
             title_font,
             glow_color=(255, 190, 110),
             bg_color=(70, 35, 15),
             hover_color=(115, 55, 25),
             text_color=(255, 255, 255),
+            width=btn_w,
+            padding=btn_padding,
         )
 
-        self.btn_cx = cx
+        self.mode_selector = ModeSelector(
+            col2_x,
+            row1_y,
+            font,
+            title_font,
+            control_modes=CONTROL_MODES,
+            width=btn_w,
+            padding=btn_padding,
+        )
 
-        self.title_y = start_y - 175  # 疯狂奶茶杯的y坐标
+        self.exit_btn = GlowButton(
+            "退出",
+            col2_x,
+            row2_y,
+            title_font,
+            title_font,
+            glow_color=(255, 180, 100),
+            bg_color=(50, 25, 12),
+            hover_color=(85, 40, 20),
+            text_color=(255, 255, 255),
+            width=btn_w,
+            padding=btn_padding,
+        )
+
+        self.btn_cx = SCREEN_WIDTH // 2
+
+        self.title_y = 135  # 疯狂奶茶杯的y坐标
         self.title_phase = 0.0
 
         self._dialog_active = False
@@ -238,15 +268,21 @@ class MainMenu:
                         if self._audio:
                             self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
                     elif event.key == pygame.K_2:
-                        self.mode_selector.cycle_mode()
-                        if self._audio:
-                            self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
-                    elif event.key == pygame.K_3:
                         self.settings_btn.trigger_click()
                         self.result = "settings"
                         click_frames[0] = 15
                         if self._audio:
                             self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
+                    elif event.key == pygame.K_3:
+                        self.mode_selector.cycle_mode()
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
+                    elif event.key == pygame.K_4:
+                        self.exit_btn.trigger_click()
+                        self.running = False
+                        self.result = "quit"
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键2.mp3", volume=0.5)
                 else:
                     if self.badge.handle_event(event):
                         HistoryScreen(self.screen, self._history_games, profile=self._profile).run()
@@ -267,6 +303,12 @@ class MainMenu:
                         click_frames[0] = 15
                         if self._audio:
                             self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
+                    if self.exit_btn.handle_event(event):
+                        self.exit_btn.trigger_click()
+                        self.running = False
+                        self.result = "quit"
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键2.mp3", volume=0.5)
 
             if self._conn_dialog_active:
                 self._conn_dialog_timer += dt
@@ -306,6 +348,7 @@ class MainMenu:
         self.start_btn.update(dt)
         self.mode_selector.update(dt)
         self.settings_btn.update(dt)
+        self.exit_btn.update(dt)
 
         for item in self.floating_items:
             item.update()
@@ -474,6 +517,7 @@ class MainMenu:
         self.start_btn.draw(self.screen)
         self.mode_selector.draw(self.screen)
         self.settings_btn.draw(self.screen)
+        self.exit_btn.draw(self.screen)
 
         if self._conn_dialog_active:
             self._draw_connection_dialog()

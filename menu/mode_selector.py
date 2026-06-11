@@ -125,6 +125,8 @@ class ModeSelector(MenuItem):
         font: pygame.font.Font,
         title_font: pygame.font.Font,
         control_modes: list[dict] | None = None,
+        width: int | None = None,
+        padding: tuple[int, int] | None = None,
     ) -> None:
         self.control_modes = control_modes or CONTROL_MODES
         self.current_index = 0
@@ -132,6 +134,7 @@ class ModeSelector(MenuItem):
         self.title_font = title_font
         self.x = x
         self.y = y
+        self._fixed_width = width
 
         self.hovered = False
         self.scale_t = 0.0
@@ -139,12 +142,11 @@ class ModeSelector(MenuItem):
         self.ripple = 0.0
         self.pulse_t = 0.0
 
-        padding = (50, 14)
-        self.padding = padding
+        self.padding = padding if padding is not None else (50, 14)
         self.radius = 25
 
         self._rebuild_text_surf()
-        w = self._text_surf.get_width() + padding[0] * 2
+        w = width if width is not None else self._text_surf.get_width() + padding[0] * 2
         h = self._text_surf.get_height() + padding[1] * 2
         self.rect = pygame.Rect(x - w // 2, y - h // 2, w, h)
 
@@ -181,7 +183,7 @@ class ModeSelector(MenuItem):
 
     def _update_text(self) -> None:
         self._rebuild_text_surf()
-        w = self._text_surf.get_width() + self.padding[0] * 2
+        w = self._fixed_width if self._fixed_width is not None else self._text_surf.get_width() + self.padding[0] * 2
         h = self._text_surf.get_height() + self.padding[1] * 2
         old_center = self.rect.center
         self.rect = pygame.Rect(old_center[0] - w // 2, old_center[1] - h // 2, w, h)

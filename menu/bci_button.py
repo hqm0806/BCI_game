@@ -35,6 +35,8 @@ class GlowButton(MenuItem):
         bg_color: tuple[int, int, int] = (0, 40, 80),
         hover_color: tuple[int, int, int] = (0, 80, 150),
         text_color: tuple[int, int, int] = (255, 255, 255),
+        width: int | None = None,
+        padding: tuple[int, int] | None = None,
     ) -> None:
         self.text = text
         self.font = font
@@ -43,11 +45,11 @@ class GlowButton(MenuItem):
         self.bg_color = bg_color
         self.hover_color = hover_color
         self.text_color = text_color
-        self.padding = (50, 18)
+        self.padding = padding if padding is not None else (50, 18)
         self.radius = 25
 
         self._text_surf = title_font.render(text, True, text_color)
-        w = self._text_surf.get_width() + self.padding[0] * 2
+        w = width if width is not None else self._text_surf.get_width() + self.padding[0] * 2
         h = self._text_surf.get_height() + self.padding[1] * 2
         self.rect = pygame.Rect(x - w // 2, y - h // 2, w, h)
 

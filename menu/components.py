@@ -55,6 +55,7 @@ class MenuItem:
         text_color: tuple[int, int, int],
         padding: tuple[int, int] = (60, 18),
         radius: int = 20,
+        width: int | None = None,
     ) -> None:
         self.text = text
         self.font = font
@@ -63,9 +64,10 @@ class MenuItem:
         self.text_color = text_color
         self.padding = padding
         self.radius = radius
+        self._fixed_width = width
 
         self._text_surf = font.render(text, True, text_color)
-        w = self._text_surf.get_width() + padding[0] * 2
+        w = width if width is not None else self._text_surf.get_width() + padding[0] * 2
         h = self._text_surf.get_height() + padding[1] * 2
         self.rect = pygame.Rect(x - w // 2, y - h // 2, w, h)
 

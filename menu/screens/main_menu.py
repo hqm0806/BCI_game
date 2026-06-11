@@ -132,7 +132,7 @@ class MainMenu:
         self._conn_last_connect_attempt = 0.0
 
     def _load_bg(self) -> pygame.Surface | None:
-        path = os.path.join(IMAGES_DIR, "backgrounds", "吧台.png")
+        path = os.path.join(IMAGES_DIR, "backgrounds", "菜单页1.jpg")
         if os.path.exists(path):
             img = pygame.image.load(path).convert()
             return pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))

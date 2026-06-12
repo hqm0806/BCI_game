@@ -1,4 +1,4 @@
-"""游戏结束总结界面"""
+"""游戏结束总结界面 — 结算面板 + 双按钮"""
 
 from __future__ import annotations
 
@@ -8,7 +8,16 @@ import time
 
 import pygame
 
-from config import SCREEN_HEIGHT, SCREEN_WIDTH
+from config import (
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+    SUMMARY_BTN_GAP,
+    SUMMARY_BTN_H,
+    SUMMARY_BTN_W,
+    SUMMARY_PANEL_IMG,
+    SUMMARY_PANEL_POS,
+    SUMMARY_PANEL_SIZE,
+)
 from game.font_utils import load_chinese_font
 
 
@@ -42,18 +51,30 @@ class SummaryScreen:
         self.upgraded = upgraded
         self.focus_samples = focus_samples or []
 
-        self.bg_path = os.path.join(ASSETS_DIR, "images", "backgrounds", "summary_bg.png")
+        self.panel_img = None
+        if os.path.exists(SUMMARY_PANEL_IMG):
+            try:
+                self.panel_img = pygame.image.load(SUMMARY_PANEL_IMG).convert_alpha()
+                self.panel_img = pygame.transform.smoothscale(self.panel_img, SUMMARY_PANEL_SIZE)
+            except Exception:
+                pass
 
-        self.bg = None
-        if os.path.exists(self.bg_path):
-            self.bg = pygame.image.load(self.bg_path).convert()
-            self.bg = pygame.transform.scale(self.bg, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        px, py = SUMMARY_PANEL_POS
+        pw, ph = SUMMARY_PANEL_SIZE
+        total_btn_w = SUMMARY_BTN_W * 2 + SUMMARY_BTN_GAP
+        btn_start_x = px + (pw - total_btn_w) // 2
+        btn_y = py + ph - SUMMARY_BTN_H - 40
+        self._btn_save_rect = pygame.Rect(btn_start_x, btn_y, SUMMARY_BTN_W, SUMMARY_BTN_H)
+        self._btn_quit_rect = pygame.Rect(btn_start_x + SUMMARY_BTN_W + SUMMARY_BTN_GAP, btn_y, SUMMARY_BTN_W, SUMMARY_BTN_H)
+        self._btn_hover_save = False
+        self._btn_hover_quit = False
 
         self.title_font = load_chinese_font(50)
         self.info_font = load_chinese_font(36)
         self.big_font = load_chinese_font(48)
         self.hint_font = load_chinese_font(22)
         self.small_font = load_chinese_font(16)
+        self.btn_font = load_chinese_font(30)
 
         self.comment = self._generate_comment()
 
@@ -118,50 +139,64 @@ class SummaryScreen:
 
         points = self._build_waveform_points(graph_x, graph_y, graph_w, graph_h)
         if len(points) >= 2:
-            pygame.draw.lines(self.screen, (100, 255, 150), False, points, 2)
+            pygame.draw.lines(self.screen, (180, 130, 60), False, points, 2)
 
-        title = self.small_font.render("专注力曲线", True, (160, 160, 160))
+        title = self.small_font.render("专注力曲线", True, (100, 70, 35))
         self.screen.blit(title, (graph_x + 4, graph_y - 18))
+
+    def _draw_button(self, rect: pygame.Rect, text: str, hovered: bool, is_quit: bool = False) -> None:
+        if is_quit:
+            bg = (120, 35, 35) if hovered else (55, 15, 15)
+        else:
+            bg = (100, 60, 25) if hovered else (50, 28, 12)
+        pygame.draw.rect(self.screen, bg, rect, border_radius=12)
+        pygame.draw.rect(self.screen, (255, 255, 255, 60), rect, 2, border_radius=12)
+
+        txt = self.btn_font.render(text, True, (255, 255, 255))
+        tx = rect.centerx - txt.get_width() // 2
+        ty = rect.centery - txt.get_height() // 2
+        self.screen.blit(txt, (tx, ty))
 
     def run(self) -> str:
         start = time.time()
         last_esc = 0.0
         while True:
             self.clock.tick(60)
-            elapsed = time.time() - start
-            can_exit = elapsed >= 3.0
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                if event.type == pygame.MOUSEMOTION:
+                    self._btn_hover_save = self._btn_save_rect.collidepoint(event.pos)
+                    self._btn_hover_quit = self._btn_quit_rect.collidepoint(event.pos)
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self._btn_save_rect.collidepoint(event.pos):
+                        return "menu"
+                    if self._btn_quit_rect.collidepoint(event.pos):
+                        return "quit"
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     now = time.time()
                     if now - last_esc < 0.5:
                         return "menu"
                     last_esc = now
-                elif can_exit and (event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN):
-                    return "menu"
 
-            if self.bg:
-                self.screen.blit(self.bg, (0, 0))
-            else:
-                self.screen.fill((40, 40, 55))
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 90))
+            self.screen.blit(overlay, (0, 0))
 
-            y = 80
-            _draw_centered(self.screen, self.title_font, "游戏结束", y, (255, 255, 255))
+            px, py = SUMMARY_PANEL_POS
+            if self.panel_img:
+                self.screen.blit(self.panel_img, (px, py))
 
-            y += 80
-            pygame.draw.line(self.screen, (100, 100, 120), (200, y), (SCREEN_WIDTH - 200, y), 2)
-
-            y += 40
-            _draw_centered(self.screen, self.info_font, f"Lv.{self.player_level}", y, (255, 215, 0))
+            y = 180
+            _draw_centered(self.screen, self.info_font, f"Lv.{self.player_level}", y, (80, 50, 20))
 
             y += 50
-            _draw_centered(self.screen, self.info_font, f"总收益: {self.total_money}", y, (100, 255, 100))
+            _draw_centered(self.screen, self.info_font, f"总收益: {self.total_money}", y, (80, 50, 20))
 
             y += 45
-            _draw_centered(self.screen, self.hint_font, f"累计营业额: {self.cumulative_revenue}", y, (200, 200, 200))
+            _draw_centered(self.screen, self.hint_font, f"累计营业额: {self.cumulative_revenue}", y, (100, 75, 45))
 
             y += 40
             _draw_centered(
@@ -169,42 +204,41 @@ class SummaryScreen:
                 self.hint_font,
                 f"完成杯数: {self.cup_count} | 秘方: {self.secret_count} 次 | 最高单杯: {self.max_cup_money}",
                 y,
-                (180, 180, 200),
+                (90, 65, 35),
             )
 
             y += 50
             if self.upgraded:
-                up_surf = self.big_font.render(f"升到 Lv.{self.player_level}！新食材已解锁", True, (255, 200, 50))
+                up_surf = self.big_font.render(f"升到 Lv.{self.player_level}！新食材已解锁", True, (140, 70, 20))
                 self.screen.blit(up_surf, (SCREEN_WIDTH // 2 - up_surf.get_width() // 2, y))
                 y += 60
 
             y += 25
-            _draw_centered(self.screen, self.info_font, f"平均专注力: {self.focus_value:.1f}%", y, (150, 255, 150))
+            _draw_centered(self.screen, self.info_font, f"平均专注力: {self.focus_value:.1f}%", y, (80, 50, 20))
 
             y += 30
 
             if self.focus_samples:
-                graph_w = 1100
-                graph_h = 160
+                graph_w = 800
+                graph_h = 120
                 graph_x = (SCREEN_WIDTH - graph_w) // 2
                 graph_y = y + 5
                 total_sec = len(self.focus_samples) / 60.0
                 self._draw_waveform(graph_x, graph_y, graph_w, graph_h, total_sec)
                 y = graph_y + graph_h + 30
 
-            y += 20
-            comment_surf = self.hint_font.render(self.comment, True, (220, 220, 240))
+            y += 10
+            comment_surf = self.hint_font.render(self.comment, True, (110, 80, 40))
             self.screen.blit(comment_surf, (SCREEN_WIDTH // 2 - comment_surf.get_width() // 2, y))
 
-            if can_exit:
-                hint_text = "按 任意键 / 点击屏幕 返回主菜单"
-            else:
-                remain = max(0, int(3 - elapsed) + 1)
-                hint_text = f"请耐心等待 {remain} 秒... 结算中"
-            hint_surf = self.hint_font.render(hint_text, True, (140, 140, 150))
+            self._draw_button(self._btn_save_rect, "保存", self._btn_hover_save, is_quit=False)
+            self._draw_button(self._btn_quit_rect, "退出", self._btn_hover_quit, is_quit=True)
+
+            hint_text = "按 ESC 返回主菜单"
+            hint_surf = self.hint_font.render(hint_text, True, (90, 60, 30))
             self.screen.blit(
                 hint_surf,
-                (SCREEN_WIDTH // 2 - hint_surf.get_width() // 2, SCREEN_HEIGHT - 50),
+                (SCREEN_WIDTH // 2 - hint_surf.get_width() // 2, SCREEN_HEIGHT - 35),
             )
 
             pygame.display.flip()

@@ -19,6 +19,7 @@ from config import (
 from data.memory_recipes import MEMORY_RECIPES
 from game.font_utils import load_chinese_font
 from game.sprites import Cup, Ingredient
+from menu.summary import SummaryScreen
 
 
 class _MemoryParticle(pygame.sprite.Sprite):
@@ -256,7 +257,17 @@ class MemorySession:
                     return "quit"
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     self.running = False
-                    return "menu"
+                    summary = SummaryScreen(
+                        self.screen,
+                        self._total_score,
+                        focus_value=0.0,
+                        game_mode="memory",
+                        total_money=self._total_score,
+                        cup_count=self._total_rounds,
+                        secret_count=self._total_success,
+                        player_level=self._current_level - 1,
+                    )
+                    return summary.run()
 
             if self._phase == "rules":
                 if self._phase_timer >= self._rules_display_time:

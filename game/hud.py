@@ -41,6 +41,7 @@ def draw_hud(
     attn_variance=0.0,
     attn_mode="",
     attn_baseline=0.0,
+    skip_top_info=False,
 ):
     global _glow_alpha, _glow_phase
     import time as time_module
@@ -62,21 +63,22 @@ def draw_hud(
 
     money_text = bar_font.render(f"收益: {score_manager.total_money}", True, (20, 20, 20))
     cy = bar_y + (bar_h - money_text.get_height()) // 2
-    screen.blit(money_text, (bar_center_x - money_text.get_width() // 2, cy))
 
-    mode_color = (139, 0, 0) if (bci_mode and not bci_connected) else (20, 20, 20)
-    mode_text = bar_font.render(mode_name, True, mode_color)
-    screen.blit(mode_text, (bar_x + spacing, cy))
+    if not skip_top_info:
+        screen.blit(money_text, (bar_center_x - money_text.get_width() // 2, cy))
+        mode_color = (139, 0, 0) if (bci_mode and not bci_connected) else (20, 20, 20)
+        mode_text = bar_font.render(mode_name, True, mode_color)
+        screen.blit(mode_text, (bar_x + spacing, cy))
 
-    if is_infinite:
-        cup_text = bar_font.render("已接杯数: ∞", True, (20, 20, 20))
-    else:
-        cup_text = bar_font.render(
-            f"已接杯数: {cup_manager.cup_number}",
-            True,
-            (20, 20, 20),
-        )
-    screen.blit(cup_text, (bar_right - spacing - cup_text.get_width(), cy))
+        if is_infinite:
+            cup_text = bar_font.render("已接杯数: ∞", True, (20, 20, 20))
+        else:
+            cup_text = bar_font.render(
+                f"已接杯数: {cup_manager.cup_number}",
+                True,
+                (20, 20, 20),
+            )
+        screen.blit(cup_text, (bar_right - spacing - cup_text.get_width(), cy))
 
     cup_rem = max(0, CUP_DURATION - (time_module.time() - cup_manager.cup_start_time))
 

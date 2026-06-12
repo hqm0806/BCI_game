@@ -17,6 +17,7 @@ from config import (
     ARTIFACT_STILL_DURATION,
     ARTIFACT_STILL_THRESHOLD,
     BACKGROUND_IMG,
+    BADGE_IMGS,
     CUP_DURATION,
     CUP_WIDTH,
     DIGIT_HEIGHT,
@@ -28,6 +29,12 @@ from config import (
     FORMAL_SPEED_MAX,
     FORMAL_SPEED_MIN,
     GAME_MODES,
+    INFO_BAR_HEIGHT,
+    INFO_BAR_IMG,
+    INFO_BADGE_POS,
+    INFO_BADGE_SIZE,
+    INFO_FONT_SIZE,
+    INFO_REGIONS,
     INGREDIENT_COLORS,
     INGREDIENT_IMGS,
     NUM_IMG_DIR,
@@ -208,10 +215,22 @@ class GameSession:
             pass
 
         self._top_bar = None
-        if os.path.exists(TOP_BAR_IMG):
+        self._info_bar = None
+        if os.path.exists(INFO_BAR_IMG):
             try:
-                self._top_bar = pygame.image.load(TOP_BAR_IMG).convert_alpha()
-                self._top_bar = pygame.transform.smoothscale(self._top_bar, (1280, 60))
+                self._info_bar = pygame.image.load(INFO_BAR_IMG).convert_alpha()
+                self._info_bar = pygame.transform.smoothscale(self._info_bar, (SCREEN_WIDTH, INFO_BAR_HEIGHT))
+            except Exception:
+                pass
+
+        self._badge_img = None
+        level = self._profile.level if self._profile else 1
+        idx = max(0, min(level - 1, len(BADGE_IMGS) - 1))
+        badge_path = BADGE_IMGS[idx]
+        if os.path.exists(badge_path):
+            try:
+                self._badge_img = pygame.image.load(badge_path).convert_alpha()
+                self._badge_img = pygame.transform.smoothscale(self._badge_img, INFO_BADGE_SIZE)
             except Exception:
                 pass
 
@@ -243,6 +262,7 @@ class GameSession:
         self.game_start_time = time_module.time()
         self.focus_samples = []
         self.focus_above_seconds = 0.0
+        self._player_level = self._profile.level if self._profile else 1
 
         self.attention = None
         self.raw_gyro_x = 0.0
@@ -803,9 +823,41 @@ class GameSession:
                 self.screen.blit(self._digit_imgs[idx], (start_x, digit_y))
             start_x += DIGIT_WIDTH + DIGIT_SPACING
 
+    def _draw_badge(self) -> None:
+        if self._badge_img is None:
+            return
+        bx, by = INFO_BADGE_POS
+        bw, bh = INFO_BADGE_SIZE
+        self.screen.blit(self._badge_img, (bx - bw // 2, by - bh // 2))
+
+    def _draw_info_labels(self) -> None:
+        info_font = load_chinese_font(INFO_FONT_SIZE)
+        is_infinite = self.cup_manager.total_cups < 0
+        values = [
+            f"LV.{self._player_level}",
+            self.mode_name,
+            "∞" if is_infinite else f"{self.cup_manager.cup_number}/{self.cup_manager.total_cups}",
+            str(self.score_manager.total_money),
+        ]
+        texts = [
+            (cx, cy, info_font.render(v, True, (255, 255, 255)),
+             info_font.render(v, True, (30, 15, 5)))
+            for (cx, cy), v in zip(INFO_REGIONS, values)
+        ]
+        for cx, cy, txt, shadow in texts:
+            tw, th = txt.get_size()
+            x = cx - tw // 2
+            y = cy - th // 2
+            self.screen.blit(shadow, (x + 1, y + 1))
+            self.screen.blit(txt, (x, y))
+
     def _render_formal_hud(self) -> None:
         self._draw_lane_lines()
-        if self._top_bar:
+        if self._info_bar:
+            self.screen.blit(self._info_bar, (0, 0))
+            self._draw_badge()
+            self._draw_info_labels()
+        elif self._top_bar:
             self.screen.blit(self._top_bar, (0, 0))
             mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
             mask.fill((0, 0, 0, 60))
@@ -823,17 +875,7 @@ class GameSession:
             bci_mode=self.bci_mode,
             free_combine=self.free_combine,
             bci_connected=self.bci_available,
-            # focus_above_seconds=self.focus_above_seconds,
-            # raw_gyro_x=self.raw_gyro_x,
-            # raw_gyro_y=self.raw_gyro_y,
-            # raw_gyro_z=self.raw_gyro_z,
-            # platform_focus_x=self.platform_focus_x,
-            # platform_focus_y=self.platform_focus_y,
-            # cup_x=self.cup.rect.centerx,
-            # cup_y=self.cup.rect.centery,
-            # attn_variance=self._attn_variance,
-            # attn_mode=self._attn_mode,
-            # attn_baseline=40.0,
+            skip_top_info=self._info_bar is not None,
         )
 
         if self.bci_mode:

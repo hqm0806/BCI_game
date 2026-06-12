@@ -90,7 +90,20 @@ BADGE_IMGS = [  # 徽章图片列表，按等级排列
     os.path.join(IMAGES_DIR, "badges", "badge4.png"),
 ]
 PATIENCE_BAR_IMG = os.path.join(IMAGES_DIR, "other", "耐心条.png")
-TOP_BAR_IMG = os.path.join(IMAGES_DIR, "other", "横.png")  # 游戏顶部背景板
+TOP_BAR_IMG = os.path.join(IMAGES_DIR, "other", "横.png")  # 游戏顶部背景板（已弃用，保留向后兼容）
+INFO_BAR_IMG = os.path.join(IMAGES_DIR, "other", "信息栏.png")  # 游戏顶部信息栏
+INFO_BAR_HEIGHT = 123  # 信息栏缩放后高度 (184 * 1280/1919)
+# 信息标签中心坐标 (基于背景图1920x1078映射到1280x720)
+INFO_REGIONS = [
+    (169, 64),    # 等级 (182,67)-(326,125)
+    (354, 63),    # 模式 (435,67)-(628,123)
+    (870, 62),    # 杯数 (1217,62)-(1395,123)
+    (1080, 61),   # 收益 (1538,62)-(1705,121)
+]
+INFO_FONT_SIZE = 26
+# 等级徽章位置 (基于背景图1920x1078映射到1280x720, 区域(19,15)-(170,162))
+INFO_BADGE_POS = (63, 59)  # 徽章中心点
+INFO_BADGE_SIZE = (100, 100)
 PATIENCE_BAR_SIZE = (350, 35)
 PATIENCE_BAR_TIMEOUT = 90.0  # 接住小料的超时时间（秒）
 

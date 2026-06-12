@@ -32,6 +32,7 @@ from config import (
     INGREDIENT_IMGS,
     NUM_IMG_DIR,
     OUTLET_POSITIONS,
+    OVERLAY_CLEAR_REGIONS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SECRET_RECIPE_SUSTAIN,
@@ -759,6 +760,8 @@ class GameSession:
             self.screen.blit(self.background, (0, 0))
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 10, 90))
+            for rx, ry, rw, rh in OVERLAY_CLEAR_REGIONS:
+                overlay.fill((0, 0, 0, 0), pygame.Rect(rx, ry, rw, rh))
             self.screen.blit(overlay, (0, 0))
         else:
             self.screen.fill((255, 255, 255))

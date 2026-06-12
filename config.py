@@ -386,7 +386,7 @@ GAME_MODES = {
         "ingredient_speed": 3,
         "spawn_interval": 1000,
         "ui_color": (60, 160, 100),
-        "total_cups": 36,
+        "total_cups": 45,
         "secret_recipe_cup_interval": 1,
     },
     "bci": {
@@ -398,7 +398,7 @@ GAME_MODES = {
         "ingredient_speed": 3,
         "spawn_interval": 1200,
         "ui_color": (0, 150, 200),
-        "total_cups": 36,
+        "total_cups": 45,
         "secret_recipe_cup_interval": 3,
     },
     "infinite": {

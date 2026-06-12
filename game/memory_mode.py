@@ -10,6 +10,13 @@ import pygame
 
 from config import (
     BACKGROUND_IMG,
+    BADGE_IMGS,
+    INFO_BADGE_POS,
+    INFO_BADGE_SIZE,
+    INFO_BAR_HEIGHT,
+    INFO_BAR_IMG,
+    INFO_FONT_SIZE,
+    INFO_REGIONS,
     INGREDIENT_IMGS,
     OUTLET_BLOCK_RADIUS,
     OUTLET_POSITIONS,
@@ -65,6 +72,25 @@ class MemorySession:
         self.running = True
 
         self._bg = self._load_bg()
+
+        self._info_bar = None
+        if os.path.exists(INFO_BAR_IMG):
+            try:
+                self._info_bar = pygame.image.load(INFO_BAR_IMG).convert_alpha()
+                self._info_bar = pygame.transform.smoothscale(self._info_bar, (SCREEN_WIDTH, INFO_BAR_HEIGHT))
+            except Exception:
+                pass
+
+        self._badge_img = None
+        level = self._profile.level if self._profile else 1
+        idx = max(0, min(level - 1, len(BADGE_IMGS) - 1))
+        badge_path = BADGE_IMGS[idx]
+        if os.path.exists(badge_path):
+            try:
+                self._badge_img = pygame.image.load(badge_path).convert_alpha()
+                self._badge_img = pygame.transform.smoothscale(self._badge_img, INFO_BADGE_SIZE)
+            except Exception:
+                pass
 
         self.cup = Cup()
         self._all_ingredients = pygame.sprite.Group()
@@ -383,7 +409,8 @@ class MemorySession:
         overlay.fill((0, 0, 0, 40))
         self.screen.blit(overlay, (0, 0))
 
-        self._draw_hud()
+        self._draw_info_bar()
+        self._draw_hud_circles()
 
         if self._phase in ("rules", "memorize", "result", "rest"):
             self.cup.rect.centerx = SCREEN_WIDTH // 2
@@ -405,18 +432,37 @@ class MemorySession:
         elif self._phase == "rest":
             self._draw_rest()
 
-    def _draw_hud(self) -> None:
-        hud_color = (139, 0, 0) if not self._bci_available else (200, 180, 140)
-        level_text = self.small_font.render(
-            f"忆调模式 | 难度 Lv.{self._current_level - 1} | 配方 {self._current_level}食材 | 得分 {self._total_score} | ESC 退出",
-            True,
-            hud_color,
-        )
-        self.screen.blit(level_text, (SCREEN_WIDTH // 2 - level_text.get_width() // 2, 10))
+    def _draw_info_bar(self) -> None:
+        if self._info_bar:
+            self.screen.blit(self._info_bar, (0, 0))
+            if self._badge_img:
+                bx, by = INFO_BADGE_POS
+                bw, bh = INFO_BADGE_SIZE
+                self.screen.blit(self._badge_img, (bx - bw // 2, by - bh // 2))
+            info_font = load_chinese_font(INFO_FONT_SIZE)
+            values = [
+                f"LV.{self._current_level - 1}",
+                "忆调模式",
+                f"{self._total_success}/{self._total_rounds}",
+                str(self._total_score),
+            ]
+            texts = [
+                (cx, cy, info_font.render(v, True, (255, 255, 255)),
+                 info_font.render(v, True, (30, 15, 5)))
+                for (cx, cy), v in zip(INFO_REGIONS, values)
+            ]
+            for cx, cy, txt, shadow in texts:
+                tw, th = txt.get_size()
+                x = cx - tw // 2
+                y = cy - th // 2
+                self.screen.blit(shadow, (x + 1, y + 1))
+                self.screen.blit(txt, (x, y))
+
+    def _draw_hud_circles(self) -> None:
 
         if self._phase == "playing" and self._target_index < len(self._recipe_ingredients):
             n = len(self._recipe_ingredients)
-            circles_y = 40
+            circles_y = 140
             circle_r = 6
             circle_gap = 18
             total_c_w = n * (circle_r * 2) + (n - 1) * circle_gap

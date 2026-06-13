@@ -17,6 +17,7 @@ from config import (
     ARTIFACT_STILL_DURATION,
     ARTIFACT_STILL_THRESHOLD,
     BACKGROUND_IMG,
+    BACKGROUND_OVERLAY_ALPHA,
     BADGE_IMGS,
     CUP_DURATION,
     CUP_WIDTH,
@@ -43,6 +44,7 @@ from config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SECRET_RECIPE_SUSTAIN,
+    SHOW_HUD_INFO,
     TOP_BAR_IMG,
     TOTAL_CUPS,
     WARMUP_FREEZE_TIME,
@@ -118,6 +120,7 @@ class GameSession:
 
     _esc_dialog_active: bool = False
     _esc_dialog_selected: int = 0
+    _pending_settings: bool = False
 
     def __init__(
         self,
@@ -473,6 +476,15 @@ class GameSession:
                     self._render()
                 continue
 
+            if self._pending_settings:
+                self._pending_settings = False
+                from menu.screens.game_settings import GameSettingsScreen
+                settings_font = load_chinese_font(24)
+                settings_title = load_chinese_font(40)
+                settings = GameSettingsScreen(self.screen, settings_font, settings_title, audio=self._audio)
+                settings.run()
+                continue
+
             self._update_bci_data()
 
             self._update_cup(keys, dt_sec)
@@ -510,8 +522,10 @@ class GameSession:
                     else:
                         show_dialog = True
                 elif self._esc_dialog_active:
-                    if event.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_TAB):
-                        self._esc_dialog_selected = 1 - self._esc_dialog_selected
+                    if event.key in (pygame.K_LEFT, pygame.K_UP):
+                        self._esc_dialog_selected = (self._esc_dialog_selected - 1) % 3
+                    elif event.key in (pygame.K_RIGHT, pygame.K_DOWN, pygame.K_TAB):
+                        self._esc_dialog_selected = (self._esc_dialog_selected + 1) % 3
                     elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
                         self._commit_esc_dialog()
             elif event.type == pygame.MOUSEBUTTONDOWN and self._esc_dialog_active:
@@ -528,9 +542,12 @@ class GameSession:
     def _commit_esc_dialog(self) -> None:
         if self._esc_dialog_selected == 0:
             self._esc_dialog_active = False
-        else:
+        elif self._esc_dialog_selected == 1:
             self.show_summary = True
             self.running = False
+        else:
+            self._esc_dialog_active = False
+            self._pending_settings = True
 
     def _handle_esc_dialog_click(self, pos: tuple[int, int]) -> None:
         if hasattr(self, "_esc_continue_rect") and self._esc_continue_rect.collidepoint(pos):
@@ -538,13 +555,16 @@ class GameSession:
         elif hasattr(self, "_esc_exit_rect") and self._esc_exit_rect.collidepoint(pos):
             self.show_summary = True
             self.running = False
+        elif hasattr(self, "_esc_settings_rect") and self._esc_settings_rect.collidepoint(pos):
+            self._esc_dialog_active = False
+            self._pending_settings = True
 
     def _draw_esc_dialog(self) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 160))
         self.screen.blit(overlay, (0, 0))
 
-        box_w, box_h = 380, 200
+        box_w, box_h = 380, 260
         box_x = (SCREEN_WIDTH - box_w) // 2
         box_y = (SCREEN_HEIGHT - box_h) // 2
         box_rect = pygame.Rect(box_x, box_y, box_w, box_h)
@@ -555,22 +575,21 @@ class GameSession:
         self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, box_y + 25))
 
         btn_w, btn_h = 150, 48
-        btn_y = box_y + 105
+        btn_y = box_y + 90
         gap = 20
         left_x = SCREEN_WIDTH // 2 - btn_w - gap // 2
         right_x = SCREEN_WIDTH // 2 + gap // 2
 
         continue_selected = self._esc_dialog_selected == 0
         exit_selected = self._esc_dialog_selected == 1
+        settings_selected = self._esc_dialog_selected == 2
 
-        continue_color = (80, 180, 80)
-        exit_color = (200, 60, 60)
         selected_border = (255, 255, 255)
-        normal_border = (100, 100, 100) if not exit_selected else (80, 80, 80)
+        normal_border = (100, 100, 100)
 
         self._esc_continue_rect = pygame.Rect(left_x, btn_y, btn_w, btn_h)
         continue_border = selected_border if continue_selected else normal_border
-        pygame.draw.rect(self.screen, continue_color, self._esc_continue_rect, border_radius=10)
+        pygame.draw.rect(self.screen, (80, 180, 80), self._esc_continue_rect, border_radius=10)
         pygame.draw.rect(self.screen, continue_border, self._esc_continue_rect, 3, border_radius=10)
         continue_text = self.font.render("继续游戏", True, (255, 255, 255))
         self.screen.blit(
@@ -583,7 +602,7 @@ class GameSession:
 
         self._esc_exit_rect = pygame.Rect(right_x, btn_y, btn_w, btn_h)
         exit_border = selected_border if exit_selected else normal_border
-        pygame.draw.rect(self.screen, exit_color, self._esc_exit_rect, border_radius=10)
+        pygame.draw.rect(self.screen, (200, 60, 60), self._esc_exit_rect, border_radius=10)
         pygame.draw.rect(self.screen, exit_border, self._esc_exit_rect, 3, border_radius=10)
         exit_text = self.font.render("退出游戏", True, (255, 255, 255))
         self.screen.blit(
@@ -591,6 +610,22 @@ class GameSession:
             (
                 self._esc_exit_rect.centerx - exit_text.get_width() // 2,
                 self._esc_exit_rect.centery - exit_text.get_height() // 2,
+            ),
+        )
+
+        settings_btn_w = 200
+        settings_btn_y = btn_y + btn_h + 16
+        settings_btn_x = SCREEN_WIDTH // 2 - settings_btn_w // 2
+        self._esc_settings_rect = pygame.Rect(settings_btn_x, settings_btn_y, settings_btn_w, btn_h)
+        settings_border = selected_border if settings_selected else normal_border
+        pygame.draw.rect(self.screen, (220, 160, 60), self._esc_settings_rect, border_radius=10)
+        pygame.draw.rect(self.screen, settings_border, self._esc_settings_rect, 3, border_radius=10)
+        settings_text = self.font.render("游戏设置", True, (255, 255, 255))
+        self.screen.blit(
+            settings_text,
+            (
+                self._esc_settings_rect.centerx - settings_text.get_width() // 2,
+                self._esc_settings_rect.centery - settings_text.get_height() // 2,
             ),
         )
 
@@ -779,7 +814,7 @@ class GameSession:
         if self.has_background and self.background:
             self.screen.blit(self.background, (0, 0))
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 10, 90))
+            overlay.fill((0, 0, 10, BACKGROUND_OVERLAY_ALPHA))
             for rx, ry, rw, rh in OVERLAY_CLEAR_REGIONS:
                 overlay.fill((0, 0, 0, 0), pygame.Rect(rx, ry, rw, rh))
             self.screen.blit(overlay, (0, 0))
@@ -853,15 +888,16 @@ class GameSession:
 
     def _render_formal_hud(self) -> None:
         self._draw_lane_lines()
-        if self._info_bar:
-            self.screen.blit(self._info_bar, (0, 0))
-            self._draw_badge()
-            self._draw_info_labels()
-        elif self._top_bar:
-            self.screen.blit(self._top_bar, (0, 0))
-            mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
-            mask.fill((0, 0, 0, 60))
-            self.screen.blit(mask, (0, 0))
+        if SHOW_HUD_INFO:
+            if self._info_bar:
+                self.screen.blit(self._info_bar, (0, 0))
+                self._draw_badge()
+                self._draw_info_labels()
+            elif self._top_bar:
+                self.screen.blit(self._top_bar, (0, 0))
+                mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
+                mask.fill((0, 0, 0, 60))
+                self.screen.blit(mask, (0, 0))
 
         draw_hud(
             screen=self.screen,

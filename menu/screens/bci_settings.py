@@ -55,8 +55,8 @@ class BCISettingsScreen:
         )
         self.back_btn = MenuItem(
             "返回",
-            SCREEN_WIDTH // 2 - 60,
-            SCREEN_HEIGHT // 2 + 210,
+            SCREEN_WIDTH // 2,
+            SCREEN_HEIGHT - 80,
             font,
             (80, 80, 80),
             (100, 100, 100),
@@ -165,6 +165,3 @@ class BCISettingsScreen:
                 status,
                 (SCREEN_WIDTH // 2 - status.get_width() // 2, SCREEN_HEIGHT // 2 + 270),
             )
-
-        hint = self.font.render("ESC 返回主菜单", True, (100, 100, 100))
-        self.screen.blit(hint, (SCREEN_WIDTH // 2 - hint.get_width() // 2, SCREEN_HEIGHT - 50))

@@ -41,6 +41,7 @@ class GlowButton(MenuItem):
         width: int | None = None,
         padding: tuple[int, int] | None = None,
         image_path: str | None = None,
+        glow_scale: float = 1.0,
     ) -> None:
         self.text = text
         self.font = font
@@ -51,6 +52,7 @@ class GlowButton(MenuItem):
         self.text_color = text_color
         self.padding = padding if padding is not None else (50, 18)
         self.radius = 25
+        self.glow_scale = glow_scale
 
         self._text_surf = title_font.render(text, True, text_color)
         w = width if width is not None else self._text_surf.get_width() + self.padding[0] * 2
@@ -93,9 +95,10 @@ class GlowButton(MenuItem):
 
     def draw(self, screen: pygame.Surface) -> None:
         pulse = math.sin(self.pulse_t) * 0.5 + 0.5
-        glow_alpha = int(30 + pulse * 50)
+        gs = self.glow_scale
+        glow_alpha = int((30 + pulse * 50) * gs)
 
-        glow_size = int(8 + pulse * 12)
+        glow_size = int((8 + pulse * 12) * gs)
         glow_surf = pygame.Surface(
             (self.rect.width + glow_size * 2, self.rect.height + glow_size * 2),
             pygame.SRCALPHA,
@@ -203,7 +206,15 @@ class GlowButton(MenuItem):
 class BCIModeButton(GlowButton):
     """BCI 模式按钮 - 保持向后兼容（默认蓝色辉光）"""
 
-    def __init__(self, text: str, x: int, y: int, font: pygame.font.Font, title_font: pygame.font.Font) -> None:
+    def __init__(
+        self,
+        text: str,
+        x: int,
+        y: int,
+        font: pygame.font.Font,
+        title_font: pygame.font.Font,
+        width: int | None = None,
+    ) -> None:
         super().__init__(
             text=text,
             x=x,
@@ -214,4 +225,6 @@ class BCIModeButton(GlowButton):
             bg_color=(0, 40, 80),
             hover_color=(0, 80, 150),
             text_color=(255, 255, 255),
+            width=width,
+            glow_scale=0.4,
         )

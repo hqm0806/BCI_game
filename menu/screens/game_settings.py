@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pygame
 
-from config import BACKGROUND_OVERLAY_ALPHA, SCREEN_HEIGHT, SCREEN_WIDTH, SHOW_HUD_INFO
+import config
+from config import SCREEN_HEIGHT, SCREEN_WIDTH
 from menu.bci_button import BCIModeButton
 from menu.components import MenuItem
 from menu.screens.bci_settings import BCISettingsScreen
@@ -201,7 +202,7 @@ class HUDToggle:
     ) -> None:
         self.screen = screen
         self.font = font
-        self._state = SHOW_HUD_INFO
+        self._state = config.SHOW_HUD_INFO
         self.rect = pygame.Rect(_CTRL_LEFT, cy - 16, _CTRL_WIDTH, 36)
         self._label_surf = font.render("顶部信息栏", True, (200, 200, 200))
         self.label_x = _LABEL_RIGHT - self._label_surf.get_width()
@@ -256,7 +257,7 @@ class GameSettingsScreen:
 
         initial_volume = self._audio.get_master_volume() if self._audio else 0.5
         self.volume_slider = VolumeSlider(screen, font, cx, cy - 50, value=initial_volume)
-        self.overlay_slider = OverlaySlider(screen, font, cx, cy + 10, value=BACKGROUND_OVERLAY_ALPHA)
+        self.overlay_slider = OverlaySlider(screen, font, cx, cy + 10, value=config.BACKGROUND_OVERLAY_ALPHA)
         self.hud_toggle = HUDToggle(screen, font, cx, cy + 55)
 
         self.bci_btn = BCIModeButton("BCI设置", cx - btn_half, bottom_y, font, title_font, width=_CTRL_WIDTH)
@@ -293,10 +294,8 @@ class GameSettingsScreen:
                         if self._audio:
                             self._audio.set_master_volume(self.volume_slider.value)
                     if self.overlay_slider.handle_event(event):
-                        import config
                         config.BACKGROUND_OVERLAY_ALPHA = self.overlay_slider.value
                     if self.hud_toggle.handle_event(event):
-                        import config
                         config.SHOW_HUD_INFO = self.hud_toggle.value
                     if self.back_btn.handle_event(event):
                         self.running = False

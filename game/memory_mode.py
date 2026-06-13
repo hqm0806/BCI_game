@@ -8,6 +8,7 @@ import random
 
 import pygame
 
+import config
 from config import (
     BACKGROUND_IMG,
     BADGE_IMGS,
@@ -22,7 +23,6 @@ from config import (
     OUTLET_POSITIONS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
-    SHOW_HUD_INFO,
 )
 from data.memory_recipes import MEMORY_RECIPES
 from game.font_utils import load_chinese_font
@@ -434,7 +434,7 @@ class MemorySession:
             self._draw_rest()
 
     def _draw_info_bar(self) -> None:
-        if not SHOW_HUD_INFO:
+        if not config.SHOW_HUD_INFO:
             return
         if self._info_bar:
             self.screen.blit(self._info_bar, (0, 0))

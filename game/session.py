@@ -10,6 +10,7 @@ from typing import Any
 
 import pygame
 
+import config
 from bci.data_reader import BCIDataReader
 from config import (
     ARTIFACT_ATTENTION_THRESHOLD,
@@ -17,7 +18,6 @@ from config import (
     ARTIFACT_STILL_DURATION,
     ARTIFACT_STILL_THRESHOLD,
     BACKGROUND_IMG,
-    BACKGROUND_OVERLAY_ALPHA,
     BADGE_IMGS,
     CUP_DURATION,
     CUP_WIDTH,
@@ -44,7 +44,6 @@ from config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SECRET_RECIPE_SUSTAIN,
-    SHOW_HUD_INFO,
     TOP_BAR_IMG,
     TOTAL_CUPS,
     WARMUP_FREEZE_TIME,
@@ -814,7 +813,7 @@ class GameSession:
         if self.has_background and self.background:
             self.screen.blit(self.background, (0, 0))
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 10, BACKGROUND_OVERLAY_ALPHA))
+            overlay.fill((0, 0, 10, config.BACKGROUND_OVERLAY_ALPHA))
             for rx, ry, rw, rh in OVERLAY_CLEAR_REGIONS:
                 overlay.fill((0, 0, 0, 0), pygame.Rect(rx, ry, rw, rh))
             self.screen.blit(overlay, (0, 0))
@@ -888,7 +887,7 @@ class GameSession:
 
     def _render_formal_hud(self) -> None:
         self._draw_lane_lines()
-        if SHOW_HUD_INFO:
+        if config.SHOW_HUD_INFO:
             if self._info_bar:
                 self.screen.blit(self._info_bar, (0, 0))
                 self._draw_badge()

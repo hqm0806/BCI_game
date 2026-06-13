@@ -38,14 +38,6 @@ class BCIDataReader:
         self.recv_buffer = b""
 
         self._attention_history: list[tuple[float, float]] = []
-        self._rolling_avg = 50.0
-
-    def get_rolling_attention(self) -> float:
-        now = time.time()
-        self._attention_history = [(t, v) for t, v in self._attention_history if now - t <= 3.0]
-        if self._attention_history:
-            self._rolling_avg = sum(v for _, v in self._attention_history) / len(self._attention_history)
-        return self._rolling_avg
 
     def _record_attention(self, value: int) -> None:
         self._attention_history.append((time.time(), float(value)))

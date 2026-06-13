@@ -43,7 +43,6 @@ from config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SECRET_RECIPE_SUSTAIN,
-    TOP_BAR_IMG,
     TOTAL_CUPS,
     WARMUP_FREEZE_TIME,
     WARMUP_LOW_THRESHOLD,
@@ -250,9 +249,7 @@ class GameSession:
                 img = pygame.transform.smoothscale(img, (DIGIT_WIDTH, DIGIT_HEIGHT))
                 self._digit_imgs.append(img)
             except Exception:
-                self._digit_imgs.append(
-                    pygame.Surface((DIGIT_WIDTH, DIGIT_HEIGHT), pygame.SRCALPHA)
-                )
+                self._digit_imgs.append(pygame.Surface((DIGIT_WIDTH, DIGIT_HEIGHT), pygame.SRCALPHA))
 
     def _init_state(self) -> None:
         self.running = True
@@ -343,11 +340,6 @@ class GameSession:
             self.screen.fill((255, 255, 255))
 
         self.all_sprites.draw(self.screen)
-        if self._top_bar:
-            self.screen.blit(self._top_bar, (0, 0))
-            mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
-            mask.fill((0, 0, 0, 60))
-            self.screen.blit(mask, (0, 0))
         mode_text = self.font.render(f"{self.mode_name}", True, (100, 50, 150))
         self.screen.blit(mode_text, (10, 10))
         pygame.display.flip()
@@ -741,8 +733,6 @@ class GameSession:
             self.cup_manager.start_new_cup()
             self.cup.update_level(0)
             self.score_manager.reset_cup_ingredients()
-            self.creative_ingredients = []
-            self.recipe_result = None
 
     def _update_game_objects(self, dt_sec: float) -> None:
         ingredient = self.ingredient_manager.update(required_types=None, ingredients_group=self.ingredients)
@@ -801,9 +791,6 @@ class GameSession:
 
         pygame.display.flip()
 
-    def _draw_lane_lines(self) -> None:
-        pass
-
     def _draw_focus_ball(self) -> None:
         if self._focus_ball is None or not self._digit_imgs:
             return
@@ -840,8 +827,7 @@ class GameSession:
             str(self.score_manager.total_money),
         ]
         texts = [
-            (cx, cy, info_font.render(v, True, (255, 255, 255)),
-             info_font.render(v, True, (30, 15, 5)))
+            (cx, cy, info_font.render(v, True, (255, 255, 255)), info_font.render(v, True, (30, 15, 5)))
             for (cx, cy), v in zip(INFO_REGIONS, values)
         ]
         for cx, cy, txt, shadow in texts:
@@ -852,16 +838,10 @@ class GameSession:
             self.screen.blit(txt, (x, y))
 
     def _render_formal_hud(self) -> None:
-        self._draw_lane_lines()
         if self._info_bar:
             self.screen.blit(self._info_bar, (0, 0))
             self._draw_badge()
             self._draw_info_labels()
-        elif self._top_bar:
-            self.screen.blit(self._top_bar, (0, 0))
-            mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
-            mask.fill((0, 0, 0, 60))
-            self.screen.blit(mask, (0, 0))
 
         draw_hud(
             screen=self.screen,

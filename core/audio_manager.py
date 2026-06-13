@@ -43,10 +43,6 @@ class AudioManager:
             logger.warning("音效加载失败 %s: %s", sound_file, e)
             return None
 
-    def preload_sfx(self, *sound_files: str) -> None:
-        for f in sound_files:
-            self._load_sfx(f)
-
     def play_sfx(self, sound_file: str, volume: float = 0.7) -> None:
         sfx = self._load_sfx(sound_file)
         if sfx:
@@ -84,10 +80,6 @@ class AudioManager:
         """停止背景音乐"""
         pygame.mixer.music.stop()
         self._current = None
-
-    def set_volume(self, volume: float) -> None:
-        """设置背景音乐音量"""
-        pygame.mixer.music.set_volume(max(0.0, min(1.0, volume * self._master_volume)))
 
     def get_master_volume(self) -> float:
         """获取全局音量 (0.0 ~ 1.0)"""

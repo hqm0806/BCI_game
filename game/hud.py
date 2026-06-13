@@ -136,16 +136,6 @@ def draw_hud(
     #         bar_color = (255, 215, 0) if progress >= 1.0 else (100, 200, 100)
     #         pygame.draw.rect(screen, bar_color, (bar_x, bar_y, fill_w, bar_h), border_radius=5)
 
-    if bci_mode:
-        hint_text = "脑机接口模式 | ESC 返回"
-    elif free_combine:
-        hint_text = "自由搭配，创造你的专属奶茶 | ESC 返回"
-    else:
-        hint_text = "方向键: 左右移动 | ESC: 返回"
-
-    hint1 = hint_font.render(hint_text, True, (50, 50, 50))
-    screen.blit(hint1, (10, SCREEN_HEIGHT - 40))
-
     attention_value = attention if attention is not None else 0
     if bci_mode and bci_connected:
         attention_text = f"注意力 {int(attention_value)}"

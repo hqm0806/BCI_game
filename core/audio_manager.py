@@ -25,6 +25,8 @@ class AudioManager:
     def __init__(self) -> None:
         self._current: str | None = None
         self._sfx_cache: dict[str, pygame.mixer.Sound] = {}
+        self._master_volume: float = 0.5
+        self._bgm_base_volume: float = 0.5
 
     def _load_sfx(self, sound_file: str) -> pygame.mixer.Sound | None:
         if sound_file in self._sfx_cache:
@@ -48,7 +50,8 @@ class AudioManager:
     def play_sfx(self, sound_file: str, volume: float = 0.7) -> None:
         sfx = self._load_sfx(sound_file)
         if sfx:
-            sfx.set_volume(max(0.0, min(1.0, volume)))
+            final_volume = volume * self._master_volume
+            sfx.set_volume(max(0.0, min(1.0, final_volume)))
             sfx.play()
 
     def play_bgm(self, sound_file: str, volume: float = 0.5) -> None:
@@ -69,7 +72,8 @@ class AudioManager:
 
         try:
             pygame.mixer.music.load(full_path)
-            pygame.mixer.music.set_volume(volume)
+            self._bgm_base_volume = volume
+            pygame.mixer.music.set_volume(volume * self._master_volume)
             pygame.mixer.music.play(-1)
             self._current = sound_file
             logger.info("播放背景音乐: %s", sound_file)
@@ -83,7 +87,17 @@ class AudioManager:
 
     def set_volume(self, volume: float) -> None:
         """设置背景音乐音量"""
-        pygame.mixer.music.set_volume(max(0.0, min(1.0, volume)))
+        pygame.mixer.music.set_volume(max(0.0, min(1.0, volume * self._master_volume)))
+
+    def get_master_volume(self) -> float:
+        """获取全局音量 (0.0 ~ 1.0)"""
+        return self._master_volume
+
+    def set_master_volume(self, volume: float) -> None:
+        """设置全局音量 (0.0 ~ 1.0)，同时生效于BGM和SFX"""
+        self._master_volume = max(0.0, min(1.0, volume))
+        if self._current is not None:
+            pygame.mixer.music.set_volume(self._bgm_base_volume * self._master_volume)
 
     @staticmethod
     def init() -> None:

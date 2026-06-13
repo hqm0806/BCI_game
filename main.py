@@ -126,13 +126,14 @@ class QuitState(State):
 class SettingsState(State):
     """设置页面状态"""
 
-    def __init__(self, screen: pygame.Surface) -> None:
+    def __init__(self, screen: pygame.Surface, audio: AudioManager) -> None:
         self.screen = screen
+        self._audio = audio
         self.font = load_chinese_font(24)
         self.title_font = load_chinese_font(40)
 
     def enter(self) -> GameState | None:
-        settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font)
+        settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font, audio=self._audio)
         settings_screen.run()
         return GameState.MENU
 
@@ -239,7 +240,7 @@ def main() -> None:
     sm.register(GameState.SPLASH, SplashState(screen, load_chinese_font(110)))
     sm.register(GameState.LOGIN, LoginState(screen, context))
     sm.register(GameState.MENU, MenuState(screen, context, audio))
-    sm.register(GameState.SETTINGS, SettingsState(screen))
+    sm.register(GameState.SETTINGS, SettingsState(screen, audio))
     sm.register(GameState.TRANSITION, TransitionState(screen, audio))
     sm.register(GameState.GAME, GameStateImpl(screen, clock, context))
     sm.register(GameState.GAME_MEMORY, MemoryGameState(screen, clock, context))

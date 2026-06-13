@@ -79,14 +79,14 @@ class MainMenu:
         area_w = int((1183 - 46) * sx)
         area_h = int((1047 - 761) * sy)
 
-        h_gap = 341   # 按钮水平间距 (原379的90%)
-        v_gap = 86    # 按钮垂直间距 (原96的90%)
+        h_gap = 350   # 按钮水平间距 (原379的90%)
+        v_gap = 95    # 按钮垂直间距 (原96的90%)
         col1_x = area_left + (area_w - h_gap) // 2
         col2_x = col1_x + h_gap
         row1_y = area_top + (area_h - v_gap) // 2
         row2_y = row1_y + v_gap
-        btn_w = 250                             # 固定按钮宽度
-        btn_padding = (30, 10)                   # 紧凑垂直padding
+        btn_w = 300                             # 固定按钮宽度
+        btn_padding = (30, 16)                   # 紧凑垂直padding
         # ==========================================
 
         self.start_btn = GlowButton(
@@ -341,7 +341,7 @@ class MainMenu:
                 click_frames[0] -= 1
                 if click_frames[0] == 0:
                     if self.result == "settings":
-                        settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font)
+                        settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font, audio=self._audio)
                         settings_screen.run()
                         self.result = None
                     else:

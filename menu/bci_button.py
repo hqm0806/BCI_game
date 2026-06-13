@@ -174,13 +174,13 @@ class GlowButton(MenuItem):
         tw = text_glow.get_width()
         th = text_glow.get_height()
         tx = (w - tw) // 2 + 1
-        ty = (h - th) // 2 + 1
+        ty = (h - th) // 2 - 1
         if self._bg_image:
             tx += 20
         surf.blit(text_glow, (tx, ty))
 
         tx = (w - tw) // 2
-        ty = (h - th) // 2
+        ty = (h - th) // 2 - 2
         if self._bg_image:
             tx += 20
         surf.blit(self._text_surf, (tx, ty))

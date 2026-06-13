@@ -885,7 +885,7 @@ class GameSession:
                 True,
                 bci_status_color,
             )
-            self.screen.blit(bci_status_text, (10, SCREEN_HEIGHT - 60))
+            self.screen.blit(bci_status_text, (10, SCREEN_HEIGHT - 30))
 
         if self._blackout_alpha > 1:
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)

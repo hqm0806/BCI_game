@@ -234,13 +234,6 @@ class SummaryScreen:
             self._draw_button(self._btn_save_rect, "保存", self._btn_hover_save, is_quit=False)
             self._draw_button(self._btn_quit_rect, "退出", self._btn_hover_quit, is_quit=True)
 
-            hint_text = "按 ESC 返回主菜单"
-            hint_surf = self.hint_font.render(hint_text, True, (90, 60, 30))
-            self.screen.blit(
-                hint_surf,
-                (SCREEN_WIDTH // 2 - hint_surf.get_width() // 2, SCREEN_HEIGHT - 35),
-            )
-
             pygame.display.flip()
 
 

@@ -828,7 +828,8 @@ class GameSession:
 
         self._render_formal_hud()
 
-        self._draw_focus_ball()
+        if config.SHOW_FOCUS_BALL:
+            self._draw_focus_ball()
 
         if self._esc_dialog_active:
             self._draw_esc_dialog()

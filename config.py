@@ -112,8 +112,8 @@ PATIENCE_BAR_TIMEOUT = 90.0  # 接住小料的超时时间（秒）
 # 原始背景图1920x1078上的位置(831,639)-(1109,873) 映射到1280x720
 # ============================================================
 FOCUS_BALL_IMG = os.path.join(IMAGES_DIR, "other", "专注力球.png")
-FOCUS_BALL_POS = (647, 535)  # 球中心点 (屏幕坐标)
-FOCUS_BALL_SIZE = (125, 150)  # 球显示尺寸 (保持原图宽高比)
+FOCUS_BALL_POS = (640, 360)  # 球中心点 (屏幕居中)
+FOCUS_BALL_SIZE = (180, 216)  # 球显示尺寸 (保持原图宽高比)
 NUM_IMG_DIR = os.path.join(IMAGES_DIR, "nums")
 DIGIT_WIDTH = 35
 DIGIT_HEIGHT = 45
@@ -128,6 +128,7 @@ OVERLAY_CLEAR_REGIONS = [
 ]
 BACKGROUND_OVERLAY_ALPHA = 90  # 游戏背景遮罩不透明度（0=不遮, 255=全黑），可在设置中调节
 SHOW_HUD_INFO = True  # 是否显示顶部信息栏（等级、模式、杯数、收益）
+SHOW_FOCUS_BALL = True  # 是否显示专注力球
 
 # ============================================================
 # 结算面板 - 游戏结束/退出时显示

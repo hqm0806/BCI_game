@@ -233,6 +233,49 @@ class HUDToggle:
         )
 
 
+class FocusBallToggle:
+    """专注力球显示开关"""
+
+    def __init__(
+        self,
+        screen: pygame.Surface,
+        font: pygame.font.Font,
+        cx: int,
+        cy: int,
+    ) -> None:
+        self.screen = screen
+        self.font = font
+        self._state = config.SHOW_FOCUS_BALL
+        self.rect = pygame.Rect(_CTRL_LEFT, cy - 16, _CTRL_WIDTH, 36)
+        self._label_surf = font.render("专注力球", True, (200, 200, 200))
+        self.label_x = _LABEL_RIGHT - self._label_surf.get_width()
+
+    @property
+    def value(self) -> bool:
+        return self._state
+
+    def handle_event(self, event: pygame.event.Event) -> bool:
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.rect.collidepoint(event.pos):
+                self._state = not self._state
+                return True
+        return False
+
+    def draw(self) -> None:
+        ly = self.rect.centery - self._label_surf.get_height() // 2
+        self.screen.blit(self._label_surf, (self.label_x, ly))
+
+        btn_color = (60, 160, 100) if self._state else (140, 60, 60)
+        text = "显示" if self._state else "隐藏"
+        pygame.draw.rect(self.screen, btn_color, self.rect, border_radius=10)
+        pygame.draw.rect(self.screen, (255, 255, 255), self.rect, 2, border_radius=10)
+        txt = self.font.render(text, True, (255, 255, 255))
+        self.screen.blit(
+            txt,
+            (self.rect.centerx - txt.get_width() // 2, self.rect.centery - txt.get_height() // 2),
+        )
+
+
 class GameSettingsScreen:
     """游戏设置页面，包含BCI设置等子设置项"""
 
@@ -256,9 +299,10 @@ class GameSettingsScreen:
         btn_half = _CTRL_WIDTH // 2 + 10
 
         initial_volume = self._audio.get_master_volume() if self._audio else 0.5
-        self.volume_slider = VolumeSlider(screen, font, cx, cy - 50, value=initial_volume)
-        self.overlay_slider = OverlaySlider(screen, font, cx, cy + 10, value=config.BACKGROUND_OVERLAY_ALPHA)
-        self.hud_toggle = HUDToggle(screen, font, cx, cy + 55)
+        self.volume_slider = VolumeSlider(screen, font, cx, cy - 60, value=initial_volume)
+        self.overlay_slider = OverlaySlider(screen, font, cx, cy - 5, value=config.BACKGROUND_OVERLAY_ALPHA)
+        self.hud_toggle = HUDToggle(screen, font, cx, cy + 45)
+        self.focus_ball_toggle = FocusBallToggle(screen, font, cx, cy + 90)
 
         self.bci_btn = BCIModeButton("BCI设置", cx - btn_half, bottom_y, font, title_font, width=_CTRL_WIDTH)
         self.back_btn = MenuItem(
@@ -297,6 +341,8 @@ class GameSettingsScreen:
                         config.BACKGROUND_OVERLAY_ALPHA = self.overlay_slider.value
                     if self.hud_toggle.handle_event(event):
                         config.SHOW_HUD_INFO = self.hud_toggle.value
+                    if self.focus_ball_toggle.handle_event(event):
+                        config.SHOW_FOCUS_BALL = self.focus_ball_toggle.value
                     if self.back_btn.handle_event(event):
                         self.running = False
                         self.result = "back"
@@ -324,4 +370,5 @@ class GameSettingsScreen:
         self.volume_slider.draw()
         self.overlay_slider.draw()
         self.hud_toggle.draw()
+        self.focus_ball_toggle.draw()
         self.back_btn.draw(self.screen)

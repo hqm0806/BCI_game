@@ -284,6 +284,7 @@ class MemorySession:
                     return "quit"
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     self.running = False
+                    bg_snapshot = self.screen.copy()
                     summary = SummaryScreen(
                         self.screen,
                         self._total_score,
@@ -293,6 +294,7 @@ class MemorySession:
                         cup_count=self._total_rounds,
                         secret_count=self._total_success,
                         player_level=self._current_level - 1,
+                        bg=bg_snapshot,
                     )
                     return summary.run()
 

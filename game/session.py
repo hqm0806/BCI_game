@@ -1064,6 +1064,7 @@ class GameSession:
                 p_level = 1
                 p_rev = 0
 
+            bg_snapshot = self.screen.copy()
             summary = SummaryScreen(
                 self.screen,
                 self.score_manager.score,
@@ -1077,6 +1078,7 @@ class GameSession:
                 cumulative_revenue=p_rev,
                 upgraded=is_upgraded,
                 focus_samples=self.focus_samples,
+                bg=bg_snapshot,
             )
             return summary.run()
 

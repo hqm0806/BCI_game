@@ -36,8 +36,10 @@ class SummaryScreen:
         cumulative_revenue: int = 0,
         upgraded: bool = False,
         focus_samples: list | None = None,
+        bg: pygame.Surface | None = None,
     ) -> None:
         self.screen = screen
+        self._bg = bg
         self.clock = pygame.time.Clock()
         self.score = score
         self.focus_value = focus_value
@@ -180,6 +182,9 @@ class SummaryScreen:
                     if now - last_esc < 0.5:
                         return "menu"
                     last_esc = now
+
+            if self._bg:
+                self.screen.blit(self._bg, (0, 0))
 
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 90))

@@ -683,7 +683,7 @@ class GameSession:
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
         self.cup.update(keys=keys, dt=dt_sec)
         kb_pressed = keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
-        if not kb_pressed and self.use_yaw_control:
+        if not kb_pressed and self.use_yaw_control and self.bci_available:
             fx = int(self.platform_focus_x)
             self.cup.rect.centerx = max(self.focus_min, min(self.focus_max, fx))
 

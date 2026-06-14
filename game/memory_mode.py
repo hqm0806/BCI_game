@@ -71,8 +71,15 @@ class MemorySession:
         self.font = load_chinese_font(36)
         self.big_font = load_chinese_font(48)
         self.small_font = load_chinese_font(20)
+        self.pause_font = load_chinese_font(48)
         self.running = True
         self._session_start = time.time()
+
+        self._esc_dialog_active = False
+        self._esc_dialog_selected = 0
+        self._pending_settings = False
+        self._skip_frame = False
+        self._result = ""
 
         self._bg = self._load_bg()
 
@@ -284,32 +291,44 @@ class MemorySession:
                 if event.type == pygame.QUIT:
                     self.running = False
                     return "quit"
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    self.running = False
-                    bg_snapshot = self.screen.copy()
-                    summary = SummaryScreen(
-                        self.screen,
-                        self._total_score,
-                        game_mode="memory",
-                        total_money=self._total_score,
-                        cup_count=self._total_rounds,
-                        success_count=self._total_success,
-                        player_level=self._current_level - 1,
-                        bg=bg_snapshot,
-                    )
-                    result = summary.run()
-                    if result == "save" and self._profile:
-                        duration = time.time() - self._session_start
-                        self._profile.add_game_result(
-                            revenue=self._total_score,
-                            mode="memory",
-                            cups=self._total_rounds,
-                            secrets=self._total_success,
-                            avg_attention=0.0,
-                            duration=duration,
-                        )
-                        return "save"
-                    return result
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        if self._esc_dialog_active:
+                            self._esc_dialog_active = False
+                        else:
+                            self._esc_dialog_active = True
+                            self._esc_dialog_selected = 0
+                            self._skip_frame = True
+                    elif self._esc_dialog_active:
+                        if event.key in (pygame.K_LEFT, pygame.K_UP):
+                            self._esc_dialog_selected = (self._esc_dialog_selected - 1) % 3
+                        elif event.key in (pygame.K_RIGHT, pygame.K_DOWN, pygame.K_TAB):
+                            self._esc_dialog_selected = (self._esc_dialog_selected + 1) % 3
+                        elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                            self._commit_esc_dialog()
+                elif event.type == pygame.MOUSEBUTTONDOWN and self._esc_dialog_active:
+                    if event.button == 1:
+                        self._handle_esc_dialog_click(event.pos)
+                if self._esc_dialog_active:
+                    continue
+
+            if self._esc_dialog_active:
+                if self._skip_frame:
+                    self._skip_frame = False
+                else:
+                    self._draw()
+                    pygame.display.flip()
+                continue
+
+            if self._pending_settings:
+                self._pending_settings = False
+                from menu.screens.game_settings import GameSettingsScreen
+                settings_font = load_chinese_font(24)
+                settings_title = load_chinese_font(40)
+                bg_snapshot = self.screen.copy()
+                settings = GameSettingsScreen(self.screen, settings_font, settings_title, audio=self._audio, bg=bg_snapshot)
+                settings.run()
+                continue
 
             if self._phase == "rules":
                 if self._phase_timer >= self._rules_display_time:
@@ -412,7 +431,7 @@ class MemorySession:
 
         if self._bci_available and self._bci_reader:
             self._bci_reader.disconnect()
-        return "menu"
+        return self._result if self._result else "menu"
 
     def _draw(self) -> None:
         self.screen.fill((0, 0, 0))
@@ -422,7 +441,7 @@ class MemorySession:
             self.screen.fill((40, 25, 15))
 
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 40))
+        overlay.fill((0, 0, 0, config.BACKGROUND_OVERLAY_ALPHA))
         self.screen.blit(overlay, (0, 0))
 
         self._draw_info_bar()
@@ -447,6 +466,9 @@ class MemorySession:
             self._draw_result()
         elif self._phase == "rest":
             self._draw_rest()
+
+        if self._esc_dialog_active:
+            self._draw_esc_dialog()
 
     def _draw_info_bar(self) -> None:
         if not config.SHOW_HUD_INFO:
@@ -596,6 +618,142 @@ class MemorySession:
             (40, 40, 40),
         )
         self.screen.blit(lvl_text, (SCREEN_WIDTH // 2 - lvl_text.get_width() // 2, SCREEN_HEIGHT // 2 - 180))
+
+    def _commit_esc_dialog(self) -> None:
+        if self._esc_dialog_selected == 0:
+            self._esc_dialog_active = False
+        elif self._esc_dialog_selected == 1:
+            self._esc_dialog_active = False
+            self.running = False
+            bg_snapshot = self.screen.copy()
+            summary = SummaryScreen(
+                self.screen,
+                self._total_score,
+                game_mode="memory",
+                total_money=self._total_score,
+                cup_count=self._total_rounds,
+                success_count=self._total_success,
+                player_level=self._current_level - 1,
+                bg=bg_snapshot,
+            )
+            result = summary.run()
+            if result == "save" and self._profile:
+                duration = time.time() - self._session_start
+                self._profile.add_game_result(
+                    revenue=self._total_score,
+                    mode="memory",
+                    cups=self._total_rounds,
+                    secrets=self._total_success,
+                    avg_attention=0.0,
+                    duration=duration,
+                )
+                self._result = "save"
+        else:
+            self._esc_dialog_active = False
+            self._pending_settings = True
+
+    def _handle_esc_dialog_click(self, pos: tuple[int, int]) -> None:
+        if hasattr(self, "_esc_continue_rect") and self._esc_continue_rect.collidepoint(pos):
+            self._esc_dialog_active = False
+        elif hasattr(self, "_esc_exit_rect") and self._esc_exit_rect.collidepoint(pos):
+            self._esc_dialog_active = False
+            self.running = False
+            bg_snapshot = self.screen.copy()
+            summary = SummaryScreen(
+                self.screen,
+                self._total_score,
+                game_mode="memory",
+                total_money=self._total_score,
+                cup_count=self._total_rounds,
+                success_count=self._total_success,
+                player_level=self._current_level - 1,
+                bg=bg_snapshot,
+            )
+            result = summary.run()
+            if result == "save" and self._profile:
+                duration = time.time() - self._session_start
+                self._profile.add_game_result(
+                    revenue=self._total_score,
+                    mode="memory",
+                    cups=self._total_rounds,
+                    secrets=self._total_success,
+                    avg_attention=0.0,
+                    duration=duration,
+                )
+                self._result = "save"
+        elif hasattr(self, "_esc_settings_rect") and self._esc_settings_rect.collidepoint(pos):
+            self._esc_dialog_active = False
+            self._pending_settings = True
+
+    def _draw_esc_dialog(self) -> None:
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 160))
+        self.screen.blit(overlay, (0, 0))
+
+        box_w, box_h = 380, 260
+        box_x = (SCREEN_WIDTH - box_w) // 2
+        box_y = (SCREEN_HEIGHT - box_h) // 2
+        box_rect = pygame.Rect(box_x, box_y, box_w, box_h)
+        pygame.draw.rect(self.screen, (30, 28, 20), box_rect, border_radius=16)
+        pygame.draw.rect(self.screen, (200, 160, 100), box_rect, 3, border_radius=16)
+
+        title = self.pause_font.render("暂停", True, (255, 255, 255))
+        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, box_y + 25))
+
+        btn_w, btn_h = 150, 48
+        btn_y = box_y + 90
+        gap = 20
+        left_x = SCREEN_WIDTH // 2 - btn_w - gap // 2
+        right_x = SCREEN_WIDTH // 2 + gap // 2
+
+        continue_selected = self._esc_dialog_selected == 0
+        exit_selected = self._esc_dialog_selected == 1
+        settings_selected = self._esc_dialog_selected == 2
+
+        selected_border = (255, 255, 255)
+        normal_border = (100, 100, 100)
+
+        self._esc_continue_rect = pygame.Rect(left_x, btn_y, btn_w, btn_h)
+        continue_border = selected_border if continue_selected else normal_border
+        pygame.draw.rect(self.screen, (80, 180, 80), self._esc_continue_rect, border_radius=10)
+        pygame.draw.rect(self.screen, continue_border, self._esc_continue_rect, 3, border_radius=10)
+        continue_text = self.font.render("继续游戏", True, (255, 255, 255))
+        self.screen.blit(
+            continue_text,
+            (
+                self._esc_continue_rect.centerx - continue_text.get_width() // 2,
+                self._esc_continue_rect.centery - continue_text.get_height() // 2,
+            ),
+        )
+
+        self._esc_exit_rect = pygame.Rect(right_x, btn_y, btn_w, btn_h)
+        exit_border = selected_border if exit_selected else normal_border
+        pygame.draw.rect(self.screen, (200, 60, 60), self._esc_exit_rect, border_radius=10)
+        pygame.draw.rect(self.screen, exit_border, self._esc_exit_rect, 3, border_radius=10)
+        exit_text = self.font.render("退出游戏", True, (255, 255, 255))
+        self.screen.blit(
+            exit_text,
+            (
+                self._esc_exit_rect.centerx - exit_text.get_width() // 2,
+                self._esc_exit_rect.centery - exit_text.get_height() // 2,
+            ),
+        )
+
+        settings_btn_w = 200
+        settings_btn_y = btn_y + btn_h + 16
+        settings_btn_x = SCREEN_WIDTH // 2 - settings_btn_w // 2
+        self._esc_settings_rect = pygame.Rect(settings_btn_x, settings_btn_y, settings_btn_w, btn_h)
+        settings_border = selected_border if settings_selected else normal_border
+        pygame.draw.rect(self.screen, (220, 160, 60), self._esc_settings_rect, border_radius=10)
+        pygame.draw.rect(self.screen, settings_border, self._esc_settings_rect, 3, border_radius=10)
+        settings_text = self.font.render("游戏设置", True, (255, 255, 255))
+        self.screen.blit(
+            settings_text,
+            (
+                self._esc_settings_rect.centerx - settings_text.get_width() // 2,
+                self._esc_settings_rect.centery - settings_text.get_height() // 2,
+            ),
+        )
 
 
 def run_memory_game(

@@ -204,15 +204,15 @@ class SummaryScreen:
 
             y = 180
             if self.game_mode == "memory":
-                _draw_centered(self.screen, self.info_font, f"Lv.{self.player_level + 1}", y, (80, 50, 20))
+                _draw_centered(self.screen, self.title_font, f"Lv.{self.player_level + 1}", y, (30, 30, 30))
+                y += 55
+                _draw_centered(self.screen, self.title_font, f"总得分: {self.total_money}", y, (30, 30, 30))
                 y += 50
-                _draw_centered(self.screen, self.info_font, f"总得分: {self.total_money}", y, (80, 50, 20))
-                y += 45
                 rate = (self.success_count / self.cup_count * 100) if self.cup_count > 0 else 0
                 _draw_centered(
-                    self.screen, self.hint_font,
+                    self.screen, self.info_font,
                     f"完成轮次: {self.cup_count} | 成功: {self.success_count} | 成功率: {rate:.0f}%",
-                    y, (90, 65, 35),
+                    y, (50, 50, 50),
                 )
                 y += 65
             else:

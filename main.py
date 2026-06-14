@@ -78,7 +78,7 @@ class MenuState(State):
         self._audio = audio
 
     def enter(self) -> GameState | None:
-        self._audio.play_bgm("玻璃糖果园.wav", volume=0.5)
+        self._audio.play_bgm("玻璃糖果园.mp3", volume=0.5)
 
         profile = self._context.get("profile")
         player_level = profile.level if profile else 1
@@ -154,7 +154,7 @@ class TransitionState(State):
 
     def enter(self) -> GameState | None:
         self._audio.stop_bgm()
-        self._audio.play_bgm("晨光木盒.wav", volume=0.5)
+        self._audio.play_bgm("晨光木盒.mp3", volume=0.5)
         SplashScreen(self.screen, load_chinese_font(110)).run()
         return GameState.GAME
 
@@ -266,4 +266,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    

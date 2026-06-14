@@ -113,7 +113,7 @@ PATIENCE_BAR_TIMEOUT = 90.0  # 接住小料的超时时间（秒）
 # ============================================================
 FOCUS_BALL_IMG = os.path.join(IMAGES_DIR, "other", "专注力球.png")
 FOCUS_BALL_POS = (640, 360)  # 球中心点 (屏幕居中)
-FOCUS_BALL_SIZE = (180, 216)  # 球显示尺寸 (保持原图宽高比)
+FOCUS_BALL_SIZE = (220, 181)  # 球显示尺寸 (保持原图 1065x877 宽高比)
 NUM_IMG_DIR = os.path.join(IMAGES_DIR, "nums")
 DIGIT_WIDTH = 35
 DIGIT_HEIGHT = 45

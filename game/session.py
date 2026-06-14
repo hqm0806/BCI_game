@@ -826,9 +826,6 @@ class GameSession:
 
         self._render_formal_hud()
 
-        if config.SHOW_FOCUS_BALL:
-            self._draw_focus_ball()
-
         if self._esc_dialog_active:
             self._draw_esc_dialog()
 
@@ -922,6 +919,9 @@ class GameSession:
                 bci_status_color,
             )
             self.screen.blit(bci_status_text, (10, SCREEN_HEIGHT - 30))
+
+        if config.SHOW_FOCUS_BALL:
+            self._draw_focus_ball()
 
         if self._blackout_alpha > 1:
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)

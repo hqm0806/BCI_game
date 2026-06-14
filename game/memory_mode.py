@@ -557,8 +557,8 @@ class MemorySession:
         bar_w = int(300 * remain / self._memorize_time)
         bar_rect = pygame.Rect(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT - 60, bar_w, 8)
         pygame.draw.rect(self.screen, (255, 180, 100), bar_rect, border_radius=4)
-        timer_text = self.small_font.render(f"记忆时间 {remain:.1f}s", True, (200, 180, 140))
-        self.screen.blit(timer_text, (SCREEN_WIDTH // 2 - timer_text.get_width() // 2, SCREEN_HEIGHT - 50))
+        timer_text = self.small_font.render(f"记忆时间 {remain:.1f}s", True, (40, 40, 40))
+        self.screen.blit(timer_text, (SCREEN_WIDTH // 2 - timer_text.get_width() // 2, SCREEN_HEIGHT - 250))
 
     def _draw_result(self) -> None:
         if self._round_result == "success":
@@ -585,17 +585,17 @@ class MemorySession:
     def _draw_rest(self) -> None:
         remain = max(0, self._rest_time - self._phase_timer)
         text = f"下一杯即将开始... {remain:.0f}s"
-        surf = self.font.render(text, True, (200, 180, 140))
-        self.screen.blit(surf, (SCREEN_WIDTH // 2 - surf.get_width() // 2, SCREEN_HEIGHT // 2 - 30))
+        surf = self.font.render(text, True, (40, 40, 40))
+        self.screen.blit(surf, (SCREEN_WIDTH // 2 - surf.get_width() // 2, SCREEN_HEIGHT // 2 - 230))
 
         lvl_text = self.small_font.render(
             f"当前等级: {self._current_level}食材配方 | "
             f"连续成功: {self._consecutive_success}/{self._upgrade_threshold} | "
             f"失败: {self._round_failures}/{self._downgrade_threshold}",
             True,
-            (180, 160, 120),
+            (40, 40, 40),
         )
-        self.screen.blit(lvl_text, (SCREEN_WIDTH // 2 - lvl_text.get_width() // 2, SCREEN_HEIGHT // 2 + 20))
+        self.screen.blit(lvl_text, (SCREEN_WIDTH // 2 - lvl_text.get_width() // 2, SCREEN_HEIGHT // 2 - 180))
 
 
 def run_memory_game(

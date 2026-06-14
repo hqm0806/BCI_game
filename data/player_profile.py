@@ -50,9 +50,6 @@ class PlayerProfile:
         logger.info("新账号 [%s]", username)
         return PlayerProfile(_username=username)
 
-    def set_username(self, username: str) -> None:
-        self._username = username
-
     def save(self) -> None:
         if not self._username:
             return

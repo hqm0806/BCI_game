@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import random
 import time
-from typing import Any
 
 import pygame
 
@@ -18,7 +17,7 @@ class IngredientManager:
     """食材生成管理器，按等级选择可用食材和必接食材"""
 
     def __init__(self, tier: int = 1) -> None:
-        self.ingredients: list[Any] = []
+        self.ingredients: list = []
         self.last_spawn_time = time.time()
         self.spawn_interval = INGREDIENT_SPAWN_INTERVAL / 1000.0
         self.last_type: str | None = None

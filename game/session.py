@@ -44,7 +44,6 @@ from config import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SECRET_RECIPE_SUSTAIN,
-    TOP_BAR_IMG,
     TOTAL_CUPS,
     WARMUP_FREEZE_TIME,
     WARMUP_LOW_THRESHOLD,
@@ -252,9 +251,7 @@ class GameSession:
                 img = pygame.transform.smoothscale(img, (DIGIT_WIDTH, DIGIT_HEIGHT))
                 self._digit_imgs.append(img)
             except Exception:
-                self._digit_imgs.append(
-                    pygame.Surface((DIGIT_WIDTH, DIGIT_HEIGHT), pygame.SRCALPHA)
-                )
+                self._digit_imgs.append(pygame.Surface((DIGIT_WIDTH, DIGIT_HEIGHT), pygame.SRCALPHA))
 
     def _init_state(self) -> None:
         self.running = True
@@ -345,11 +342,6 @@ class GameSession:
             self.screen.fill((255, 255, 255))
 
         self.all_sprites.draw(self.screen)
-        if self._top_bar:
-            self.screen.blit(self._top_bar, (0, 0))
-            mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
-            mask.fill((0, 0, 0, 60))
-            self.screen.blit(mask, (0, 0))
         mode_text = self.font.render(f"{self.mode_name}", True, (100, 50, 150))
         self.screen.blit(mode_text, (10, 10))
         pygame.display.flip()
@@ -406,7 +398,7 @@ class GameSession:
         self._blackout_alpha += (target_alpha - self._blackout_alpha) * 0.05
 
     def _check_artifact(self, dt_sec: float) -> None:
-        if self._artifact_frozen or not self.bci_mode:
+        if self._artifact_frozen or not self.bci_mode or not self.bci_available:
             return
 
         gx = abs(self.raw_gyro_x - self._prev_gyro_x)
@@ -695,7 +687,7 @@ class GameSession:
         if self.cup_manager.cup_ended:
             return
 
-        if self.bci_mode:
+        if self.bci_mode and self.bci_available:
             threshold = self._cup_baseline + 10
             attn = self.attention if self.attention is not None else 50.0
             if attn > threshold:
@@ -710,7 +702,7 @@ class GameSession:
                     self._audio.play_sfx("音效/触发秘方.wav", volume=0.7)
                 logger.info("秘方触发！专注力持续高于阈值 %.0f 达 %d 秒", threshold, SECRET_RECIPE_SUSTAIN)
         else:
-            if self.cup_manager.should_force_secret_recipe() and self.cup_manager.catch_count == 0:
+            if self.cup_manager.get_cup_elapsed() >= 5.0:
                 if self.cup_manager.trigger_secret_recipe():
                     self._secret_popup_timer = 2.0
                     if self._audio:
@@ -775,8 +767,6 @@ class GameSession:
             self.cup_manager.start_new_cup()
             self.cup.update_level(0)
             self.score_manager.reset_cup_ingredients()
-            self.creative_ingredients = []
-            self.recipe_result = None
 
     def _update_game_objects(self, dt_sec: float) -> None:
         ingredient = self.ingredient_manager.update(required_types=None, ingredients_group=self.ingredients)
@@ -836,9 +826,6 @@ class GameSession:
 
         pygame.display.flip()
 
-    def _draw_lane_lines(self) -> None:
-        pass
-
     def _draw_focus_ball(self) -> None:
         if self._focus_ball is None or not self._digit_imgs:
             return
@@ -875,8 +862,7 @@ class GameSession:
             str(self.score_manager.total_money),
         ]
         texts = [
-            (cx, cy, info_font.render(v, True, (255, 255, 255)),
-             info_font.render(v, True, (30, 15, 5)))
+            (cx, cy, info_font.render(v, True, (255, 255, 255)), info_font.render(v, True, (30, 15, 5)))
             for (cx, cy), v in zip(INFO_REGIONS, values)
         ]
         for cx, cy, txt, shadow in texts:
@@ -887,6 +873,7 @@ class GameSession:
             self.screen.blit(txt, (x, y))
 
     def _render_formal_hud(self) -> None:
+<<<<<<< HEAD
         self._draw_lane_lines()
         if config.SHOW_HUD_INFO:
             if self._info_bar:
@@ -898,6 +885,12 @@ class GameSession:
                 mask = pygame.Surface((1280, 60), pygame.SRCALPHA)
                 mask.fill((0, 0, 0, 60))
                 self.screen.blit(mask, (0, 0))
+=======
+        if self._info_bar:
+            self.screen.blit(self._info_bar, (0, 0))
+            self._draw_badge()
+            self._draw_info_labels()
+>>>>>>> 642572c6a0703ef00fd15c5b12209d6e824952b3
 
         draw_hud(
             screen=self.screen,
@@ -973,30 +966,34 @@ class GameSession:
         img_path = INGREDIENT_IMGS.get("秘方", "")
         if img_path and os.path.exists(img_path):
             img = pygame.image.load(img_path).convert_alpha()
-            self._secret_img = pygame.transform.scale(img, (80, 80))
+            self._secret_img = pygame.transform.scale(img, (160, 160))
 
     def _draw_secret_popup(self) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 80))
         self.screen.blit(overlay, (0, 0))
 
-        popup_w, popup_h = 260, 220
+        popup_w, popup_h = 260, 270
         popup_x = (SCREEN_WIDTH - popup_w) // 2
         popup_y = (SCREEN_HEIGHT - popup_h) // 2
 
-        pygame.draw.rect(self.screen, (30, 25, 20), (popup_x, popup_y, popup_w, popup_h), border_radius=16)
-        pygame.draw.rect(self.screen, (255, 180, 100), (popup_x, popup_y, popup_w, popup_h), 3, border_radius=16)
+        popup_surf = pygame.Surface((popup_w, popup_h), pygame.SRCALPHA)
+        pygame.draw.rect(popup_surf, (30, 25, 20, 200), (0, 0, popup_w, popup_h), border_radius=16)
+        pygame.draw.rect(popup_surf, (255, 180, 100, 180), (0, 0, popup_w, popup_h), 3, border_radius=16)
+        self.screen.blit(popup_surf, (popup_x, popup_y))
 
         text_surf = self.font.render("触发秘方！", True, (255, 220, 100))
-        self.screen.blit(text_surf, (popup_x + (popup_w - text_surf.get_width()) // 2, popup_y + 25))
+        text_x = popup_x + (popup_w - text_surf.get_width()) // 2
+        text_y = popup_y + popup_h - text_surf.get_height() - 20
+        self.screen.blit(text_surf, (text_x, text_y))
 
         if self._secret_img is not None:
             t = pygame.time.get_ticks() / 1000.0
-            wobble_x = int(math.sin(t * 4) * 10)
-            angle = math.sin(t * 3) * 5
+            wobble_x = int(math.sin(t * 4) * 5)
+            angle = math.sin(t * 3) * 2
             rotated = pygame.transform.rotate(self._secret_img, angle)
             rx = popup_x + (popup_w - rotated.get_width()) // 2 + wobble_x
-            ry = popup_y + 80 + (rotated.get_height() - 80) // 2
+            ry = popup_y + 25
             self.screen.blit(rotated, (rx, ry))
 
     def _end_game(self) -> str:

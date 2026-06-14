@@ -450,8 +450,7 @@ class MemorySession:
                 str(self._total_score),
             ]
             texts = [
-                (cx, cy, info_font.render(v, True, (255, 255, 255)),
-                 info_font.render(v, True, (30, 15, 5)))
+                (cx, cy, info_font.render(v, True, (255, 255, 255)), info_font.render(v, True, (30, 15, 5)))
                 for (cx, cy), v in zip(INFO_REGIONS, values)
             ]
             for cx, cy, txt, shadow in texts:
@@ -496,8 +495,7 @@ class MemorySession:
             ("1. 请记住屏幕中央的配方食材组合", self.font, (255, 255, 255)),
             ("2. 食材消失后，按顺序接住配方中的食材", self.font, (255, 255, 255)),
             ("3. 必须严格按顺序！接错顺序即失败", self.font, (255, 220, 100)),
-            # ("4. 连续成功 3 次升级难度，失败 2 次降级", self.font, (255, 255, 255)),
-            # ("5. 最高 5 种食材配方", self.font, (255, 255, 255)),
+            ("", self.small_font, (255, 255, 255)),
         ]
 
         y = 30

@@ -12,7 +12,6 @@ from typing import Any
 import pygame
 
 from config import (
-    BROWN,
     CUP_COLOR,
     CUP_HEIGHT,
     CUP_IMGS,

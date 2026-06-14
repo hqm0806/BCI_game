@@ -2,6 +2,7 @@
 游戏逻辑模拟器 — 从 GameSession 提取核心算法，支持无 pygame 的精准测试
 用于 3.2.1 ~ 3.2.3 三个测试节的指标测算
 """
+
 from __future__ import annotations
 
 import math
@@ -33,7 +34,6 @@ from config import (
     WARMUP_RESUME_TIME,
     get_attention_coefficient,
 )
-from data.player_profile import LEVEL_THRESHOLDS
 from game.cup_manager import CupManager
 from game.ingredient_manager import IngredientManager
 
@@ -43,19 +43,35 @@ class AttentionGenerator:
 
     PROFILES = {
         "stable_high": {
-            "baseline": 75.0, "std": 1.5, "pullback": 0.15,
-            "drop_prob": 0.0001, "drop_depth": (20.0, 30.0),
-            "burst_prob": 0.0003, "burst_duration": (420, 720), "burst_elevation": 10.0,
+            "baseline": 75.0,
+            "std": 1.5,
+            "pullback": 0.15,
+            "drop_prob": 0.0001,
+            "drop_depth": (20.0, 30.0),
+            "burst_prob": 0.0003,
+            "burst_duration": (420, 720),
+            "burst_elevation": 10.0,
         },
         "medium": {
-            "baseline": 55.0, "std": 2.0, "pullback": 0.12,
-            "drop_prob": 0.0008, "drop_depth": (10.0, 25.0),
-            "burst_prob": 0.0003, "burst_duration": (300, 540), "burst_elevation": 15.0,
+            "baseline": 55.0,
+            "std": 2.0,
+            "pullback": 0.12,
+            "drop_prob": 0.0008,
+            "drop_depth": (10.0, 25.0),
+            "burst_prob": 0.0003,
+            "burst_duration": (300, 540),
+            "burst_elevation": 15.0,
         },
         "low_fluctuating": {
-            "baseline": 30.0, "std": 4.0, "pullback": 0.06,
-            "drop_prob": 0.002, "drop_depth": (3.0, 12.0), "drop_sustain": (240, 480),
-            "burst_prob": 0.0001, "burst_duration": (200, 360), "burst_elevation": 20.0,
+            "baseline": 30.0,
+            "std": 4.0,
+            "pullback": 0.06,
+            "drop_prob": 0.002,
+            "drop_depth": (3.0, 12.0),
+            "drop_sustain": (240, 480),
+            "burst_prob": 0.0001,
+            "burst_duration": (200, 360),
+            "burst_elevation": 20.0,
         },
     }
 

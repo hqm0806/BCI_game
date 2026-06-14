@@ -152,7 +152,6 @@ CHINESE_FONTS = [
     "simkai.ttf",  # 楷体（Windows 系统字体）
     "msyh.ttf",  # 微软雅黑（Windows 系统字体）
     "msyhbd.ttf",  # 微软雅黑粗体（Windows 系统字体）
-    os.path.join(ASSETS_DIR, "fonts", "simhei.ttf"),  # 项目内置黑体（备用）
 ]
 
 # ============================================================

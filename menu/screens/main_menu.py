@@ -341,7 +341,8 @@ class MainMenu:
                 click_frames[0] -= 1
                 if click_frames[0] == 0:
                     if self.result == "settings":
-                        settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font, audio=self._audio)
+                        bg_snapshot = self.screen.copy()
+                        settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font, audio=self._audio, bg=bg_snapshot)
                         settings_screen.run()
                         self.result = None
                     else:

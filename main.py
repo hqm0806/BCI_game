@@ -133,7 +133,8 @@ class SettingsState(State):
         self.title_font = load_chinese_font(40)
 
     def enter(self) -> GameState | None:
-        settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font, audio=self._audio)
+        bg_snapshot = self.screen.copy()
+        settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font, audio=self._audio, bg=bg_snapshot)
         settings_screen.run()
         return GameState.MENU
 
@@ -263,3 +264,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    

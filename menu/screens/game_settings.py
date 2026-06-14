@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import os
+
 import pygame
 
 import config
-from config import SCREEN_HEIGHT, SCREEN_WIDTH
+from config import SCREEN_HEIGHT, SCREEN_WIDTH, SETTINGS_PANEL_IMG
 from menu.bci_button import BCIModeButton
 from menu.components import MenuItem
 from menu.screens.bci_settings import BCISettingsScreen
@@ -35,7 +37,7 @@ class VolumeSlider:
         self.handle_radius = 12
         self._value = max(0.0, min(1.0, value))
         self._dragging = False
-        self._label_surf = font.render("音量", True, (200, 200, 200))
+        self._label_surf = font.render("音量", True, (40, 40, 40))
         self.label_x = _LABEL_RIGHT - self._label_surf.get_width()
         self.pct_x = self.track_x + self.track_width + 20
 
@@ -74,7 +76,7 @@ class VolumeSlider:
         ly = self.track_y - self._label_surf.get_height() // 2
         self.screen.blit(self._label_surf, (self.label_x, ly))
 
-        pct_text = self.font.render(f"{int(self._value * 100)}%", True, (200, 200, 200))
+        pct_text = self.font.render(f"{int(self._value * 100)}%", True, (40, 40, 40))
         py = self.track_y - pct_text.get_height() // 2
         self.screen.blit(pct_text, (self.pct_x, py))
 
@@ -120,7 +122,7 @@ class OverlaySlider:
         self._max = 255
         self._value = max(self._min, min(self._max, value))
         self._dragging = False
-        self._label_surf = font.render("背景遮罩", True, (200, 200, 200))
+        self._label_surf = font.render("背景遮罩", True, (40, 40, 40))
         self.label_x = _LABEL_RIGHT - self._label_surf.get_width()
         self.pct_x = self.track_x + self.track_width + 20
 
@@ -165,7 +167,7 @@ class OverlaySlider:
         ly = self.track_y - self._label_surf.get_height() // 2
         self.screen.blit(self._label_surf, (self.label_x, ly))
 
-        pct_text = self.font.render(str(self._value), True, (200, 200, 200))
+        pct_text = self.font.render(str(self._value), True, (40, 40, 40))
         py = self.track_y - pct_text.get_height() // 2
         self.screen.blit(pct_text, (self.pct_x, py))
 
@@ -204,7 +206,7 @@ class HUDToggle:
         self.font = font
         self._state = config.SHOW_HUD_INFO
         self.rect = pygame.Rect(_CTRL_LEFT, cy - 16, _CTRL_WIDTH, 36)
-        self._label_surf = font.render("顶部信息栏", True, (200, 200, 200))
+        self._label_surf = font.render("顶部信息栏", True, (40, 40, 40))
         self.label_x = _LABEL_RIGHT - self._label_surf.get_width()
 
     @property
@@ -226,7 +228,7 @@ class HUDToggle:
         text = "显示" if self._state else "隐藏"
         pygame.draw.rect(self.screen, btn_color, self.rect, border_radius=10)
         pygame.draw.rect(self.screen, (255, 255, 255), self.rect, 2, border_radius=10)
-        txt = self.font.render(text, True, (255, 255, 255))
+        txt = self.font.render(text, True, (40, 40, 40))
         self.screen.blit(
             txt,
             (self.rect.centerx - txt.get_width() // 2, self.rect.centery - txt.get_height() // 2),
@@ -247,7 +249,7 @@ class FocusBallToggle:
         self.font = font
         self._state = config.SHOW_FOCUS_BALL
         self.rect = pygame.Rect(_CTRL_LEFT, cy - 16, _CTRL_WIDTH, 36)
-        self._label_surf = font.render("专注力球", True, (200, 200, 200))
+        self._label_surf = font.render("专注力球", True, (40, 40, 40))
         self.label_x = _LABEL_RIGHT - self._label_surf.get_width()
 
     @property
@@ -269,7 +271,7 @@ class FocusBallToggle:
         text = "显示" if self._state else "隐藏"
         pygame.draw.rect(self.screen, btn_color, self.rect, border_radius=10)
         pygame.draw.rect(self.screen, (255, 255, 255), self.rect, 2, border_radius=10)
-        txt = self.font.render(text, True, (255, 255, 255))
+        txt = self.font.render(text, True, (40, 40, 40))
         self.screen.blit(
             txt,
             (self.rect.centerx - txt.get_width() // 2, self.rect.centery - txt.get_height() // 2),
@@ -285,34 +287,47 @@ class GameSettingsScreen:
         font: pygame.font.Font,
         title_font: pygame.font.Font,
         audio=None,
+        bg: pygame.Surface | None = None,
     ) -> None:
         self.screen = screen
         self.font = font
         self.title_font = title_font
         self._audio = audio
+        self._bg = bg
         self.clock = pygame.time.Clock()
         self.running = True
         self.result = None
 
         cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
-        bottom_y = SCREEN_HEIGHT - 80
-        btn_half = _CTRL_WIDTH // 2 + 10
+        self._panel_w, self._panel_h = 820, 560
+        self._panel_x = (SCREEN_WIDTH - self._panel_w) // 2
+        self._panel_y = (SCREEN_HEIGHT - self._panel_h) // 2
+
+        self._panel_img = None
+        if os.path.exists(SETTINGS_PANEL_IMG):
+            try:
+                img = pygame.image.load(SETTINGS_PANEL_IMG).convert_alpha()
+                self._panel_img = pygame.transform.smoothscale(img, (self._panel_w, self._panel_h))
+            except Exception:
+                pass
 
         initial_volume = self._audio.get_master_volume() if self._audio else 0.5
-        self.volume_slider = VolumeSlider(screen, font, cx, cy - 60, value=initial_volume)
-        self.overlay_slider = OverlaySlider(screen, font, cx, cy - 5, value=config.BACKGROUND_OVERLAY_ALPHA)
-        self.hud_toggle = HUDToggle(screen, font, cx, cy + 45)
-        self.focus_ball_toggle = FocusBallToggle(screen, font, cx, cy + 90)
+        self.volume_slider = VolumeSlider(screen, font, cx, cy - 40, value=initial_volume)
+        self.overlay_slider = OverlaySlider(screen, font, cx, cy + 10, value=config.BACKGROUND_OVERLAY_ALPHA)
+        self.hud_toggle = HUDToggle(screen, font, cx, cy + 55)
+        self.focus_ball_toggle = FocusBallToggle(screen, font, cx, cy + 95)
 
-        self.bci_btn = BCIModeButton("BCI设置", cx - btn_half, bottom_y, font, title_font, width=_CTRL_WIDTH)
+        btn_half = _CTRL_WIDTH // 2 + 10
+        btn_y = cy + 220
+        self.bci_btn = BCIModeButton("BCI设置", cx - btn_half, btn_y, font, title_font, width=_CTRL_WIDTH)
         self.back_btn = MenuItem(
             "返回",
             cx + btn_half,
-            bottom_y,
+            btn_y,
             title_font,
             (80, 80, 80),
             (100, 100, 100),
-            (255, 255, 255),
+            (60, 60, 60),
             padding=(30, 15),
             radius=15,
             width=_CTRL_WIDTH,
@@ -358,17 +373,29 @@ class GameSettingsScreen:
         self.back_btn.update(dt)
 
     def _draw(self) -> None:
-        self.screen.fill((30, 30, 40))
+        if self._bg:
+            self.screen.blit(self._bg, (0, 0))
+        else:
+            self.screen.fill((30, 30, 40))
 
-        title = self.title_font.render("游戏设置", True, (255, 255, 255))
-        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 60))
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 160))
+        self.screen.blit(overlay, (0, 0))
 
-        desc = self.font.render("请选择需要配置的项目", True, (180, 180, 180))
-        self.screen.blit(desc, (SCREEN_WIDTH // 2 - desc.get_width() // 2, 120))
+        panel_surf = pygame.Surface((self._panel_w, self._panel_h), pygame.SRCALPHA)
+        if self._panel_img:
+            panel_surf.blit(self._panel_img, (0, 0))
+        else:
+            pygame.draw.rect(panel_surf, (30, 28, 20, 230), (0, 0, self._panel_w, self._panel_h), border_radius=16)
+            pygame.draw.rect(panel_surf, (200, 160, 100, 180), (0, 0, self._panel_w, self._panel_h), 3, border_radius=16)
+        self.screen.blit(panel_surf, (self._panel_x, self._panel_y))
 
-        self.bci_btn.draw(self.screen)
+        title = self.title_font.render("游戏设置", True, (30, 30, 30))
+        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, self._panel_y + 135))
+
         self.volume_slider.draw()
         self.overlay_slider.draw()
         self.hud_toggle.draw()
         self.focus_ball_toggle.draw()
+        self.bci_btn.draw(self.screen)
         self.back_btn.draw(self.screen)

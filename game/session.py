@@ -480,7 +480,8 @@ class GameSession:
                 from menu.screens.game_settings import GameSettingsScreen
                 settings_font = load_chinese_font(24)
                 settings_title = load_chinese_font(40)
-                settings = GameSettingsScreen(self.screen, settings_font, settings_title, audio=self._audio)
+                bg_snapshot = self.screen.copy()
+                settings = GameSettingsScreen(self.screen, settings_font, settings_title, audio=self._audio, bg=bg_snapshot)
                 settings.run()
                 continue
 

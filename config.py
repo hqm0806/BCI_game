@@ -23,7 +23,7 @@ def _get_base_path():
 SCREEN_WIDTH = 1280  # 游戏窗口宽度（像素），修改此项可改变窗口宽度
 SCREEN_HEIGHT = 720  # 游戏窗口高度（像素），修改此项可改变窗口高度
 FPS = 60  # 游戏帧率，值越大画面越流畅，但会增加 CPU/GPU 负担
-TITLE = "疯狂奶茶杯 - 第1周"  # 游戏窗口标题栏文字
+TITLE = "疯狂奶茶杯"  # 游戏窗口标题栏文字
 
 # ============================================================
 # 六等分车道配置 (保留向后兼容)
@@ -134,6 +134,7 @@ SHOW_FOCUS_BALL = True  # 是否显示专注力球
 # 结算面板 - 游戏结束/退出时显示
 # ============================================================
 SUMMARY_PANEL_IMG = os.path.join(IMAGES_DIR, "other", "结算面板.png")
+SETTINGS_PANEL_IMG = os.path.join(IMAGES_DIR, "other", "设置面板.png")
 SUMMARY_PANEL_SIZE = (1024, 658)
 SUMMARY_PANEL_POS = (128, 31)  # centered on 1280x720
 SUMMARY_BTN_W = 200

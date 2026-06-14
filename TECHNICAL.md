@@ -27,7 +27,7 @@
 
 ## 1. 项目概述
 
-**疯狂奶茶杯** 是一款多模态脑机接口 (BCI) 专注力训练游戏。玩家使用可穿戴脑电头环，通过专注力控制食材下落速度、头动偏角控制奶茶杯位置，在 15 分钟内完成 36 杯奶茶的制作。系统通过实时自适应难度调节、方差驱动的冰块干扰、防伪迹仲裁等机制，为 ADHD 儿童及普通用户提供高趣味性的居家神经反馈训练方案。
+**疯狂奶茶杯** 是一款多模态脑机接口 (BCI) 专注力训练游戏。玩家使用可穿戴脑电头环，通过专注力控制食材下落速度、头动偏角控制奶茶杯位置，在 15 分钟内完成 45 杯奶茶的制作。系统通过实时自适应难度调节、方差驱动的冰块干扰、防伪迹仲裁等机制，为 ADHD 儿童及普通用户提供高趣味性的居家神经反馈训练方案。
 
 **关键特性**:
 - TCP 实时通信 HybridBCI 科创平台，获取专注力/头动/陀螺仪数据
@@ -145,13 +145,12 @@ StateMachine
 
 - BGM: `pygame.mixer.music` 管理，支持循环播放和跨屏 crossfade
 - SFX: 惰性加载缓存 (`dict[str, pygame.mixer.Sound]`)，16 个混音通道
-- 10+ 音效事件：接食材、碰撞、升级、秘方触发 等
+- 9 种音效事件：按键、接食材、秘方触发、升级 等
 
 ```python
 audio = AudioManager()
-audio.play_bgm("菜单音乐.wav", volume=0.5)
+audio.play_bgm("玻璃糖果园.mp3", volume=0.5)
 audio.play_sfx("音效/接到食材.wav", volume=0.7)
-audio.crossfade_bgm("游戏音乐.wav", duration=1.0)
 ```
 
 ---
@@ -240,9 +239,7 @@ GameSession(
 formal (45 杯，共 15 分钟)
 ```
 
-游戏直接进入正式阶段，第一杯结束后计算归一化范围，后续使用该范围进行归一化。原萃模式跳过归一化，直接使用原始注意力值。与特调模式相区别。
-- 特调模式: 归一化后计算速度和收益
-- 原萃模式: 原始注意力直接计算
+游戏直接进入正式阶段。第一杯结束后动态更新归一化范围。原萃模式跳过归一化。与特调模式相区别。
 
 **关键逻辑**:
 1. 第一杯结束后取该杯注意力数据 → 计算 `lower = max(avg-15, 0)`, `upper = min(max, 100)`
@@ -376,7 +373,7 @@ def draw_hud(
 ```
 
 渲染内容:
-- 顶部栏: 营收、模式名、杯号 (X/36)、等级徽章
+- 顶部栏: 营收、模式名、杯号 (X/45)、等级徽章
 - 底部: 倒计时进度条
 - BCI 调试信息: 陀螺仪角度、焦点坐标、方差模式
 - 秘方进度条 (专注力持续达标计时)
@@ -390,7 +387,7 @@ def draw_hud(
 | 文件 | 类 | 说明 |
 |------|-----|------|
 | `login.py` | `LoginScreen` | 用户名/密码输入、注册/登录、accounts.json 读写 |
-| `screens/main_menu.py` | `MainMenu` | 3 按钮布局 (开始/模式/设置)，BCI 连接对话框，等级徽章 |
+| `screens/main_menu.py` | `MainMenu` | 4 按钮布局 (开始/模式/设置/退出)，BCI 连接对话框，等级徽章 |
 | `mode_selector.py` | `ModeSelector` | 发光按钮轮播 (常规/记忆/键盘)，预览弹窗 |
 | `screens/game_settings.py` | 设置入口 | 游戏设置 + BCI 设置入口 |
 | `screens/bci_settings.py` | `BCISettingsScreen` | IP/端口输入框、测试连接、保存配置 |
@@ -427,10 +424,10 @@ class PlayerProfile:
 
 **等级阈值**:
 ```
-LEVEL_THRESHOLDS = [0, 80, 250, 600]
-累计营收 >= 80  → Lv.2
-累计营收 >= 250 → Lv.3
-累计营收 >= 600 → Lv.4
+LEVEL_THRESHOLDS = [0, 150, 400, 1000]
+累计营收 >= 150 → Lv.2
+累计营收 >= 400 → Lv.3
+累计营收 >= 1000 → Lv.4
 ```
 
 **存档格式** (`profiles/{username}.json`):
@@ -466,25 +463,7 @@ class ScoreManager:
 
 #### 4.5.3 Recipes (`data/recipes.py`)
 
-30+ 预定义创意配方，评分 0-100:
-
-```python
-CREATIVE_RECIPES = {
-    frozenset(["红茶","牛奶","珍珠"]): {"name":"珍珠奶茶·祖师爷", "score":95},
-    ...
-}
-
-def evaluate_recipe(ingredients: set) → dict:
-    # 匹配预定义配方 → 返回 {name, score, rating, description}
-    # 未知组合 → 启发式评分 (茶底+奶底+小料 = 80+, 单食材 = 30)
-```
-
-**评级**:
-```
-0 → 黑暗料理 | 15 → 勉强能喝 | 30 → 普通奶茶
-45 → 好喝推荐 | 60 → 网红爆款 | 75 → 匠心之作
-90 → 米其林一星 | 100 → 米其林三星
-```
+创意配方系统已从当前版本移除。
 
 #### 4.5.4 MemoryRecipes (`data/memory_recipes.py`)
 
@@ -523,13 +502,12 @@ def main():
 | 杯子 | `CUP_SPEED` | 5 | 键盘移动速度 (px/帧) |
 | 食材 | `INGREDIENT_SPEED` | 3.5 | 默认下落速度 |
 | 一杯制 | `CUP_DURATION` | 20 | 每杯时限 (秒) |
-| 一杯制 | `TOTAL_CUPS` | 36 | 总局数 |
-| 热身 | `WARMUP_DURATION` | 180 | 热身时长 (秒) |
+| 一杯制 | `TOTAL_CUPS` | 45 | 总局数 |
+| 热身 | (已移除) | — | 热身阶段已从当前版本移除 |
 | 防伪迹 | `ARTIFACT_STILL_THRESHOLD` | 0.5 | 静止判定 (°) |
-| 防伪迹 | `ARTIFACT_STILL_DURATION` | 5.0 | 静止持续时间 |
+| 防伪迹 | `ARTIFACT_STILL_DURATION` | 2.0 | 静止持续时间 |
 | 防伪迹 | `ARTIFACT_ATTENTION_THRESHOLD` | 80 | 专注力阈值 |
-| 秘方 | `SECRET_RECIPE_SUSTAIN` | 4 | 触发所需持续秒数 |
-| 秘方 | `SECRET_RECIPE_OFFSET` | 5 | 阈值偏移量 |
+| 秘方 | `SECRET_RECIPE_SUSTAIN` | 8 | 触发所需持续专注秒数 |
 | 速度 | `FORMAL_SPEED_MIN/MAX` | 2.0 / 4.5 | 正式速度范围 |
 | 速度 | `WARMUP_SPEED_MIN/MAX` | 1.5 / 6.0 | 热身速度范围 |
 
@@ -542,14 +520,14 @@ INGREDIENT_TIERS = {
         "required":  [..., "芒果","椰奶"]},
     3: {"available": [..., "草莓","芋泥","燕麦奶","咖啡"],
         "required":  [..., "燕麦奶","咖啡"]},
-    4: {"available": [..., "特调稀奶油顶","米酿","咸芝士奶盖","茉莉花茶"],
+    4: {"available": [..., "抹茶奶盖","米酿","咸芝士奶盖","茉莉花茶"],
         "required":  [..., "茉莉花茶"]},
 }
 
 INGREDIENT_POINTS = {
     "珍珠":1, "椰果":1, "牛奶":2, "红茶":2, "绿茶":2,
     "芋圆":2, "脆啵啵":2, "芒果":3, "椰奶":3, "草莓":3,
-    "芋泥":3, "燕麦奶":4, "咖啡":4, "特调稀奶油顶":5,
+    "芋泥":3, "燕麦奶":4, "咖啡":4, "抹茶奶盖":5,
     "米酿":5, "咸芝士奶盖":6, "茉莉花茶":6,
     "秘方":0, "冰块":0,
 }
@@ -650,7 +628,7 @@ var > 150 & attn < 20 → ice_prob = 100% (冰雪风暴)
 
 ```
 1. max(|gx - prev_gx|, |gy - prev_gy|, |gz - prev_gz|) < 0.5°  (头部静止)
-2. 持续时间 > 5 秒
+2. 持续时间 > 2 秒
 3. attention > 80
 → freeze 5s + "请放松面部肌肉" 文字覆盖
 ```
@@ -658,15 +636,15 @@ var > 150 & attn < 20 → ice_prob = 100% (冰雪风暴)
 ### 6.5 低专注力保护
 
 ```
-attention ≤ 15 持续 5 秒 → 画面冻结 (alpha 渐变为 0.85)
-attention > 15 持续 5 秒 → 解冻 (alpha 渐变为 0)
+attention ≤ 10 持续 5 秒 → 画面冻结 (alpha 渐变为 180)
+attention > 15 持续 3 秒 → 解冻 (alpha 渐变为 0)
 ```
 
 ### 6.6 秘方触发
 
 ```
-BCI 模式: attention > min(baseline + 5, 88) 持续 4 秒 → 触发
-非 BCI 模式: 每 N 杯触发一次 (bci模式 N=3, 常规 N=1)
+BCI 模式: attention > (每杯均值基线 + 10) 持续 8 秒 → 触发
+非 BCI 模式: 每杯 5 秒后触发一次
 ```
 
 ### 6.7 专注力收益系数
@@ -790,33 +768,12 @@ GAME_MODES = {
         "total_cups": 45,
         "secret_recipe_cup_interval": 1,
     },
-    "bci": {
-        "name": "脑机接口模式",
-        "has_required": False,
-        "free_combine": True,
-        "bci_mode": True,
-        "ingredient_speed": 3,
-        "spawn_interval": 1200,
-        "total_cups": 45,
-        "secret_recipe_cup_interval": 3,
-    },
-    "infinite": {
-        "name": "原萃模式",
-        "has_required": False,
-        "free_combine": True,
-        "bci_mode": True,
-        "raw_attention": True,
-        "ingredient_speed": 3,
-        "spawn_interval": 1000,
-        "total_cups": 45,
-        "secret_recipe_cup_interval": 3,
-    },
 }
 
 CONTROL_MODES = [
     {"key": "bci_normal", "name": "特调模式", "desc": "BCI头环控制杯子"},
     {"key": "memory",     "name": "忆调模式", "desc": "记忆食材序列"},
-    {"key": "infinite",   "name": "原萃模式", "desc": "专注力直驱食材速度，不进行归一化"},
+    {"key": "infinite",   "name": "原萃模式", "desc": "专注力直驱食材速度"},
 ]
 ```
 
@@ -839,16 +796,16 @@ python bci_cup_control.py     # PyQt5 BCI 控制客户端 (备选)
 
 ### 单元测试
 ```bash
-pytest tests/ -v
-# tests/test_score_manager.py  — ScoreManager 单元测试
-# tests/test_recipes.py        — 配方评分单元测试
-# tests/test_filters.py        — 滤波器单元测试
+python -m tests.metrics.test_metrics_game_balance
+python -m tests.metrics.test_metrics_speed_ice
+python -m tests.metrics.test_metrics_normalization
+```
 ```
 
 ### 打包为 exe
 ```bash
-pyinstaller CrazyMilkTea.spec
-# 输出: dist/CrazyMilkTea.exe (~65MB)
+pyinstaller 疯狂奶茶杯.spec
+# 输出: dist/疯狂奶茶杯.exe
 # 自动包含 assets/ 和 JSON 配置文件
 ```
 
@@ -866,14 +823,12 @@ ruff format .      # 代码格式化
 BCI_game/
 ├── main.py                    # 入口
 ├── config.py                  # 全局参数 (395 行)
-├── calibration.py             # 注意力方差校准工具
+├── calibration.py             # (已删除)
 ├── test_bci_connection.py     # BCI 连接测试
 ├── bci_cup_control.py         # PyQt5 BCI 替代客户端
 ├── requirements.txt           # Python 依赖
 ├── pyproject.toml             # Ruff 配置
-├── CrazyMilkTea.spec          # PyInstaller 配置
 ├── accounts.json              # 用户密码字典
-├── player_profile.json        # 默认存档
 ├── bci_config.json            # BCI 服务器地址配置
 │
 ├── core/
@@ -912,14 +867,16 @@ BCI_game/
 ├── data/
 │   ├── player_profile.py      # 玩家存档 (134 行)
 │   ├── score_manager.py       # 得分管理
-│   ├── recipes.py             # 创意配方库 (346 行)
-│   ├── memory_recipes.py      # 忆调模式配方
-│   └── ingredient_config.py   # 食材配置 (遗留)
+│   └── memory_recipes.py      # 忆调模式配方
 │
 ├── tests/
 │   ├── test_score_manager.py
-│   ├── test_recipes.py
-│   └── test_filters.py
+│   ├── test_filters.py
+│   └── metrics/
+│       ├── test_helpers.py
+│       ├── test_metrics_normalization.py
+│       ├── test_metrics_speed_ice.py
+│       └── test_metrics_game_balance.py
 │
 ├── utils/
 │   └── logging_config.py      # 日志配置

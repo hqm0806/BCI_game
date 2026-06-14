@@ -16,7 +16,7 @@ plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
 from data.player_profile import PlayerProfile, LEVEL_THRESHOLDS
-from test_helpers import AttentionGenerator, GameSimulator, GyroGenerator
+from .test_helpers import AttentionGenerator, GameSimulator, GyroGenerator
 
 PLAYER_TYPES = {
     "高专注平稳型(高手)": "stable_high",

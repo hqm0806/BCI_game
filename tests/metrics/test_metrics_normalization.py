@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-from test_helpers import AttentionGenerator
+from .test_helpers import AttentionGenerator
 
 PLAYER_TYPES = {
     "高专注型": "stable_high",

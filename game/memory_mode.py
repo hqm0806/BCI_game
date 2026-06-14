@@ -152,6 +152,7 @@ class MemorySession:
         self._bci_available = False
         self._bci_reader = None
         self._use_yaw = False
+        self._yaw_data_ok = False
         self._platform_focus_x = float(SCREEN_WIDTH // 2)
         self._focus_min = 40
         self._focus_max = SCREEN_WIDTH - 40
@@ -343,11 +344,12 @@ class MemorySession:
                     result = self._bci_reader.read_with_timeout()
                     if result[1] is not None:
                         self._platform_focus_x = float(result[1])
+                        self._yaw_data_ok = True
 
                 keys = pygame.key.get_pressed()
                 kb_pressed = keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
 
-                if self._use_yaw and not kb_pressed:
+                if self._use_yaw and not kb_pressed and self._bci_available and self._yaw_data_ok:
                     fx = int(self._platform_focus_x)
                     self.cup.rect.centerx = max(self._focus_min, min(self._focus_max, fx))
                 else:

@@ -321,11 +321,23 @@ class HistoryScreen:
         pygame.draw.rect(self.screen, (40, 40, 60), (graph_x, text_box_y, graph_w, text_box_h), border_radius=6)
         pygame.draw.rect(self.screen, (100, 100, 140), (graph_x, text_box_y, graph_w, text_box_h), 2, border_radius=6)
 
-        placeholder = self.hint_font.render("（文字框预留）", True, (100, 100, 120))
-        self.screen.blit(
-            placeholder,
-            (graph_x + graph_w // 2 - placeholder.get_width() // 2, text_box_y + text_box_h // 2 - 10),
-        )
+        lines = [
+            "专注力训练小贴士",
+            "",
+            "• 稳定的专注力是制作美味奶茶的关键",
+            "• 保持放松，让头部自然微动",
+            "• 避免刻意僵直或咬牙",
+            "• 秘方触发需要持续高专注",
+            "• 深呼吸有助于提升专注表现",
+        ]
+        line_h = self.hint_font.get_height() + 6
+        start_y = text_box_y + 12
+        for i, line in enumerate(lines):
+            if not line:
+                continue
+            color = (255, 220, 150) if i == 0 else (180, 180, 200)
+            surf = self.hint_font.render(line, True, color)
+            self.screen.blit(surf, (graph_x + 16, start_y + i * line_h))
 
     def _show_confirm_dialog(self, text: str, delete_idx: int = -1, delete_all: bool = False) -> None:
         self._dialog_active = True

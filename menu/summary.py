@@ -225,9 +225,9 @@ class SummaryScreen:
                 graph_y = y + 5
                 total_sec = len(self.focus_samples) / 60.0
                 self._draw_waveform(graph_x, graph_y, graph_w, graph_h, total_sec)
-                y = graph_y + graph_h + 30
+                y = graph_y + graph_h + 20
 
-            y += 10
+            y += 5
             comment_surf = self.hint_font.render(self.comment, True, (110, 80, 40))
             self.screen.blit(comment_surf, (SCREEN_WIDTH // 2 - comment_surf.get_width() // 2, y))
 

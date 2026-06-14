@@ -362,15 +362,23 @@ class GameSession:
             else:
                 norm = self._normalize_to_range(attn)
                 speed = FORMAL_SPEED_MAX - (norm - 1.0) / 99.0 * (FORMAL_SPEED_MAX - FORMAL_SPEED_MIN)
-            self.ingredient_manager.set_current_speed(speed)
-            for ing in self.ingredients:
-                ing.speed = speed
+        else:
+            speed = self.mode_speed
 
-            speed_ratio = speed / self.mode_speed if self.mode_speed > 0 else 1.0
+        base_speed = speed
+
+        if self._secret_popup_timer > 0 and not self.bci_mode:
+            speed *= 0.4
+
+        self.ingredient_manager.set_current_speed(speed)
+        for ing in self.ingredients:
+            ing.speed = speed
+
+        if self.bci_mode:
+            speed_ratio = base_speed / self.mode_speed if self.mode_speed > 0 else 1.0
             adjusted = self.spawn_interval * (0.7 + 0.6 * speed_ratio)
             self.ingredient_manager.set_spawn_interval(max(0.3, min(3.0, adjusted)))
         else:
-            self.ingredient_manager.set_current_speed(self.mode_speed)
             self.ingredient_manager.set_spawn_interval(self.spawn_interval)
 
     def _update_pause_state(self, dt_sec: float) -> None:

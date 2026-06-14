@@ -847,15 +847,16 @@ class GameSession:
         self.screen.blit(self._focus_ball, (bx - bw // 2, by - bh // 2))
 
         val = int(self.attention) if self.attention is not None else 0
-        s = f"{min(val, 99):02d}"
-        total_w = len(s) * DIGIT_WIDTH + (len(s) - 1) * DIGIT_SPACING
-        start_x = bx - total_w // 2
-        digit_y = by - DIGIT_HEIGHT // 2
-        for ch in s:
-            idx = ord(ch) - 48
-            if 0 <= idx < len(self._digit_imgs):
-                self.screen.blit(self._digit_imgs[idx], (start_x, digit_y))
-            start_x += DIGIT_WIDTH + DIGIT_SPACING
+        if self.bci_available:
+            s = f"{min(val, 99):02d}"
+            total_w = len(s) * DIGIT_WIDTH + (len(s) - 1) * DIGIT_SPACING
+            start_x = bx - total_w // 2
+            digit_y = by - DIGIT_HEIGHT // 2
+            for ch in s:
+                idx = ord(ch) - 48
+                if 0 <= idx < len(self._digit_imgs):
+                    self.screen.blit(self._digit_imgs[idx], (start_x, digit_y))
+                start_x += DIGIT_WIDTH + DIGIT_SPACING
 
     def _draw_badge(self) -> None:
         if self._badge_img is None:

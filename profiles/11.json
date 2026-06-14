@@ -1,7 +1,7 @@
 {
   "level": 1,
   "cumulative_revenue": 111,
-  "total_games": 8,
+  "total_games": 9,
   "games_history": [
     {
       "mode": "bci",
@@ -856,6 +856,38 @@
         50,
         50,
         50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50
+      ]
+    },
+    {
+      "mode": "bci",
+      "revenue": 0,
+      "cups": 0,
+      "secrets": 0,
+      "avg_attention": 50.0,
+      "last_5min_avg_attention": 50.0,
+      "duration": 1.2,
+      "date": "2026-06-14 14:07",
+      "focus_samples": [
         50,
         50,
         50,

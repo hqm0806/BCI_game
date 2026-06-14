@@ -176,11 +176,11 @@ class SummaryScreen:
                     if self._btn_save_rect.collidepoint(event.pos):
                         return "save"
                     if self._btn_quit_rect.collidepoint(event.pos):
-                        return "quit"
+                        return "menu"
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     now = time.time()
                     if now - last_esc < 0.5:
-                        return "quit"
+                        return "menu"
                     last_esc = now
 
             if self._bg:

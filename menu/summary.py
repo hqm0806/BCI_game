@@ -37,6 +37,7 @@ class SummaryScreen:
         upgraded: bool = False,
         focus_samples: list | None = None,
         bg: pygame.Surface | None = None,
+        success_count: int = 0,
     ) -> None:
         self.screen = screen
         self._bg = bg
@@ -52,6 +53,7 @@ class SummaryScreen:
         self.cumulative_revenue = cumulative_revenue
         self.upgraded = upgraded
         self.focus_samples = focus_samples or []
+        self.success_count = success_count
 
         self.panel_img = None
         if os.path.exists(SUMMARY_PANEL_IMG):
@@ -83,6 +85,12 @@ class SummaryScreen:
     def _generate_comment(self) -> str:
         if self.upgraded:
             return f"升级！已达到 Lv.{self.player_level}！"
+        if self.game_mode == "memory":
+            if self.total_money >= 100:
+                return "过目不忘，记忆力超群！"
+            if self.total_money >= 50:
+                return "记性不错，继续挑战更高难度！"
+            return "多练练习，记忆力会越来越好！"
         if self.game_mode == "bci":
             if self.focus_value >= 70:
                 return "专注大师！脑波与奶茶的完美共鸣！"
@@ -195,42 +203,50 @@ class SummaryScreen:
                 self.screen.blit(self.panel_img, (px, py))
 
             y = 180
-            _draw_centered(self.screen, self.info_font, f"Lv.{self.player_level}", y, (80, 50, 20))
+            if self.game_mode == "memory":
+                _draw_centered(self.screen, self.info_font, f"Lv.{self.player_level + 1}", y, (80, 50, 20))
+                y += 50
+                _draw_centered(self.screen, self.info_font, f"总得分: {self.total_money}", y, (80, 50, 20))
+                y += 45
+                rate = (self.success_count / self.cup_count * 100) if self.cup_count > 0 else 0
+                _draw_centered(
+                    self.screen, self.hint_font,
+                    f"完成轮次: {self.cup_count} | 成功: {self.success_count} | 成功率: {rate:.0f}%",
+                    y, (90, 65, 35),
+                )
+                y += 65
+            else:
+                _draw_centered(self.screen, self.info_font, f"Lv.{self.player_level}", y, (80, 50, 20))
+                y += 50
+                _draw_centered(self.screen, self.info_font, f"总收益: {self.total_money}", y, (80, 50, 20))
+                y += 45
+                _draw_centered(self.screen, self.hint_font, f"累计营业额: {self.cumulative_revenue}", y, (100, 75, 45))
+                y += 40
+                _draw_centered(
+                    self.screen,
+                    self.hint_font,
+                    f"完成杯数: {self.cup_count} | 秘方: {self.secret_count} 次 | 最高单杯: {self.max_cup_money}",
+                    y,
+                    (90, 65, 35),
+                )
+                y += 50
+                if self.upgraded:
+                    up_surf = self.big_font.render(f"升到 Lv.{self.player_level}！新食材已解锁", True, (140, 70, 20))
+                    self.screen.blit(up_surf, (SCREEN_WIDTH // 2 - up_surf.get_width() // 2, y))
+                    y += 60
 
-            y += 50
-            _draw_centered(self.screen, self.info_font, f"总收益: {self.total_money}", y, (80, 50, 20))
+                y += 25
+                _draw_centered(self.screen, self.info_font, f"平均专注力: {self.focus_value:.1f}%", y, (80, 50, 20))
+                y += 30
 
-            y += 45
-            _draw_centered(self.screen, self.hint_font, f"累计营业额: {self.cumulative_revenue}", y, (100, 75, 45))
-
-            y += 40
-            _draw_centered(
-                self.screen,
-                self.hint_font,
-                f"完成杯数: {self.cup_count} | 秘方: {self.secret_count} 次 | 最高单杯: {self.max_cup_money}",
-                y,
-                (90, 65, 35),
-            )
-
-            y += 50
-            if self.upgraded:
-                up_surf = self.big_font.render(f"升到 Lv.{self.player_level}！新食材已解锁", True, (140, 70, 20))
-                self.screen.blit(up_surf, (SCREEN_WIDTH // 2 - up_surf.get_width() // 2, y))
-                y += 60
-
-            y += 25
-            _draw_centered(self.screen, self.info_font, f"平均专注力: {self.focus_value:.1f}%", y, (80, 50, 20))
-
-            y += 30
-
-            if self.focus_samples:
-                graph_w = 800
-                graph_h = 120
-                graph_x = (SCREEN_WIDTH - graph_w) // 2
-                graph_y = y + 5
-                total_sec = len(self.focus_samples) / 60.0
-                self._draw_waveform(graph_x, graph_y, graph_w, graph_h, total_sec)
-                y = graph_y + graph_h + 20
+                if self.focus_samples:
+                    graph_w = 800
+                    graph_h = 120
+                    graph_x = (SCREEN_WIDTH - graph_w) // 2
+                    graph_y = y + 5
+                    total_sec = len(self.focus_samples) / 60.0
+                    self._draw_waveform(graph_x, graph_y, graph_w, graph_h, total_sec)
+                    y = graph_y + graph_h + 20
 
             y += 5
             comment_surf = self.hint_font.render(self.comment, True, (110, 80, 40))

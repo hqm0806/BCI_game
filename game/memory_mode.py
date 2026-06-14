@@ -290,11 +290,10 @@ class MemorySession:
                     summary = SummaryScreen(
                         self.screen,
                         self._total_score,
-                        focus_value=0.0,
                         game_mode="memory",
                         total_money=self._total_score,
                         cup_count=self._total_rounds,
-                        secret_count=self._total_success,
+                        success_count=self._total_success,
                         player_level=self._current_level - 1,
                         bg=bg_snapshot,
                     )

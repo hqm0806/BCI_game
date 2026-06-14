@@ -178,6 +178,8 @@ class MemoryGameState(State):
         control_mode = self._context.get("control_mode", "bci")
         profile = self._context.get("profile")
         result = run_memory_game(self.screen, self.clock, audio=audio, control_mode=control_mode, profile=profile)
+        if profile and result == "save":
+            profile.save()
         if result == "quit":
             return GameState.QUIT
         return GameState.MENU
@@ -205,7 +207,7 @@ class GameStateImpl(State):
         game_result = run_game(
             self.screen, self.clock, game_mode=game_mode, profile=profile, control_mode=control_mode, audio=audio
         )
-        if profile:
+        if profile and game_result == "save":
             profile.save()
         if game_result == "quit":
             return GameState.QUIT

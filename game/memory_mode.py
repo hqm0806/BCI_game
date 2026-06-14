@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import os
 import random
+import time
 
 import pygame
 
@@ -71,6 +72,7 @@ class MemorySession:
         self.big_font = load_chinese_font(48)
         self.small_font = load_chinese_font(20)
         self.running = True
+        self._session_start = time.time()
 
         self._bg = self._load_bg()
 
@@ -296,7 +298,19 @@ class MemorySession:
                         player_level=self._current_level - 1,
                         bg=bg_snapshot,
                     )
-                    return summary.run()
+                    result = summary.run()
+                    if result == "save" and self._profile:
+                        duration = time.time() - self._session_start
+                        self._profile.add_game_result(
+                            revenue=self._total_score,
+                            mode="memory",
+                            cups=self._total_rounds,
+                            secrets=self._total_success,
+                            avg_attention=0.0,
+                            duration=duration,
+                        )
+                        return "save"
+                    return result
 
             if self._phase == "rules":
                 if self._phase_timer >= self._rules_display_time:

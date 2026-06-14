@@ -16,6 +16,8 @@ from menu.summary import _draw_centered as draw_centered
 class HistoryScreen:
     """历史记录列表 + 查看详情"""
 
+    _MODE_LABELS = {"all": "全部", "bci": "BCI", "memory": "忆调", "infinite": "原萃", "regular": "特调"}
+
     def __init__(self, screen: pygame.Surface, games: list[dict], profile=None) -> None:
         self.screen = screen
         self.clock = pygame.time.Clock()
@@ -27,7 +29,8 @@ class HistoryScreen:
         self.small_font = load_chinese_font(16)
         self._scroll = 0
         self._item_h = 80
-        self._visible = (SCREEN_HEIGHT - 120) // self._item_h
+        self._visible = (SCREEN_HEIGHT - 140) // self._item_h
+        self._mode_filter = "all"
         self._dialog_active = False
         self._dialog_text = ""
         self._dialog_delete_idx = -1
@@ -35,12 +38,24 @@ class HistoryScreen:
         self._dlg_confirm_rect = pygame.Rect(0, 0, 0, 0)
         self._dlg_cancel_rect = pygame.Rect(0, 0, 0, 0)
 
+    @property
+    def _filtered_games(self) -> list[dict]:
+        if self._mode_filter == "all":
+            return self.games
+        return [g for g in self.games if g.get("mode", "") == self._mode_filter]
+
     def run(self) -> None:
         LEFT_W = 580
         RIGHT_X = LEFT_W + 10
         RIGHT_W = SCREEN_WIDTH - RIGHT_X
 
         clear_btn_rect = pygame.Rect(LEFT_W - 130, 50, 120, 30)
+        filter_btns: list[tuple[pygame.Rect, str]] = []
+        btn_x = 40
+        for key in ["all", "bci", "memory", "infinite", "regular"]:
+            r = pygame.Rect(btn_x, 88, 56, 24)
+            filter_btns.append((r, key))
+            btn_x += 60
 
         while True:
             self.clock.tick(60)
@@ -69,19 +84,29 @@ class HistoryScreen:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     return
                 if event.type == pygame.MOUSEWHEEL:
-                    self._scroll = max(0, min(len(self.games) - self._visible, self._scroll - event.y))
+                    filtered = self._filtered_games
+                    max_scroll = max(0, len(filtered) - self._visible)
+                    self._scroll = max(0, min(max_scroll, self._scroll - event.y))
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         if mx < LEFT_W:
-                            idx = self._scroll + (my - 100) // self._item_h
-                            if 0 <= idx < len(self.games):
-                                self._show_detail(self.games[idx])
+                            for r, key in filter_btns:
+                                if r.collidepoint(mx, my):
+                                    self._mode_filter = key
+                                    self._scroll = 0
+                                    break
+                            else:
+                                filtered = self._filtered_games
+                                idx = self._scroll + (my - 120) // self._item_h
+                                if 0 <= idx < len(filtered):
+                                    self._show_detail(filtered[idx])
                         if clear_btn_rect.collidepoint(mx, my) and self.games:
                             self._show_confirm_dialog("确认清除全部历史记录？", delete_all=True)
                     elif event.button == 3:
                         if mx < LEFT_W:
-                            idx = self._scroll + (my - 100) // self._item_h
-                            if 0 <= idx < len(self.games):
+                            filtered = self._filtered_games
+                            idx = self._scroll + (my - 120) // self._item_h
+                            if 0 <= idx < len(filtered):
                                 self._show_confirm_dialog("确认删除该条历史记录？", delete_idx=idx)
 
             self.screen.fill((25, 25, 45))
@@ -95,13 +120,27 @@ class HistoryScreen:
 
             pygame.draw.line(self.screen, (80, 80, 100), (40, 80), (LEFT_W - 40, 80), 1)
 
+            for r, key in filter_btns:
+                active = self._mode_filter == key
+                fill = (255, 180, 60) if active else (50, 50, 70)
+                hover = r.collidepoint(mx, my)
+                if hover and not active:
+                    fill = (70, 70, 100)
+                pygame.draw.rect(self.screen, fill, r, border_radius=6)
+                label = self.small_font.render(self._MODE_LABELS[key], True, (255, 255, 255) if active else (180, 180, 200))
+                self.screen.blit(label, (r.centerx - label.get_width() // 2, r.centery - label.get_height() // 2))
+
+            filtered = self._filtered_games
             if not self.games:
                 no_rec = self.font.render("暂无记录", True, (150, 150, 150))
                 self.screen.blit(no_rec, (LEFT_W // 2 - no_rec.get_width() // 2, 200))
+            elif not filtered:
+                no_rec = self.font.render("该模式暂无记录", True, (150, 150, 150))
+                self.screen.blit(no_rec, (LEFT_W // 2 - no_rec.get_width() // 2, 200))
 
-            for i in range(self._scroll, min(self._scroll + self._visible + 1, len(self.games))):
-                g = self.games[i]
-                row_y = 100 + (i - self._scroll) * self._item_h
+            for i in range(self._scroll, min(self._scroll + self._visible + 1, len(filtered))):
+                g = filtered[i]
+                row_y = 120 + (i - self._scroll) * self._item_h
                 row_rect = pygame.Rect(20, row_y, LEFT_W - 40, self._item_h - 4)
 
                 hover = row_rect.collidepoint(pygame.mouse.get_pos())
@@ -114,7 +153,7 @@ class HistoryScreen:
                 date = self.hint_font.render(g.get("date", "未知"), True, (255, 255, 255))
                 self.screen.blit(date, (row_rect.x + 10, row_rect.y + 6))
 
-                mode_name = {"regular": "特调", "challenge": "挑战", "creative": "创意", "bci": "BCI"}.get(
+                mode_name = {"regular": "特调", "bci": "BCI", "memory": "忆调", "infinite": "原萃"}.get(
                     g.get("mode", ""), ""
                 )
                 mins = int(g.get("duration", 0)) // 60
@@ -183,7 +222,7 @@ class HistoryScreen:
             draw_centered(self.screen, self.font, date, y, (200, 200, 200))
             y += 40
 
-            mode_name = {"regular": "特调模式", "challenge": "挑战模式", "creative": "创意模式", "bci": "BCI模式"}.get(
+            mode_name = {"regular": "特调模式", "bci": "BCI模式", "memory": "忆调模式", "infinite": "原萃模式"}.get(
                 game.get("mode", ""), ""
             )
             draw_centered(self.screen, self.font, mode_name, y, (180, 180, 220))
@@ -352,10 +391,18 @@ class HistoryScreen:
             self._profile.clear_history()
             self.games = []
         elif self._dialog_delete_idx >= 0:
-            original_len = len(self._profile.games_history)
-            reversed_idx = len(self._profile.games_history) - 1 - self._dialog_delete_idx
-            if 0 <= reversed_idx < original_len:
-                self._profile.remove_game(reversed_idx)
+            filtered = self._filtered_games
+            if self._dialog_delete_idx < len(filtered):
+                target = filtered[self._dialog_delete_idx]
+                try:
+                    real_idx = self.games.index(target)
+                except ValueError:
+                    real_idx = -1
+                if real_idx >= 0:
+                    original_len = len(self._profile.games_history)
+                    reversed_idx = original_len - 1 - real_idx
+                    if 0 <= reversed_idx < original_len:
+                        self._profile.remove_game(reversed_idx)
             self._refresh_games()
         self._profile.save()
         self._scroll = 0

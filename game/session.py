@@ -1033,37 +1033,16 @@ class GameSession:
                 last_5min_avg = sum(last_samples) / len(last_samples)
 
             if self._profile:
-                skip_history = self._infinite or (
+                p_level = self._profile.level
+                p_rev = self._profile.cumulative_revenue
+                can_save = not self._infinite and not (
                     self.control_mode in ("bci", "bci_failed") and self.bci_mode and not self.bci_available
                 )
-                if skip_history:
-                    is_upgraded = False
-                    p_level = self._profile.level
-                    p_rev = self._profile.cumulative_revenue
-                    self._upgrade_level = self._profile.level
-                else:
-                    old_level = self._profile.level
-                    upgraded = self._profile.add_game_result(
-                        revenue=self.score_manager.total_money,
-                        mode=self.game_mode,
-                        cups=self.score_manager.cup_count,
-                        secrets=self.score_manager.secret_recipe_count,
-                        avg_attention=avg_focus,
-                        duration=game_duration,
-                        focus_samples=self.focus_samples,
-                        last_5min_avg_attention=last_5min_avg,
-                    )
-                    self._upgrade_level = old_level if upgraded else self._profile.level
-                    is_upgraded = upgraded > 0
-                    if is_upgraded and self._audio:
-                        self._audio.play_sfx("音效/升级.wav", volume=0.7)
-                    p_level = self._profile.level
-                    p_rev = self._profile.cumulative_revenue
             else:
                 self._upgrade_level = 1
-                is_upgraded = False
                 p_level = 1
                 p_rev = 0
+                can_save = False
 
             bg_snapshot = self.screen.copy()
             summary = SummaryScreen(
@@ -1077,11 +1056,28 @@ class GameSession:
                 max_cup_money=self.score_manager.get_max_cup_money(),
                 player_level=p_level,
                 cumulative_revenue=p_rev,
-                upgraded=is_upgraded,
+                upgraded=False,
                 focus_samples=self.focus_samples,
                 bg=bg_snapshot,
             )
-            return summary.run()
+            result = summary.run()
+
+            if result == "save" and self._profile and can_save:
+                upgraded = self._profile.add_game_result(
+                    revenue=self.score_manager.total_money,
+                    mode=self.game_mode,
+                    cups=self.score_manager.cup_count,
+                    secrets=self.score_manager.secret_recipe_count,
+                    avg_attention=avg_focus,
+                    duration=game_duration,
+                    focus_samples=self.focus_samples,
+                    last_5min_avg_attention=last_5min_avg,
+                )
+                self._upgrade_level = self._profile.level
+                if upgraded and self._audio:
+                    self._audio.play_sfx("音效/升级.wav", volume=0.7)
+                return "save"
+            return result
 
         if self.bci_available:
             self.bci_reader.disconnect()

@@ -20,6 +20,11 @@ from config import (
     INFO_FONT_SIZE,
     INFO_REGIONS,
     INGREDIENT_IMGS,
+    MEMORY_SESSION_DURATION,
+    MEMORY_SPAWN_MULTIPLIER,
+    MEMORY_SPEED_DEFAULT,
+    MEMORY_SPEED_MAX,
+    MEMORY_SPEED_MIN,
     OUTLET_BLOCK_RADIUS,
     OUTLET_POSITIONS,
     SCREEN_HEIGHT,
@@ -73,7 +78,6 @@ class MemorySession:
         self.small_font = load_chinese_font(20)
         self.pause_font = load_chinese_font(48)
         self.running = True
-        self._session_start = time.time()
 
         self._esc_dialog_active = False
         self._esc_dialog_selected = 0
@@ -125,10 +129,7 @@ class MemorySession:
 
         self._spawn_timer = 0.0
         self._spawn_interval = 0.8
-        self._spawn_count = 0
-        self._recipe_spawn_index = 0
-        self._recipe_ratio = 3
-        self._ingredient_speed = 5.5
+        self._ingredient_speed = MEMORY_SPEED_DEFAULT
 
         self._num_lanes = 5
         self._lane_w = SCREEN_WIDTH // self._num_lanes
@@ -136,8 +137,7 @@ class MemorySession:
         self._max_per_lane = 1
 
         self._rules_display_time = 3.5
-        self._memorize_time = 2.0  # 每轮记忆阶段持续时间
-        self._drop_window = 15.0
+        self._memorize_time = 2.0
         self._result_time = 1.5
         self._rest_time = 2.0
 
@@ -148,6 +148,19 @@ class MemorySession:
         self._total_success = 0
 
         self._catch_success_timer = 0.0
+
+        self._spawn_multiplier = MEMORY_SPAWN_MULTIPLIER
+        self._spawn_list: list[str] = []
+        self._spawn_index = 0
+        self._all_spawned = False
+
+        self._session_start_time = 0.0
+        self._session_duration = MEMORY_SESSION_DURATION
+        self._session_ending = False
+        self._first_round_started = False
+
+        self._attention = 50
+        self._focus_samples: list[float] = []
 
         self._bci_available = False
         self._bci_reader = None
@@ -180,6 +193,23 @@ class MemorySession:
         self._target_index = 0
         self._round_result = ""
 
+    def _build_spawn_list(self) -> None:
+        n = len(self._recipe_ingredients)
+        total = n * self._spawn_multiplier
+        self._spawn_list = []
+        recipe_idx = 0
+        distractor_count = total - n
+        recipe_every = self._spawn_multiplier
+        after_last_recipe = max(0, total - (n - 1) * recipe_every - 1)
+        for i in range(total):
+            pos_in_block = i % recipe_every
+            blocks_used = i // recipe_every
+            if pos_in_block == 0 and recipe_idx < n:
+                self._spawn_list.append(self._recipe_ingredients[recipe_idx])
+                recipe_idx += 1
+            else:
+                self._spawn_list.append(self._random_distractor())
+
     def _enter_phase(self, phase: str) -> None:
         self._phase = phase
         self._phase_timer = 0.0
@@ -187,9 +217,14 @@ class MemorySession:
             self._pick_recipe()
         elif phase == "playing":
             self._all_ingredients.empty()
+            self._build_spawn_list()
+            self._spawn_index = 0
+            self._all_spawned = False
             self._spawn_timer = 0.3
-            self._spawn_count = 0
-            self._recipe_spawn_index = 0
+            self._catch_success_timer = 0.0
+            if not self._first_round_started:
+                self._first_round_started = True
+                self._session_start_time = time.time()
 
     def _free_outlet(self) -> int | None:
         indices = list(range(len(OUTLET_POSITIONS)))
@@ -244,6 +279,42 @@ class MemorySession:
         available = [t for t in pool if t not in used]
         return random.choice(available) if available else random.choice(pool)
 
+    def _compute_speed(self) -> float:
+        if not self._bci_available:
+            return MEMORY_SPEED_DEFAULT
+        attn = max(0, min(100, self._attention))
+        return MEMORY_SPEED_MAX - (attn / 100.0) * (MEMORY_SPEED_MAX - MEMORY_SPEED_MIN)
+
+    def _end_game(self) -> None:
+        bg_snapshot = self.screen.copy()
+        duration = time.time() - self._session_start_time
+        avg_attn = 0.0
+        if self._focus_samples:
+            avg_attn = sum(self._focus_samples) / len(self._focus_samples)
+        summary = SummaryScreen(
+            self.screen,
+            self._total_score,
+            game_mode="memory",
+            total_money=self._total_score,
+            cup_count=self._total_rounds,
+            success_count=self._total_success,
+            player_level=self._current_level - 1,
+            focus_samples=self._focus_samples,
+            bg=bg_snapshot,
+        )
+        result = summary.run()
+        if result == "save" and self._profile:
+            self._profile.add_game_result(
+                revenue=self._total_score,
+                mode="memory",
+                cups=self._total_rounds,
+                secrets=self._total_success,
+                avg_attention=avg_attn,
+                duration=duration,
+                focus_samples=self._focus_samples,
+            )
+            self._result = "save"
+
     def _check_catches(self) -> None:
         if self._target_index >= len(self._recipe_ingredients):
             return
@@ -288,6 +359,11 @@ class MemorySession:
             dt = min(self.clock.tick(60) / 1000.0, 0.05)
             self._phase_timer += dt
 
+            if self._first_round_started and not self._session_ending:
+                elapsed = time.time() - self._session_start_time
+                if elapsed >= self._session_duration:
+                    self._session_ending = True
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
@@ -324,10 +400,13 @@ class MemorySession:
             if self._pending_settings:
                 self._pending_settings = False
                 from menu.screens.game_settings import GameSettingsScreen
+
                 settings_font = load_chinese_font(24)
                 settings_title = load_chinese_font(40)
                 bg_snapshot = self.screen.copy()
-                settings = GameSettingsScreen(self.screen, settings_font, settings_title, audio=self._audio, bg=bg_snapshot)
+                settings = GameSettingsScreen(
+                    self.screen, settings_font, settings_title, audio=self._audio, bg=bg_snapshot
+                )
                 settings.run()
                 continue
 
@@ -342,9 +421,15 @@ class MemorySession:
             elif self._phase == "playing":
                 if self._bci_available:
                     result = self._bci_reader.read_with_timeout()
+                    if result[0] is not None:
+                        self._attention = result[0]
                     if result[1] is not None:
                         self._platform_focus_x = float(result[1])
                         self._yaw_data_ok = True
+
+                self._focus_samples.append(float(self._attention))
+
+                self._ingredient_speed = self._compute_speed()
 
                 keys = pygame.key.get_pressed()
                 kb_pressed = keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
@@ -361,23 +446,18 @@ class MemorySession:
                         dt=dt,
                     )
 
-                n = len(self._recipe_ingredients)
-                if n == 0:
-                    self._enter_phase("result")
-                    continue
-                if self._catch_success_timer <= 0:
+                if self._catch_success_timer <= 0 and not self._all_spawned:
                     self._spawn_timer -= dt
-                    while self._spawn_timer <= 0:
-                        if self._spawn_count % self._recipe_ratio == 0:
-                            ing_type = self._recipe_ingredients[self._recipe_spawn_index % n]
-                            self._recipe_spawn_index += 1
-                        else:
-                            ing_type = self._random_distractor()
+                    while self._spawn_timer <= 0 and self._spawn_index < len(self._spawn_list):
+                        ing_type = self._spawn_list[self._spawn_index]
                         self._spawn_ingredient(ing_type)
-                        self._spawn_count += 1
+                        self._spawn_index += 1
                         self._spawn_timer += self._spawn_interval
+                    if self._spawn_index >= len(self._spawn_list):
+                        self._all_spawned = True
 
                 for ing in list(self._all_ingredients):
+                    ing.speed = self._ingredient_speed
                     ing.update()
                 for ing in list(self._all_ingredients):
                     if ing.rect.top > SCREEN_HEIGHT + 50:
@@ -390,9 +470,9 @@ class MemorySession:
                     if self._catch_success_timer <= 0:
                         self._enter_phase("result")
 
-                if self._phase == "playing" and self._phase_timer >= self._drop_window:
-                    if self._target_index < len(self._recipe_ingredients):
-                        self._round_result = "timeout"
+                if self._phase == "playing" and self._all_spawned and len(self._all_ingredients) == 0:
+                    if self._round_result == "":
+                        self._round_result = "missed"
                     self._enter_phase("result")
 
                 self._particles.update(dt)
@@ -422,17 +502,25 @@ class MemorySession:
                             self._round_failures = 0
                     self._total_rounds += 1
                     self._total_score += self._current_level
-                    self._enter_phase("rest")
+                    if self._session_ending:
+                        self.running = False
+                    else:
+                        self._enter_phase("rest")
 
             elif self._phase == "rest":
                 if self._phase_timer >= self._rest_time:
-                    self._enter_phase("memorize")
+                    if self._session_ending:
+                        self.running = False
+                    else:
+                        self._enter_phase("memorize")
 
             self._draw()
             pygame.display.flip()
 
         if self._bci_available and self._bci_reader:
             self._bci_reader.disconnect()
+        if self._session_ending and not self._result:
+            self._end_game()
         return self._result if self._result else "menu"
 
     def _draw(self) -> None:
@@ -460,7 +548,11 @@ class MemorySession:
         for p in self._particles:
             self.screen.blit(p.image, p.rect)
 
-        if self._phase == "rules":
+        self._draw_session_timer()
+
+        if self._phase == "playing":
+            self._draw_attention_indicator()
+        elif self._phase == "rules":
             self._draw_rules()
         elif self._phase == "memorize":
             self._draw_memorize()
@@ -522,6 +614,32 @@ class MemorySession:
                 else:
                     color = (80, 80, 80)
                 pygame.draw.circle(self.screen, color, (cx, circles_y), circle_r)
+
+    def _draw_session_timer(self) -> None:
+        if not self._first_round_started:
+            remain = self._session_duration
+        else:
+            elapsed = time.time() - self._session_start_time
+            remain = max(0, self._session_duration - elapsed)
+        mins = int(remain // 60)
+        secs = int(remain % 60)
+        text = f"{mins:02d}:{secs:02d}"
+        color = (255, 100, 100) if remain < 60 else (200, 200, 200)
+        surf = self.small_font.render(text, True, color)
+        self.screen.blit(surf, (SCREEN_WIDTH - surf.get_width() - 20, 82))
+
+    def _draw_attention_indicator(self) -> None:
+        attn_surf = self.small_font.render(f"专注力: {self._attention}", True, (100, 200, 255))
+        self.screen.blit(attn_surf, (20, 82))
+        bar_w = 120
+        bar_h = 10
+        bar_x = 20
+        bar_y = 108
+        fill = int(bar_w * self._attention / 100.0)
+        pygame.draw.rect(self.screen, (60, 60, 60), (bar_x, bar_y, bar_w, bar_h), border_radius=3)
+        if fill > 0:
+            color = (100, 200, 255)
+            pygame.draw.rect(self.screen, color, (bar_x, bar_y, fill, bar_h), border_radius=3)
 
     def _draw_rules(self) -> None:
         popup = pygame.Surface((700, 340), pygame.SRCALPHA)
@@ -592,7 +710,7 @@ class MemorySession:
             text = "接错食材，制作失败"
             color = (255, 120, 100)
         else:
-            text = "超时，制作失败"
+            text = "未完成，制作失败"
             color = (255, 180, 60)
 
         popup = pygame.Surface((500, 120), pygame.SRCALPHA)
@@ -608,11 +726,17 @@ class MemorySession:
 
     def _draw_rest(self) -> None:
         remain = max(0, self._rest_time - self._phase_timer)
-        text = f"下一杯即将开始... {remain:.0f}s"
+        elapsed = self._session_start_time
+        if self._first_round_started:
+            elapsed = time.time() - self._session_start_time
+        mins = int(elapsed // 60)
+        secs = int(elapsed % 60)
+        text = "训练结束，正在结算..." if self._session_ending else f"下一杯即将开始... {remain:.0f}s"
         surf = self.font.render(text, True, (40, 40, 40))
         self.screen.blit(surf, (SCREEN_WIDTH // 2 - surf.get_width() // 2, SCREEN_HEIGHT // 2 - 230))
 
         lvl_text = self.small_font.render(
+            f"已训练 {mins:02d}:{secs:02d} | "
             f"当前等级: {self._current_level}食材配方 | "
             f"连续成功: {self._consecutive_success}/{self._upgrade_threshold} | "
             f"失败: {self._round_failures}/{self._downgrade_threshold}",
@@ -627,29 +751,7 @@ class MemorySession:
         elif self._esc_dialog_selected == 1:
             self._esc_dialog_active = False
             self.running = False
-            bg_snapshot = self.screen.copy()
-            summary = SummaryScreen(
-                self.screen,
-                self._total_score,
-                game_mode="memory",
-                total_money=self._total_score,
-                cup_count=self._total_rounds,
-                success_count=self._total_success,
-                player_level=self._current_level - 1,
-                bg=bg_snapshot,
-            )
-            result = summary.run()
-            if result == "save" and self._profile:
-                duration = time.time() - self._session_start
-                self._profile.add_game_result(
-                    revenue=self._total_score,
-                    mode="memory",
-                    cups=self._total_rounds,
-                    secrets=self._total_success,
-                    avg_attention=0.0,
-                    duration=duration,
-                )
-                self._result = "save"
+            self._end_game()
         else:
             self._esc_dialog_active = False
             self._pending_settings = True
@@ -660,29 +762,7 @@ class MemorySession:
         elif hasattr(self, "_esc_exit_rect") and self._esc_exit_rect.collidepoint(pos):
             self._esc_dialog_active = False
             self.running = False
-            bg_snapshot = self.screen.copy()
-            summary = SummaryScreen(
-                self.screen,
-                self._total_score,
-                game_mode="memory",
-                total_money=self._total_score,
-                cup_count=self._total_rounds,
-                success_count=self._total_success,
-                player_level=self._current_level - 1,
-                bg=bg_snapshot,
-            )
-            result = summary.run()
-            if result == "save" and self._profile:
-                duration = time.time() - self._session_start
-                self._profile.add_game_result(
-                    revenue=self._total_score,
-                    mode="memory",
-                    cups=self._total_rounds,
-                    secrets=self._total_success,
-                    avg_attention=0.0,
-                    duration=duration,
-                )
-                self._result = "save"
+            self._end_game()
         elif hasattr(self, "_esc_settings_rect") and self._esc_settings_rect.collidepoint(pos):
             self._esc_dialog_active = False
             self._pending_settings = True

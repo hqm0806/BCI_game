@@ -346,8 +346,26 @@ class DifficultyAdapter:
 
 **阶段流程**:
 ```
-rules(3.5s) → memorize(2s) → play(15s) → result(1.5s) → rest(2s) → 下一轮
+rules(3.5s) → memorize(2s) → play(预生成投放序列) → result(1.5s) → rest(2s) → 下一轮
 ```
+
+**玩法规程**:
+- 每轮预生成 `recipe_length × MEMORY_SPAWN_MULTIPLIER`（默认 3 倍）个食材的投放序列
+- 配方食材每隔 3 个投放位出现一次（按序），其余位置填充随机干扰食材
+- 投放阶段无固定时间上限，所有预投放食材落地（接到或掉出屏幕）后本轮自动结束
+- 未接完所有配方食材 → 标记 "missed" → 失败
+- 接错任何食材 → 立即失败
+
+**专注力调速**:
+- BCI 模式下从科研平台同步获取 `attention`（0-100）
+- 专注力 → 食材速度公式: `speed = MEMORY_SPEED_MAX - (attn / 100) × (MEMORY_SPEED_MAX - MEMORY_SPEED_MIN)`
+- 默认: `MEMORY_SPEED_MIN=2.5`, `MEMORY_SPEED_MAX=6.5`, `MEMORY_SPEED_DEFAULT=5.5`
+
+**15 分钟训练定时**:
+- 首轮 playing 阶段开始时启动计时器
+- 每帧检测是否超过 `MEMORY_SESSION_DURATION`（900 秒）
+- 超时后设置 `_session_ending` 标志，当前轮完成后不再进入下一轮
+- 结算界面展示专注力波形图（`focus_samples` 记录每帧专注力值）
 
 **难度系统**:
 - 4 个等级 (2/3/4/5 种食材)，初始等级 2
@@ -356,7 +374,13 @@ rules(3.5s) → memorize(2s) → play(15s) → result(1.5s) → rest(2s) → 下
 - 目标/干扰食材比例 1:2
 - 必须按序接取，顺序错误计为失败
 
-**车道**: 独立 5 车道系统 (256px/道)
+**HUD 信息**:
+- 顶部栏: 等级、模式名、成功/总轮数、总分
+- 右上角: 15 分钟倒计时（最后 1 分钟变红）
+- 左下角: 专注力数值 + 进度条（BCI 模式下）
+- playing 阶段: 配方进度指示灯（绿=已接/金脉冲=当前/灰=待接）
+
+**车道**: 4 出料口系统（基于背景图位置映射），每出料口最多 1 个食材
 
 #### 4.3.6 HUD (`game/hud.py`)
 
@@ -510,6 +534,11 @@ def main():
 | 秘方 | `SECRET_RECIPE_SUSTAIN` | 8 | 触发所需持续专注秒数 |
 | 速度 | `FORMAL_SPEED_MIN/MAX` | 2.0 / 4.5 | 正式速度范围 |
 | 速度 | `WARMUP_SPEED_MIN/MAX` | 1.5 / 6.0 | 热身速度范围 |
+| 忆调 | `MEMORY_SPEED_MIN` | 2.5 | 忆调模式最低速度 |
+| 忆调 | `MEMORY_SPEED_MAX` | 6.5 | 忆调模式最高速度 |
+| 忆调 | `MEMORY_SPEED_DEFAULT` | 5.5 | 忆调模式默认速度 |
+| 忆调 | `MEMORY_SPAWN_MULTIPLIER` | 3 | 每轮投放倍数 |
+| 忆调 | `MEMORY_SESSION_DURATION` | 900 | 总训练时长（秒） |
 
 **食材配置**:
 ```python
@@ -846,7 +875,7 @@ BCI_game/
 │   ├── ingredient_manager.py  # 食材生成管理 (111 行)
 │   ├── cup_manager.py         # 单杯生命周期 (172 行)
 │   ├── hud.py                 # HUD 渲染 (184 行)
-│   ├── memory_mode.py         # 忆调模式 (500 行)
+│   ├── memory_mode.py         # 忆调模式 (850 行)
 │   └── font_utils.py          # 中文字体加载
 │
 ├── menu/

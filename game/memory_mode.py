@@ -289,9 +289,12 @@ class MemorySession:
     def _end_game(self) -> None:
         bg_snapshot = self.screen.copy()
         duration = time.time() - self._session_start_time
-        avg_attn = 0.0
-        if self._focus_samples:
+        if self._bci_available and self._focus_samples:
             avg_attn = sum(self._focus_samples) / len(self._focus_samples)
+            samples = self._focus_samples
+        else:
+            avg_attn = 0.0
+            samples = []
         summary = SummaryScreen(
             self.screen,
             self._total_score,
@@ -300,7 +303,7 @@ class MemorySession:
             cup_count=self._total_rounds,
             success_count=self._total_success,
             player_level=self._current_level - 1,
-            focus_samples=self._focus_samples,
+            focus_samples=samples,
             bg=bg_snapshot,
         )
         result = summary.run()
@@ -312,7 +315,7 @@ class MemorySession:
                 secrets=self._total_success,
                 avg_attention=avg_attn,
                 duration=duration,
-                focus_samples=self._focus_samples,
+                focus_samples=samples,
             )
             self._result = "save"
 

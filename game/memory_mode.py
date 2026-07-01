@@ -158,6 +158,7 @@ class MemorySession:
         self._session_duration = MEMORY_SESSION_DURATION
         self._session_ending = False
         self._first_round_started = False
+        self.show_summary = False
 
         self._attention = 50
         self._focus_samples: list[float] = []
@@ -365,6 +366,7 @@ class MemorySession:
                     self._session_ending = True
 
             for event in pygame.event.get():
+                show_dialog = False
                 if event.type == pygame.QUIT:
                     self.running = False
                     return "quit"
@@ -373,9 +375,7 @@ class MemorySession:
                         if self._esc_dialog_active:
                             self._esc_dialog_active = False
                         else:
-                            self._esc_dialog_active = True
-                            self._esc_dialog_selected = 0
-                            self._skip_frame = True
+                            show_dialog = True
                     elif self._esc_dialog_active:
                         if event.key in (pygame.K_LEFT, pygame.K_UP):
                             self._esc_dialog_selected = (self._esc_dialog_selected - 1) % 3
@@ -386,8 +386,8 @@ class MemorySession:
                 elif event.type == pygame.MOUSEBUTTONDOWN and self._esc_dialog_active:
                     if event.button == 1:
                         self._handle_esc_dialog_click(event.pos)
-                if self._esc_dialog_active:
-                    continue
+                if show_dialog:
+                    self._show_esc_dialog()
 
             if self._esc_dialog_active:
                 if self._skip_frame:
@@ -519,7 +519,7 @@ class MemorySession:
 
         if self._bci_available and self._bci_reader:
             self._bci_reader.disconnect()
-        if self._session_ending and not self._result:
+        if self.show_summary or (self._session_ending and not self._result):
             self._end_game()
         return self._result if self._result else "menu"
 
@@ -745,13 +745,18 @@ class MemorySession:
         )
         self.screen.blit(lvl_text, (SCREEN_WIDTH // 2 - lvl_text.get_width() // 2, SCREEN_HEIGHT // 2 - 180))
 
+    def _show_esc_dialog(self) -> None:
+        self._esc_dialog_active = True
+        self._esc_dialog_selected = 0
+        self._skip_frame = True
+
     def _commit_esc_dialog(self) -> None:
         if self._esc_dialog_selected == 0:
             self._esc_dialog_active = False
         elif self._esc_dialog_selected == 1:
             self._esc_dialog_active = False
+            self.show_summary = True
             self.running = False
-            self._end_game()
         else:
             self._esc_dialog_active = False
             self._pending_settings = True
@@ -761,8 +766,8 @@ class MemorySession:
             self._esc_dialog_active = False
         elif hasattr(self, "_esc_exit_rect") and self._esc_exit_rect.collidepoint(pos):
             self._esc_dialog_active = False
+            self.show_summary = True
             self.running = False
-            self._end_game()
         elif hasattr(self, "_esc_settings_rect") and self._esc_settings_rect.collidepoint(pos):
             self._esc_dialog_active = False
             self._pending_settings = True

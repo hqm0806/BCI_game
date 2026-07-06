@@ -23,6 +23,7 @@ from config import (
     DIGIT_HEIGHT,
     DIGIT_SPACING,
     DIGIT_WIDTH,
+    EXPERIMENT_FORMAL_DURATION,
     EXPERIMENT_WARMUP_DURATION,
     EXPERIMENT_WARMUP_NORM_WINDOW,
     EXPERIMENT_WARMUP_NOTICE_DURATION,
@@ -31,6 +32,8 @@ from config import (
     FOCUS_BALL_IMG,
     FOCUS_BALL_POS,
     FOCUS_BALL_SIZE,
+    FORMAL_SPEED_MAX,
+    FORMAL_SPEED_MIN,
     GAME_MODES,
     INFO_BAR_HEIGHT,
     INFO_BAR_IMG,
@@ -50,6 +53,7 @@ from config import (
     WARMUP_FREEZE_TIME,
     WARMUP_LOW_THRESHOLD,
     WARMUP_RESUME_TIME,
+    get_attention_coefficient,
 )
 from data.score_manager import ScoreManager
 from game.cup_manager import CupManager
@@ -236,8 +240,14 @@ class ExperimentSession:
         self._cup_baseline: float = 40.0
         self._warmup_cup_start = 0.0
 
+        self.normalization_lower = 30.0
+        self.normalization_upper = 70.0
+        self.phase_formal_start = 0.0
+
         self._esc_dialog_active = False
         self._esc_dialog_selected = 0
+        self._pause_accumulated = 0.0
+        self._pause_start = 0.0
 
         self._player_level = self._profile.level if self._profile else 1
 
@@ -408,35 +418,6 @@ class ExperimentSession:
                     self._audio.play_sfx("音效/触发秘方.wav", volume=0.7)
                 logger.info("热身秘方触发！专注力持续高于阈值 %.0f 达 %d 秒", threshold, SECRET_RECIPE_SUSTAIN)
 
-    def _check_warmup_cup_end(self) -> None:
-        if self.cup_manager.check_cup_end():
-            if self._cup_attn_samples:
-                self._cup_baseline = sum(self._cup_attn_samples) / len(self._cup_attn_samples)
-
-            self._cup_attn_samples = []
-
-            cup_money = self.cup_manager.settle_cup()
-            had_secret = self.cup_manager.secret_recipe_spawned
-            required_caught = self.cup_manager.cup_required_caught
-
-            if cup_money > 0 and required_caught:
-                if self.bci_mode:
-                    from config import get_attention_coefficient
-                    attn = self.attention if self.attention is not None else 50.0
-                    coeff = get_attention_coefficient(attn)
-                    cup_money = int(cup_money * coeff)
-
-                self.score_manager.add_cup_money(cup_money, had_secret)
-                if self._audio:
-                    self._audio.play_sfx("音效/加金币.wav", volume=0.5)
-
-            self.score_manager.reset_cup_ingredients()
-            self._focus_above_seconds = 0.0
-
-            self.cup_manager.start_new_cup()
-            self.cup.update_level(0)
-            self.score_manager.reset_cup_ingredients()
-
     def _draw_secret_popup(self) -> None:
         timer = self._secret_popup_timer
         if timer > 3.5:
@@ -513,6 +494,89 @@ class ExperimentSession:
             self._warmup_norm_max,
             self._warmup_norm_min,
         )
+
+    def _normalize_to_range(self, attention: float) -> float:
+        if self.normalization_upper - self.normalization_lower < 1.0:
+            return 50.0
+        normalized = (attention - self.normalization_lower) / (
+            self.normalization_upper - self.normalization_lower
+        ) * 99.0 + 1.0
+        return max(1.0, min(100.0, normalized))
+
+    def _update_formal_speed(self) -> None:
+        if self.bci_mode:
+            attn = self.attention if self.attention is not None else 50.0
+            norm = self._normalize_to_range(attn)
+            speed = FORMAL_SPEED_MAX - (norm - 1.0) / 99.0 * (FORMAL_SPEED_MAX - FORMAL_SPEED_MIN)
+        else:
+            speed = self.mode_speed
+
+        base_speed = speed
+        self.ingredient_manager.set_current_speed(speed)
+        for ing in self.ingredients:
+            ing.speed = speed
+
+        if self.bci_mode:
+            speed_ratio = base_speed / self.mode_speed if self.mode_speed > 0 else 1.0
+            adjusted = self.spawn_interval * (0.7 + 0.6 * speed_ratio)
+            self.ingredient_manager.set_spawn_interval(max(0.3, min(3.0, adjusted)))
+        else:
+            self.ingredient_manager.set_spawn_interval(self.spawn_interval)
+
+    def _check_formal_secret_recipe(self, dt_sec: float) -> None:
+        if self._secret_popup_timer > 0:
+            return
+        if self.cup_manager.secret_recipe_spawned:
+            return
+        if self.cup_manager.cup_ended:
+            return
+
+        if self.bci_mode and self.bci_available:
+            threshold = self._warmup_baseline + 10
+            attn = self.attention if self.attention is not None else 50.0
+            if attn > threshold:
+                self._focus_above_seconds += dt_sec
+            else:
+                self._focus_above_seconds = 0.0
+
+            if self._focus_above_seconds >= SECRET_RECIPE_SUSTAIN and self.cup_manager.trigger_secret_recipe():
+                self._secret_popup_timer = 4.0
+                self._focus_above_seconds = 0.0
+                if self._audio:
+                    self._audio.play_sfx("音效/触发秘方.wav", volume=0.7)
+                logger.info("特调秘方触发！专注力持续高于阈值 %.0f 达 %d 秒", threshold, SECRET_RECIPE_SUSTAIN)
+
+    def _check_cup_end(self) -> None:
+        if self.cup_manager.check_cup_end():
+            if self._cup_attn_samples:
+                self._cup_baseline = sum(self._cup_attn_samples) / len(self._cup_attn_samples)
+
+            self._cup_attn_samples = []
+
+            cup_money = self.cup_manager.settle_cup()
+            had_secret = self.cup_manager.secret_recipe_spawned
+            required_caught = self.cup_manager.cup_required_caught
+
+            if cup_money > 0 and required_caught:
+                if self.bci_mode:
+                    attn = self.attention if self.attention is not None else 50.0
+                    if self.phase == "warmup":
+                        coeff = get_attention_coefficient(attn)
+                    else:
+                        norm = self._normalize_to_range(attn)
+                        coeff = get_attention_coefficient(norm)
+                    cup_money = int(cup_money * coeff)
+
+                self.score_manager.add_cup_money(cup_money, had_secret)
+                if self._audio:
+                    self._audio.play_sfx("音效/加金币.wav", volume=0.5)
+
+            self.score_manager.reset_cup_ingredients()
+            self._focus_above_seconds = 0.0
+
+            self.cup_manager.start_new_cup()
+            self.cup.update_level(0)
+            self.score_manager.reset_cup_ingredients()
 
     def _draw_focus_ball(self) -> None:
         if self._focus_ball is None or not self._digit_imgs:
@@ -606,22 +670,45 @@ class ExperimentSession:
         by = SCREEN_HEIGHT // 2 - 60
         self.screen.blit(box_surf, (bx, by))
 
-    def _draw_warmup_countdown(self) -> None:
-        if not self._game_active:
-            countdown_text = "热身 3:00"
-            cd_surf = self.phase_font.render(countdown_text, True, (255, 200, 100))
-            shadow = self.phase_font.render(countdown_text, True, (30, 20, 10))
-            x = SCREEN_WIDTH - cd_surf.get_width() - 30
-            y = SCREEN_HEIGHT - cd_surf.get_height() - 15
-            self.screen.blit(shadow, (x + 2, y + 2))
-            self.screen.blit(cd_surf, (x, y))
-            return
+    def _draw_phase_label(self) -> None:
+        if self.phase == "warmup" or self.phase == "transition":
+            label = "热身阶段"
+        elif self.phase == "formal":
+            label = "特调阶段"
+        else:
+            label = self.mode_name
+        label_surf = self.phase_font.render(label, True, (200, 150, 255))
+        shadow = self.phase_font.render(label, True, (30, 20, 10))
 
-        elapsed = time_module.time() - self.phase_start_time
-        remaining = max(0, EXPERIMENT_WARMUP_DURATION - elapsed)
-        mins = int(remaining // 60)
-        secs = int(remaining % 60)
-        countdown_text = f"热身 {mins}:{secs:02d}"
+        x = SCREEN_WIDTH - label_surf.get_width() - 30
+        y = SCREEN_HEIGHT - label_surf.get_height() - 45
+        self.screen.blit(shadow, (x + 2, y + 2))
+        self.screen.blit(label_surf, (x, y))
+
+    @property
+    def _total_pause(self) -> float:
+        if self._esc_dialog_active:
+            return self._pause_accumulated + time_module.time() - self._pause_start
+        return self._pause_accumulated
+
+    def _draw_phase_countdown(self) -> None:
+        if self.phase == "warmup" or self.phase == "transition":
+            if not self._game_active:
+                countdown_text = "热身 3:00"
+            else:
+                elapsed = time_module.time() - self.phase_start_time - self._total_pause
+                remaining = max(0, EXPERIMENT_WARMUP_DURATION - elapsed)
+                mins = int(remaining // 60)
+                secs = int(remaining % 60)
+                countdown_text = f"热身 {mins}:{secs:02d}"
+        elif self.phase == "formal":
+            elapsed = time_module.time() - self.phase_formal_start - self._total_pause
+            remaining = max(0, EXPERIMENT_FORMAL_DURATION - elapsed)
+            mins = int(remaining // 60)
+            secs = int(remaining % 60)
+            countdown_text = f"特调 {mins}:{secs:02d}"
+        else:
+            return
 
         cd_surf = self.phase_font.render(countdown_text, True, (255, 200, 100))
         shadow = self.phase_font.render(countdown_text, True, (30, 20, 10))
@@ -630,15 +717,6 @@ class ExperimentSession:
         y = SCREEN_HEIGHT - cd_surf.get_height() - 15
         self.screen.blit(shadow, (x + 2, y + 2))
         self.screen.blit(cd_surf, (x, y))
-
-    def _draw_phase_label(self) -> None:
-        label = self.phase_font.render("热身阶段", True, (200, 150, 255))
-        shadow = self.phase_font.render("热身阶段", True, (30, 20, 10))
-
-        x = SCREEN_WIDTH - label.get_width() - 30
-        y = SCREEN_HEIGHT - label.get_height() - 45
-        self.screen.blit(shadow, (x + 2, y + 2))
-        self.screen.blit(label, (x, y))
 
     def _handle_events(self) -> None:
         show_dialog = False
@@ -668,16 +746,19 @@ class ExperimentSession:
     def _show_esc_dialog(self) -> None:
         self._esc_dialog_active = True
         self._esc_dialog_selected = 0
+        self._pause_start = time_module.time()
 
     def _commit_esc_dialog(self) -> None:
         if self._esc_dialog_selected == 0:
             self._esc_dialog_active = False
+            self._pause_accumulated += time_module.time() - self._pause_start
         else:
             self.running = False
 
     def _handle_esc_dialog_click(self, pos: tuple[int, int]) -> None:
         if hasattr(self, "_esc_continue_rect") and self._esc_continue_rect.collidepoint(pos):
             self._esc_dialog_active = False
+            self._pause_accumulated += time_module.time() - self._pause_start
         elif hasattr(self, "_esc_exit_rect") and self._esc_exit_rect.collidepoint(pos):
             self.running = False
 
@@ -775,7 +856,7 @@ class ExperimentSession:
             self.screen.blit(bci_status_text, (10, SCREEN_HEIGHT - 30))
 
         self._draw_phase_label()
-        self._draw_warmup_countdown()
+        self._draw_phase_countdown()
 
         if self._show_notice:
             if self._notice_timer > 0:
@@ -840,6 +921,15 @@ class ExperimentSession:
             )
             self.screen.blit(sub, (SCREEN_WIDTH // 2 - sub.get_width() // 2, SCREEN_HEIGHT // 2 + 40))
 
+        if self.phase == "transition_memory":
+            self._draw_phase_transition("特调结束 - 准备进入忆调阶段")
+            sub = self.hint_font.render(
+                f"累计成功杯数: {self.score_manager.cup_count}  收益: {self.score_manager.total_money}",
+                True,
+                (180, 180, 180),
+            )
+            self.screen.blit(sub, (SCREEN_WIDTH // 2 - sub.get_width() // 2, SCREEN_HEIGHT // 2 + 40))
+
         pygame.display.flip()
 
     def run(self) -> str:
@@ -861,12 +951,24 @@ class ExperimentSession:
 
             self._update_bci_data()
 
+            if self.phase == "warmup" and self._game_active and keys[pygame.K_o]:
+                self._finish_warmup()
+                self.normalization_lower = self._warmup_norm_min
+                self.normalization_upper = self._warmup_norm_max
+                self.phase = "transition"
+                self._transition_start = time_module.time()
+                self._pause_accumulated = 0.0
+                logger.info("热身阶段被手动跳过（按O）")
+                self._render()
+                continue
+
             if not self._game_active:
                 self._notice_timer -= dt_sec
                 if self._notice_timer <= 0:
                     self._game_active = True
                     self._show_notice = False
                     self.phase_start_time = time_module.time()
+                    self._pause_accumulated = 0.0
                     self.cup_manager.start_new_cup()
                     self._warmup_cup_start = time_module.time()
                     logger.info("热身阶段正式开始，计时开始")
@@ -879,30 +981,66 @@ class ExperimentSession:
             self._update_artifact_freeze(dt_sec)
 
             if not self._game_frozen:
-                self._update_warmup_speed()
-                self._update_game_objects(dt_sec)
-                self._handle_collisions()
-                self._check_warmup_secret_recipe(dt_sec)
-                self._check_warmup_cup_end()
+                if self.phase == "warmup":
+                    self._update_warmup_speed()
+                elif self.phase == "formal":
+                    self._update_formal_speed()
+
+                if self.phase == "warmup":
+                    self._check_warmup_secret_recipe(dt_sec)
+                elif self.phase == "formal":
+                    self._check_formal_secret_recipe(dt_sec)
+
+                self._check_cup_end()
+
+                if self._secret_popup_timer <= 0:
+                    self._update_game_objects(dt_sec)
+                    self._handle_collisions()
 
             if self._secret_popup_timer > 0:
                 self._secret_popup_timer -= dt_sec
 
             if self.phase == "warmup":
-                elapsed = time_module.time() - self.phase_start_time
+                elapsed = time_module.time() - self.phase_start_time - self._total_pause
                 if elapsed >= EXPERIMENT_WARMUP_DURATION:
                     self._finish_warmup()
+                    self.normalization_lower = self._warmup_norm_min
+                    self.normalization_upper = self._warmup_norm_max
                     self.phase = "transition"
                     self._transition_start = time_module.time()
+                    self._pause_accumulated = 0.0
 
             if self.phase == "transition":
                 if time_module.time() - self._transition_start >= 3.0:
+                    self.phase = "formal"
+                    self.phase_formal_start = time_module.time()
+                    self._pause_accumulated = 0.0
+                    self.cup_manager.start_new_cup()
+                    self.score_manager.reset_cup_ingredients()
+                    self._cup_attn_samples = []
+                    self._focus_above_seconds = 0.0
+                    self._secret_popup_timer = 0.0
                     logger.info(
-                        "热身阶段完成！基线=%.1f 归一化范围: [%.1f, %.1f]",
+                        "进入特调阶段！基线=%.1f 归一化=[%.1f, %.1f]  计时开始",
                         self._warmup_baseline,
-                        self._warmup_norm_min,
-                        self._warmup_norm_max,
+                        self.normalization_lower,
+                        self.normalization_upper,
                     )
+
+            if self.phase == "formal":
+                elapsed = time_module.time() - self.phase_formal_start - self._total_pause
+                if elapsed >= EXPERIMENT_FORMAL_DURATION:
+                    logger.info(
+                        "特调阶段结束！累计成功杯数=%d 收益=%d",
+                        self.score_manager.cup_count,
+                        self.score_manager.total_money,
+                    )
+                    self.phase = "transition_memory"
+                    self._transition_start = time_module.time()
+                    self._pause_accumulated = 0.0
+
+            if self.phase == "transition_memory":
+                if time_module.time() - self._transition_start >= 3.0:
                     self.running = False
 
             self._render()

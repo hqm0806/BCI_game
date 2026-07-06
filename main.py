@@ -15,6 +15,7 @@ from core.audio_manager import AudioManager
 from core.state_machine import GameEvent, GameState, State, StateMachine
 from data.player_profile import PlayerProfile
 from game.font_utils import load_chinese_font
+from game.experiment_mode import run_experiment
 from game.memory_mode import run_memory_game
 from game.session import run_game
 from menu import GameSettingsScreen, MainMenu
@@ -99,6 +100,8 @@ class MenuState(State):
             return GameState.SETTINGS
         if result == "start_memory":
             return GameState.GAME_MEMORY
+        if result == "start_experiment":
+            return GameState.GAME_EXPERIMENT
         if result == "start":
             return GameState.TRANSITION
         return None
@@ -191,6 +194,30 @@ class MemoryGameState(State):
         pass
 
 
+class ExperimentState(State):
+    """实验模式游戏状态 - 3min热身+7min特调+5min忆调"""
+
+    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, context: dict) -> None:
+        self.screen = screen
+        self.clock = clock
+        self._context = context
+
+    def enter(self) -> GameState | None:
+        audio = self._context.get("audio")
+        control_mode = self._context.get("control_mode", "bci")
+        profile = self._context.get("profile")
+        result = run_experiment(self.screen, self.clock, profile=profile, control_mode=control_mode, audio=audio)
+        if result == "quit":
+            return GameState.QUIT
+        return GameState.MENU
+
+    def handle_event(self, event: GameEvent) -> GameState | None:
+        return GameState.MENU
+
+    def update(self) -> None:
+        pass
+
+
 class GameStateImpl(State):
     """游戏运行状态"""
 
@@ -247,6 +274,7 @@ def main() -> None:
     sm.register(GameState.TRANSITION, TransitionState(screen, audio))
     sm.register(GameState.GAME, GameStateImpl(screen, clock, context))
     sm.register(GameState.GAME_MEMORY, MemoryGameState(screen, clock, context))
+    sm.register(GameState.GAME_EXPERIMENT, ExperimentState(screen, clock, context))
     sm.register(GameState.QUIT, QuitState())
 
     sm.start(GameState.SPLASH)

@@ -374,6 +374,17 @@ WARMUP_SPEED_MIN = 1.5  # 热身阶段最低速度（专注力高时，pixels/fr
 WARMUP_SPEED_MAX = 6.0  # 热身阶段最高速度（专注力低时，pixels/frame），变化幅度大、感知明显
 
 # ============================================================
+# 实验模式配置 - 3min热身+7min特调+5min忆调
+# ============================================================
+EXPERIMENT_WARMUP_DURATION = 180  # 实验模式热身阶段时长（秒），3分钟
+EXPERIMENT_FORMAL_DURATION = 420  # 实验模式特调阶段时长（秒），7分钟
+EXPERIMENT_MEMORY_DURATION = 300  # 实验模式忆调阶段时长（秒），5分钟
+EXPERIMENT_WARMUP_NOTICE_DURATION = 2.5  # 热身提示显示时长（秒）
+EXPERIMENT_WARMUP_NORM_WINDOW = 30  # 热身最后 N 秒用于归一化计算的窗口（秒）
+EXPERIMENT_WARMUP_SPEED_MIN = 1.5  # 实验热身阶段最低速度（pixels/frame）
+EXPERIMENT_WARMUP_SPEED_MAX = 6.0  # 实验热身阶段最高速度（pixels/frame）
+
+# ============================================================
 # 正式游戏速度配置（热身结束后使用）
 # 速度变化范围比热身阶段窄，减轻感知
 # ============================================================
@@ -393,6 +404,18 @@ MEMORY_SESSION_DURATION = 900  # 忆调模式一局总时长（秒），默认15
 # 游戏模式配置
 # ============================================================
 GAME_MODES = {
+    "experiment": {
+        "name": "实验模式",
+        "description": "3min热身+7min特调+5min忆调",
+        "has_required": False,
+        "free_combine": True,
+        "bci_mode": True,
+        "ingredient_speed": 3,
+        "spawn_interval": 1000,
+        "ui_color": (180, 80, 200),
+        "secret_recipe_cup_interval": 3,
+        "raw_attention": True,
+    },
     "regular": {
         "name": "特调模式",
         "description": "接住必接食材，完成标准配方",
@@ -436,6 +459,14 @@ GAME_MODES = {
 # 特调模式使用 bci 游戏底层配置
 # ============================================================
 CONTROL_MODES = [
+    {
+        "key": "experiment",
+        "name": "实验模式",
+        "desc": "3min热身+7min特调+5min忆调",
+        "enabled": True,
+        "color": (180, 80, 200),
+        "glow": (220, 140, 255),
+    },
     {
         "key": "bci_normal",
         "name": "特调模式",

@@ -199,7 +199,9 @@ class MainMenu:
         return False
 
     def _start_game(self, control_key: str, click_frames: list) -> None:
-        if control_key == "bci_normal":
+        if control_key == "experiment":
+            self._show_connection_dialog("start_experiment", "experiment")
+        elif control_key == "bci_normal":
             self._show_connection_dialog("start", "bci")
         elif control_key == "memory":
             self._show_connection_dialog("start_memory", "bci")

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+import random
 import time as time_module
 from typing import Any
 
@@ -1048,11 +1049,29 @@ class ExperimentSession:
         return self._end_game()
 
     def _update_game_objects(self, dt_sec: float) -> None:
-        ingredient = self.ingredient_manager.update(required_types=None, ingredients_group=self.ingredients)
-        if ingredient:
-            self.ingredients.add(ingredient)
-            if ingredient.is_required:
-                ingredient.set_particle_group(self.particles)
+        if self.ingredient_manager.should_spawn():
+            allowed = self.ingredient_manager._free_outlets(self.ingredients)
+            if allowed is None or allowed:
+                tier_required = INGREDIENT_TIERS.get(self._current_tier, INGREDIENT_TIERS[1])["required"]
+
+                if random.random() < 0.2 and tier_required:
+                    ing_type = random.choice(tier_required)
+                    is_req = True
+                else:
+                    available = [t for t in self.ingredient_manager._available if t not in tier_required]
+                    if not available:
+                        available = list(self.ingredient_manager._available)
+                    ing_type = random.choice(available)
+                    is_req = False
+
+                speed = self.ingredient_manager._current_speed
+                if speed < 0:
+                    speed = self.mode_speed
+                ingredient = Ingredient(ing_type, is_req, speed, allowed_lanes=allowed)
+                self.ingredients.add(ingredient)
+                if is_req:
+                    ingredient.set_particle_group(self.particles)
+                self.ingredient_manager._on_spawned()
 
         self.ingredients.update()
         self.catch_effects.update(dt=dt_sec)

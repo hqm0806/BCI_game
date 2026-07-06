@@ -65,11 +65,11 @@
 │  menu/                     game/                  bci/          │
 │  ┌────────────┐   ┌──────────────────┐   ┌────────────────┐   │
 │  │ Splash     │   │ GameSession       │   │ BCIDataReader  │   │
-│  │ Login      │   │  ├ Cup            │   │  ├ TCP connect  │   │
-│  │ MainMenu   │   │  ├ Ingredient     │   │  ├ IPC parse    │   │
-│  │ Settings   │   │  ├ Particle       │   │  └ sliding win  │   │
-│  │ Summary    │   │  ├ IngredientMgr  │   ├────────────────┤   │
-│  │ History    │   │  ├ CupManager     │   │ filter.py      │   │
+│  │ Login      │   │ ExperimentSession │   │  ├ TCP connect  │   │
+│  │ MainMenu   │   │ MemorySession     │   │  ├ IPC parse    │   │
+│  │ Settings   │   │  ├ Cup            │   │  └ sliding win  │   │
+│  │ Summary    │   │  ├ Ingredient     │   ├────────────────┤   │
+│  │ History    │   │  ├ Particle       │   │ filter.py      │   │
 │  └────────────┘   │  ├ ScoreManager   │   │  ├ DeadZone     │   │
 │                    │  ├ HUD            │   │  ├ ExpSmooth    │   │
 │  data/             │  └ MemorySession  │   │  ├ SensCurve    │   │
@@ -100,7 +100,7 @@ SPLASH → LOGIN → MENU ⇄ SETTINGS
           TRANSITION
                 │
                 ▼
-           GAME / GAME_MEMORY
+       GAME / GAME_MEMORY / GAME_EXPERIMENT
                 │
                 ▼
          (Summary 结算)
@@ -123,7 +123,7 @@ SPLASH → LOGIN → MENU ⇄ SETTINGS
 ```
 GameState (Enum)
 ├── SPLASH / LOGIN / MENU / SETTINGS
-├── TRANSITION / GAME / GAME_MEMORY
+├── TRANSITION / GAME / GAME_MEMORY / GAME_EXPERIMENT
 └── QUIT
 
 State (ABC)
@@ -240,6 +240,26 @@ formal (45 杯，共 15 分钟)
 ```
 
 游戏直接进入正式阶段。第一杯结束后动态更新归一化范围。原萃模式跳过归一化。与特调模式相区别。
+
+#### 4.3.1b ExperimentSession (`game/experiment_mode.py`, ~960 行)
+
+管理实验模式（3 段式自动轮转）的完整生命周期。
+
+**阶段流程**:
+```
+warmup(3min) → transition(3s) → [formal(7min)] → [memory(5min)]
+```
+
+**热身阶段 (warmup)**:
+- 冻结启动：2.5 秒弹窗提示期间画面静止，计时暂停
+- 原萃驱动：原始专注力直接映射食材速度 (1.5~6.0 px/frame)
+- 必接食材：基于当前等级 INGREDIENT_TIERS，带粒子效果
+- 杯结算：必须接住必接食材才计数+1，失败杯不计
+- 秘方翻倍：专注力持续高于杯基线+10 达 8 秒触发
+- 动态生成间隔：`speed_ratio → adjusted_interval`，防止过密
+- 归一化计算：取最后 30 秒最高/最低注意力作为归一化边界
+
+> 注：特调阶段和忆调阶段为后续迭代内容。
 
 **关键逻辑**:
 1. 第一杯结束后取该杯注意力数据 → 计算 `lower = max(avg-15, 0)`, `upper = min(max, 100)`
@@ -527,7 +547,9 @@ def main():
 | 食材 | `INGREDIENT_SPEED` | 3.5 | 默认下落速度 |
 | 一杯制 | `CUP_DURATION` | 20 | 每杯时限 (秒) |
 | 一杯制 | `TOTAL_CUPS` | 45 | 总局数 |
-| 热身 | (已移除) | — | 热身阶段已从当前版本移除 |
+| 热身 | (已由实验模式替代) | — | 原独立热身阶段已移除 |
+| 实验 | `EXPERIMENT_WARMUP_DURATION` | 180 | 实验热身时长（秒） |
+| 实验 | `EXPERIMENT_WARMUP_SPEED_MIN/MAX` | 1.5 / 6.0 | 实验热身速度范围 |
 | 防伪迹 | `ARTIFACT_STILL_THRESHOLD` | 0.5 | 静止判定 (°) |
 | 防伪迹 | `ARTIFACT_STILL_DURATION` | 2.0 | 静止持续时间 |
 | 防伪迹 | `ARTIFACT_ATTENTION_THRESHOLD` | 80 | 专注力阈值 |
@@ -787,6 +809,15 @@ while len(recv_buffer) >= 4:
 ### 游戏模式配置 (config.py)
 ```python
 GAME_MODES = {
+    "experiment": {
+        "name": "实验模式",
+        "has_required": True,
+        "free_combine": True,
+        "bci_mode": True,
+        "ingredient_speed": 3,
+        "spawn_interval": 1000,
+        "raw_attention": True,
+    },
     "regular": {
         "name": "特调模式",
         "has_required": True,
@@ -800,6 +831,7 @@ GAME_MODES = {
 }
 
 CONTROL_MODES = [
+    {"key": "experiment", "name": "实验模式", "desc": "3min热身+7min特调+5min忆调"},
     {"key": "bci_normal", "name": "特调模式", "desc": "BCI头环控制杯子"},
     {"key": "memory",     "name": "忆调模式", "desc": "记忆食材序列"},
     {"key": "infinite",   "name": "原萃模式", "desc": "专注力直驱食材速度"},
@@ -871,6 +903,7 @@ BCI_game/
 │
 ├── game/
 │   ├── session.py             # 游戏主循环 (1279 行)
+│   ├── experiment_mode.py     # 实验模式 (960 行)
 │   ├── sprites.py             # 精灵类 (Cup, Ingredient, Particle 等, 349 行)
 │   ├── ingredient_manager.py  # 食材生成管理 (111 行)
 │   ├── cup_manager.py         # 单杯生命周期 (172 行)

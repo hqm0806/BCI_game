@@ -271,11 +271,17 @@ class ExperimentSession:
         else:
             speed = self.mode_speed
 
+        base_speed = speed
         self.ingredient_manager.set_current_speed(speed)
         for ing in self.ingredients:
             ing.speed = speed
 
-        self.ingredient_manager.set_spawn_interval(self.spawn_interval)
+        if self.bci_mode:
+            speed_ratio = base_speed / self.mode_speed if self.mode_speed > 0 else 1.0
+            adjusted = self.spawn_interval * (0.7 + 0.6 * speed_ratio)
+            self.ingredient_manager.set_spawn_interval(max(0.3, min(3.0, adjusted)))
+        else:
+            self.ingredient_manager.set_spawn_interval(self.spawn_interval)
 
     def _update_bci_data(self) -> None:
         if self.bci_available:

@@ -275,6 +275,8 @@ class ExperimentSession:
         self._cup_attn_samples: list[float] = []
         self._cup_baseline: float = 40.0
         self._warmup_cup_start = 0.0
+        self._game_start_time = 0.0
+        self._pending_settings = False
 
         self.normalization_lower = 30.0
         self.normalization_upper = 70.0
@@ -786,9 +788,9 @@ class ExperimentSession:
                         show_dialog = True
                 elif self._esc_dialog_active:
                     if event.key in (pygame.K_LEFT, pygame.K_UP):
-                        self._esc_dialog_selected = (self._esc_dialog_selected - 1) % 2
+                        self._esc_dialog_selected = (self._esc_dialog_selected - 1) % 3
                     elif event.key in (pygame.K_RIGHT, pygame.K_DOWN, pygame.K_TAB):
-                        self._esc_dialog_selected = (self._esc_dialog_selected + 1) % 2
+                        self._esc_dialog_selected = (self._esc_dialog_selected + 1) % 3
                     elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
                         self._commit_esc_dialog()
             elif event.type == pygame.MOUSEBUTTONDOWN and self._esc_dialog_active:
@@ -806,22 +808,32 @@ class ExperimentSession:
         if self._esc_dialog_selected == 0:
             self._esc_dialog_active = False
             self._pause_accumulated += time_module.time() - self._pause_start
-        else:
+        elif self._esc_dialog_selected == 1:
+            self._esc_dialog_active = False
+            self._pause_accumulated += time_module.time() - self._pause_start
             self.running = False
+        else:
+            self._esc_dialog_active = False
+            self._pending_settings = True
 
     def _handle_esc_dialog_click(self, pos: tuple[int, int]) -> None:
         if hasattr(self, "_esc_continue_rect") and self._esc_continue_rect.collidepoint(pos):
             self._esc_dialog_active = False
             self._pause_accumulated += time_module.time() - self._pause_start
         elif hasattr(self, "_esc_exit_rect") and self._esc_exit_rect.collidepoint(pos):
+            self._esc_dialog_active = False
+            self._pause_accumulated += time_module.time() - self._pause_start
             self.running = False
+        elif hasattr(self, "_esc_settings_rect") and self._esc_settings_rect.collidepoint(pos):
+            self._esc_dialog_active = False
+            self._pending_settings = True
 
     def _draw_esc_dialog(self) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 160))
         self.screen.blit(overlay, (0, 0))
 
-        box_w, box_h = 380, 220
+        box_w, box_h = 380, 280
         box_x = (SCREEN_WIDTH - box_w) // 2
         box_y = (SCREEN_HEIGHT - box_h) // 2
         box_rect = pygame.Rect(box_x, box_y, box_w, box_h)
@@ -839,6 +851,7 @@ class ExperimentSession:
 
         continue_selected = self._esc_dialog_selected == 0
         exit_selected = self._esc_dialog_selected == 1
+        settings_selected = self._esc_dialog_selected == 2
 
         selected_border = (255, 255, 255)
         normal_border = (100, 100, 100)
@@ -847,7 +860,7 @@ class ExperimentSession:
         continue_border = selected_border if continue_selected else normal_border
         pygame.draw.rect(self.screen, (80, 180, 80), self._esc_continue_rect, border_radius=10)
         pygame.draw.rect(self.screen, continue_border, self._esc_continue_rect, 3, border_radius=10)
-        continue_text = self.font.render("继续热身", True, (255, 255, 255))
+        continue_text = self.font.render("继续游戏", True, (255, 255, 255))
         self.screen.blit(
             continue_text,
             (
@@ -860,7 +873,7 @@ class ExperimentSession:
         exit_border = selected_border if exit_selected else normal_border
         pygame.draw.rect(self.screen, (200, 60, 60), self._esc_exit_rect, border_radius=10)
         pygame.draw.rect(self.screen, exit_border, self._esc_exit_rect, 3, border_radius=10)
-        exit_text = self.font.render("退出", True, (255, 255, 255))
+        exit_text = self.font.render("退出游戏", True, (255, 255, 255))
         self.screen.blit(
             exit_text,
             (
@@ -869,10 +882,20 @@ class ExperimentSession:
             ),
         )
 
-        sub_text = self.hint_font.render("ESC 关闭对话框", True, (180, 180, 180))
+        settings_btn_w = 200
+        settings_btn_y = btn_y + btn_h + 16
+        settings_btn_x = SCREEN_WIDTH // 2 - settings_btn_w // 2
+        self._esc_settings_rect = pygame.Rect(settings_btn_x, settings_btn_y, settings_btn_w, btn_h)
+        settings_border = selected_border if settings_selected else normal_border
+        pygame.draw.rect(self.screen, (220, 160, 60), self._esc_settings_rect, border_radius=10)
+        pygame.draw.rect(self.screen, settings_border, self._esc_settings_rect, 3, border_radius=10)
+        settings_text = self.font.render("游戏设置", True, (255, 255, 255))
         self.screen.blit(
-            sub_text,
-            (SCREEN_WIDTH // 2 - sub_text.get_width() // 2, box_y + box_h - 30),
+            settings_text,
+            (
+                self._esc_settings_rect.centerx - settings_text.get_width() // 2,
+                self._esc_settings_rect.centery - settings_text.get_height() // 2,
+            ),
         )
 
     def _render(self) -> None:
@@ -1002,6 +1025,16 @@ class ExperimentSession:
                 self._render()
                 continue
 
+            if self._pending_settings:
+                self._pending_settings = False
+                from menu.screens.game_settings import GameSettingsScreen
+                settings_font = load_chinese_font(24)
+                settings_title = load_chinese_font(40)
+                bg_snapshot = self.screen.copy()
+                settings = GameSettingsScreen(self.screen, settings_font, settings_title, audio=self._audio, bg=bg_snapshot)
+                settings.run()
+                continue
+
             self._update_bci_data()
 
             if self.phase == "warmup" and self._game_active and keys[pygame.K_o]:
@@ -1027,6 +1060,7 @@ class ExperimentSession:
                 self._notice_timer -= dt_sec
                 if self._notice_timer <= 0:
                     self._game_active = True
+                    self._game_start_time = time_module.time()
                     self._show_notice = False
                     self.phase_start_time = time_module.time()
                     self._pause_accumulated = 0.0
@@ -1469,9 +1503,68 @@ class ExperimentSession:
         self.screen.blit(self.cup.image, self.cup.rect)
 
     def _end_game(self) -> str:
+        if self._audio:
+            self._audio.play_sfx("音效/游戏结束.wav", volume=0.6)
+
+        focus_flat = [v for _, v in self._warmup_samples] if self._warmup_samples else []
+        avg_focus = sum(focus_flat) / len(focus_flat) if focus_flat else 0.0
+        game_duration = time_module.time() - self._game_start_time if self._game_start_time > 0 else 0.0
+
+        last_5min = avg_focus
+        if focus_flat and game_duration > 0:
+            sps = len(focus_flat) / game_duration if game_duration > 0 else 1
+            n = max(1, int(sps * 300))
+            last_5min = sum(focus_flat[-n:]) / len(focus_flat[-n:])
+
+        if self._profile:
+            p_level = self._profile.level
+            p_rev = self._profile.cumulative_revenue
+            can_save = not (
+                self._control_mode in ("bci", "bci_failed") and self.bci_mode and not self.bci_available
+            )
+        else:
+            p_level = 1
+            p_rev = 0
+            can_save = False
+
+        from menu.summary import SummaryScreen
+
+        bg_snapshot = self.screen.copy()
+        summary = SummaryScreen(
+            self.screen, 0,
+            focus_value=avg_focus,
+            game_mode="experiment",
+            total_money=self.score_manager.total_money,
+            cup_count=self.score_manager.cup_count,
+            secret_count=self.score_manager.secret_recipe_count,
+            max_cup_money=self.score_manager.get_max_cup_money(),
+            player_level=p_level,
+            cumulative_revenue=p_rev,
+            upgraded=False,
+            focus_samples=focus_flat,
+            bg=bg_snapshot,
+            success_count=self._memory_success_rounds,
+        )
+        result = summary.run()
+
+        if result == "save" and self._profile and can_save:
+            upgraded = self._profile.add_game_result(
+                revenue=self.score_manager.total_money,
+                mode="experiment",
+                cups=self.score_manager.cup_count,
+                secrets=self.score_manager.secret_recipe_count,
+                avg_attention=avg_focus,
+                duration=game_duration,
+                focus_samples=focus_flat,
+                last_5min_avg_attention=last_5min,
+            )
+            if upgraded and self._audio:
+                self._audio.play_sfx("音效/升级.wav", volume=0.7)
+            return "save"
+
         if self.bci_available:
             self.bci_reader.disconnect()
-        return ""
+        return result
 
 
 def run_experiment(

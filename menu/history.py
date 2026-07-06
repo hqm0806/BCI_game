@@ -16,7 +16,7 @@ from menu.summary import _draw_centered as draw_centered
 class HistoryScreen:
     """历史记录列表 + 查看详情"""
 
-    _MODE_LABELS = {"all": "全部", "bci": "BCI", "memory": "忆调", "infinite": "原萃", "regular": "特调"}
+    _MODE_LABELS = {"all": "全部", "bci": "BCI", "memory": "忆调", "infinite": "原萃", "regular": "特调", "experiment": "实验"}
 
     def __init__(self, screen: pygame.Surface, games: list[dict], profile=None) -> None:
         self.screen = screen
@@ -52,7 +52,7 @@ class HistoryScreen:
         clear_btn_rect = pygame.Rect(LEFT_W - 130, 50, 120, 30)
         filter_btns: list[tuple[pygame.Rect, str]] = []
         btn_x = 40
-        for key in ["all", "bci", "memory", "infinite", "regular"]:
+        for key in ["all", "bci", "memory", "infinite", "regular", "experiment"]:
             r = pygame.Rect(btn_x, 88, 56, 24)
             filter_btns.append((r, key))
             btn_x += 60
@@ -153,7 +153,7 @@ class HistoryScreen:
                 date = self.hint_font.render(g.get("date", "未知"), True, (255, 255, 255))
                 self.screen.blit(date, (row_rect.x + 10, row_rect.y + 6))
 
-                mode_name = {"regular": "特调", "bci": "BCI", "memory": "忆调", "infinite": "原萃"}.get(
+                mode_name = {"regular": "特调", "bci": "BCI", "memory": "忆调", "infinite": "原萃", "experiment": "实验"}.get(
                     g.get("mode", ""), ""
                 )
                 mins = int(g.get("duration", 0)) // 60
@@ -222,7 +222,7 @@ class HistoryScreen:
             draw_centered(self.screen, self.font, date, y, (200, 200, 200))
             y += 40
 
-            mode_name = {"regular": "特调模式", "bci": "BCI模式", "memory": "忆调模式", "infinite": "原萃模式"}.get(
+            mode_name = {"regular": "特调模式", "bci": "BCI模式", "memory": "忆调模式", "infinite": "原萃模式", "experiment": "实验模式"}.get(
                 game.get("mode", ""), ""
             )
             draw_centered(self.screen, self.font, mode_name, y, (180, 180, 220))
@@ -294,7 +294,7 @@ class HistoryScreen:
         self.screen.blit(title, (x + 4, y - 16))
 
     def _draw_trend_curve(self, right_x: int, right_w: int) -> None:
-        regular_games = [g for g in self.games if g.get("mode") in ("regular", "bci")]
+        regular_games = [g for g in self.games if g.get("mode") in ("regular", "bci", "experiment")]
         regular_games.sort(key=lambda g: g.get("date", ""))
 
         graph_x = right_x + 60

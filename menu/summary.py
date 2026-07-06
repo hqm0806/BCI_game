@@ -97,6 +97,12 @@ class SummaryScreen:
             if self.focus_value >= 50:
                 return "表现不错，继续保持专注！"
             return "调整呼吸，再试一次！"
+        elif self.game_mode == "experiment":
+            if self.total_money >= 300:
+                return "全能奶茶大师！"
+            if self.total_money >= 150:
+                return "三阶段训练完成，表现优秀！"
+            return "继续训练，全面提升！"
         else:
             if self.total_money >= 100:
                 return "奶茶大师！手艺精湛！"
@@ -215,6 +221,36 @@ class SummaryScreen:
                     y, (50, 50, 50),
                 )
                 y += 65
+            elif self.game_mode == "experiment":
+                _draw_centered(self.screen, self.info_font, f"Lv.{self.player_level}", y, (80, 50, 20))
+                y += 50
+                _draw_centered(self.screen, self.info_font, f"总收益: {self.total_money}", y, (80, 50, 20))
+                y += 45
+                _draw_centered(self.screen, self.hint_font, f"累计营业额: {self.cumulative_revenue}", y, (100, 75, 45))
+                y += 40
+                _draw_centered(
+                    self.screen, self.hint_font,
+                    f"完成杯数: {self.cup_count} | 秘方: {self.secret_count} 次 | 最高单杯: {self.max_cup_money}",
+                    y, (90, 65, 35),
+                )
+                y += 35
+                _draw_centered(self.screen, self.hint_font, f"忆调成功: {self.success_count} 轮", y, (90, 65, 35))
+                y += 50
+                if self.upgraded:
+                    up_surf = self.big_font.render(f"升到 Lv.{self.player_level}！新食材已解锁", True, (140, 70, 20))
+                    self.screen.blit(up_surf, (SCREEN_WIDTH // 2 - up_surf.get_width() // 2, y))
+                    y += 60
+                y += 25
+                _draw_centered(self.screen, self.info_font, f"平均专注力: {self.focus_value:.1f}%", y, (80, 50, 20))
+                y += 30
+                if self.focus_samples:
+                    graph_w = 800
+                    graph_h = 120
+                    graph_x = (SCREEN_WIDTH - graph_w) // 2
+                    graph_y = y + 5
+                    total_sec = len(self.focus_samples) / 60.0
+                    self._draw_waveform(graph_x, graph_y, graph_w, graph_h, total_sec)
+                    y = graph_y + graph_h + 20
             else:
                 _draw_centered(self.screen, self.info_font, f"Lv.{self.player_level}", y, (80, 50, 20))
                 y += 50

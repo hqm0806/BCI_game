@@ -71,6 +71,7 @@ class TrainingPlanScreen:
         mx, my = pos
         start_y = 120
         row_h = 42
+        sessions_y = start_y + (len(self._phases) + 2) * row_h - self._scroll
         for i, phase in enumerate(self._phases):
             y = start_y + i * row_h - self._scroll
             if 600 < mx < 680 and y < my < y + row_h:
@@ -99,18 +100,15 @@ class TrainingPlanScreen:
             self._phases.append({"mode": "infinite", "name": "原萃阶段", "duration": 180})
             return
         # sessions +/-
-        sessions_y = start_y + (len(self._phases) + 2) * row_h - self._scroll
-        if 400 < mx < 460 and sessions_y < my < sessions_y + row_h:
+        if hasattr(self, "_minus_rect") and self._minus_rect.collidepoint(mx, my):
             self._total_sessions = max(1, self._total_sessions - 1)
             return
-        if 460 < mx < 520 and sessions_y < my < sessions_y + row_h:
+        if hasattr(self, "_plus_rect") and self._plus_rect.collidepoint(mx, my):
             self._total_sessions = min(999, self._total_sessions + 1)
             return
         # save button
         if 250 < mx < 430 and sessions_y + 60 < my < sessions_y + 108:
             self._save()
-            self.running = False
-            self._result = "menu"
             return
         # start button
         if 480 < mx < 660 and sessions_y + 60 < my < sessions_y + 108 and not self._plan.is_complete():
@@ -170,8 +168,27 @@ class TrainingPlanScreen:
 
         # sessions
         sessions_y = start_y + (len(self._phases) + 2) * row_h - self._scroll
-        ss = self.font.render(f"总训练轮数: [-] {self._total_sessions} [+]", True, (255, 255, 255))
-        self.screen.blit(ss, (200, sessions_y))
+        label_s = self.font.render("总训练轮数:", True, (255, 255, 255))
+        self.screen.blit(label_s, (200, sessions_y))
+
+        minus_x = 200 + label_s.get_width() + 20
+        minus_w = 36
+        self._minus_rect = pygame.Rect(minus_x, sessions_y, minus_w, row_h)
+        pygame.draw.rect(self.screen, (80, 40, 20), self._minus_rect, border_radius=6)
+        pygame.draw.rect(self.screen, (255, 255, 255, 60), self._minus_rect, 2, border_radius=6)
+        m_s = self.font.render("-", True, (255, 255, 255))
+        self.screen.blit(m_s, (minus_x + minus_w // 2 - m_s.get_width() // 2, sessions_y + 4))
+
+        num_x = minus_x + minus_w + 10
+        num_s = self.font.render(str(self._total_sessions), True, (255, 220, 100))
+        self.screen.blit(num_s, (num_x, sessions_y + 4))
+
+        plus_x = num_x + num_s.get_width() + 10
+        self._plus_rect = pygame.Rect(plus_x, sessions_y, minus_w, row_h)
+        pygame.draw.rect(self.screen, (20, 80, 40), self._plus_rect, border_radius=6)
+        pygame.draw.rect(self.screen, (255, 255, 255, 60), self._plus_rect, 2, border_radius=6)
+        p_s = self.font.render("+", True, (255, 255, 255))
+        self.screen.blit(p_s, (plus_x + minus_w // 2 - p_s.get_width() // 2, sessions_y + 4))
 
         # total time
         total_min = total_secs / 60

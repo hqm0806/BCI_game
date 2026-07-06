@@ -308,7 +308,7 @@ class ExperimentSession:
         self._memory_spawn_sequence: list[str] = []
         self._memory_spawn_index = 0
         self._memory_catch_index = 0
-        self._memory_caught_count = 0
+        self._memory_fail_reason = ""
         self._memory_round_failed = False
         self._memory_all_spawned = False
         self._memory_first_round = True
@@ -695,50 +695,26 @@ class ExperimentSession:
             self.screen.blit(txt, (x, y))
 
     def _draw_warmup_notice(self) -> None:
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        alpha = int(min(self._notice_timer / 0.5, 1.0) * 160)
-        overlay.fill((0, 0, 0, alpha))
-        self.screen.blit(overlay, (0, 0))
+        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 180))
+        self.screen.blit(shade, (0, 0))
+        lines = ["原萃阶段", "", "请保持专注，数据将用于后续阶段校准", "倒计时 3 分钟"]
+        y = SCREEN_HEIGHT // 2 - 80
+        for line in lines:
+            s = self.phase_font.render(line, True, (255, 255, 255))
+            self.screen.blit(s, (SCREEN_WIDTH // 2 - s.get_width() // 2, y))
+            y += 36
 
-        notice_surf = pygame.Surface((500, 160), pygame.SRCALPHA)
-        pygame.draw.rect(notice_surf, (30, 25, 20, 220), (0, 0, 500, 160), border_radius=16)
-        pygame.draw.rect(notice_surf, (220, 140, 255, 200), (0, 0, 500, 160), 3, border_radius=16)
-
-        title = self.phase_font.render("热身阶段 - 原萃模式", True, (255, 200, 100))
-        sub = self.hint_font.render("请保持专注，数据将用于后续阶段校准", True, (200, 200, 200))
-        sub2 = self.hint_font.render(f"倒计时 3 分钟", True, (180, 180, 180))
-
-        nx = 500 // 2 - title.get_width() // 2
-        notice_surf.blit(title, (nx, 30))
-        sx = 500 // 2 - sub.get_width() // 2
-        notice_surf.blit(sub, (sx, 75))
-        sx2 = 500 // 2 - sub2.get_width() // 2
-        notice_surf.blit(sub2, (sx2, 105))
-
-        bx = SCREEN_WIDTH // 2 - 250
-        by = SCREEN_HEIGHT // 2 - 80
-        self.screen.blit(notice_surf, (bx, by))
-
-    def _draw_phase_transition(self, text: str) -> None:
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 160))
-        self.screen.blit(overlay, (0, 0))
-
-        box_surf = pygame.Surface((500, 120), pygame.SRCALPHA)
-        pygame.draw.rect(box_surf, (30, 25, 20, 220), (0, 0, 500, 120), border_radius=16)
-        pygame.draw.rect(box_surf, (220, 140, 255, 200), (0, 0, 500, 120), 3, border_radius=16)
-
-        title = self.phase_font.render(text, True, (255, 200, 100))
-        sub = self.hint_font.render("热身阶段已结束，进入下一阶段", True, (200, 200, 200))
-
-        nx = 500 // 2 - title.get_width() // 2
-        box_surf.blit(title, (nx, 25))
-        sx = 500 // 2 - sub.get_width() // 2
-        box_surf.blit(sub, (sx, 70))
-
-        bx = SCREEN_WIDTH // 2 - 250
-        by = SCREEN_HEIGHT // 2 - 60
-        self.screen.blit(box_surf, (bx, by))
+    def _draw_phase_transition(self, title: str, lines: list[str]) -> None:
+        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 180))
+        self.screen.blit(shade, (0, 0))
+        all_lines = [title, ""] + lines
+        y = SCREEN_HEIGHT // 2 - 80
+        for line in all_lines:
+            s = self.phase_font.render(line, True, (255, 255, 255))
+            self.screen.blit(s, (SCREEN_WIDTH // 2 - s.get_width() // 2, y))
+            y += 36
 
     def _draw_phase_label(self) -> None:
         if self.phase in ("warmup", "transition"):
@@ -996,22 +972,16 @@ class ExperimentSession:
             self._draw_secret_popup()
 
         if self.phase == "transition":
-            self._draw_phase_transition("热身结束 - 准备进入特调阶段")
-            sub = self.hint_font.render(
-                f"基线: {self._warmup_baseline:.0f}  归一化: [{self._warmup_norm_min:.0f}, {self._warmup_norm_max:.0f}]",
-                True,
-                (180, 180, 180),
-            )
-            self.screen.blit(sub, (SCREEN_WIDTH // 2 - sub.get_width() // 2, SCREEN_HEIGHT // 2 + 40))
+            self._draw_phase_transition("热身结束 - 准备进入特调阶段", [
+                f"基线: {self._warmup_baseline:.0f}",
+                f"归一化: [{self._warmup_norm_min:.0f}, {self._warmup_norm_max:.0f}]",
+            ])
 
         if self.phase == "transition_memory":
-            self._draw_phase_transition("特调结束 - 准备进入忆调阶段")
-            sub = self.hint_font.render(
-                f"累计成功杯数: {self.score_manager.cup_count}  收益: {self.score_manager.total_money}",
-                True,
-                (180, 180, 180),
-            )
-            self.screen.blit(sub, (SCREEN_WIDTH // 2 - sub.get_width() // 2, SCREEN_HEIGHT // 2 + 40))
+            self._draw_phase_transition("特调结束 - 准备进入忆调阶段", [
+                f"累计成功杯数: {self.score_manager.cup_count}",
+                f"收益: {self.score_manager.total_money}",
+            ])
 
         pygame.display.flip()
 
@@ -1275,7 +1245,7 @@ class ExperimentSession:
                 self._memory_phase_timer = 0.0
                 self._memory_spawn_index = 0
                 self._memory_catch_index = 0
-                self._memory_caught_count = 0
+                self._memory_fail_reason = ""
                 self._memory_round_failed = False
                 self._memory_all_spawned = False
                 self._memory_ingredients.empty()
@@ -1284,7 +1254,7 @@ class ExperimentSession:
                     self._memory_first_round = False
 
         elif self._memory_phase == "playing":
-            if not self._memory_round_failed and not self._memory_all_spawned:
+            if not self._memory_all_spawned:
                 if time_module.time() - self._memory_last_spawn_time >= 0.8:
                     self._memory_last_spawn_time = time_module.time()
                     ing_type = self._memory_spawn_sequence[self._memory_spawn_index]
@@ -1310,6 +1280,7 @@ class ExperimentSession:
             if all_gone:
                 if not self._memory_round_failed and self._memory_catch_index < len(self._memory_recipe_ingredients):
                     self._memory_round_failed = True
+                    self._memory_fail_reason = "incomplete"
                 self._memory_phase = "result"
                 self._memory_phase_timer = 0.0
 
@@ -1362,7 +1333,7 @@ class ExperimentSession:
         recipe = self._memory_recipe_ingredients
         n = len(recipe)
         dist_pool = INGREDIENT_TIERS.get(self._current_tier, INGREDIENT_TIERS[1])["available"]
-        recipe_seq = [ing for ing in recipe for _ in range(2)]
+        recipe_seq = list(recipe)
         total_dist = n * 3
         gaps = len(recipe_seq)
         per_gap = total_dist / max(1, gaps)
@@ -1412,14 +1383,14 @@ class ExperimentSession:
             if self._memory_catch_index < len(self._memory_recipe_ingredients):
                 expected = self._memory_recipe_ingredients[self._memory_catch_index]
                 if hit.type == expected:
-                    self._memory_caught_count += 1
-                    if self._memory_caught_count >= 2:
-                        self._memory_catch_index += 1
-                        self._memory_caught_count = 0
+                    self._memory_catch_index += 1
                 else:
                     self._memory_round_failed = True
-                    self._memory_all_spawned = True
-                    self._memory_spawn_index = len(self._memory_spawn_sequence)
+                    self._memory_fail_reason = "wrong_order"
+            else:
+                if hit.type in self._memory_recipe_ingredients:
+                    self._memory_round_failed = True
+                    self._memory_fail_reason = "extra_recipe"
 
     def _draw_memory_hud(self) -> None:
         if self._memory_phase == "rules":
@@ -1437,7 +1408,7 @@ class ExperimentSession:
         shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         shade.fill((0, 0, 0, 180))
         self.screen.blit(shade, (0, 0))
-        rules = ["忆调阶段 — 记忆配方，按序接食材", "", "1. 记住下方食材和名称", "2. 按配方顺序依次接住", "3. 接错即失败，15分钟训练"]
+        rules = ["忆调阶段 — 记忆配方，按序接食材", "", "1. 记住下方食材和名称", "2. 按配方顺序依次接住"]
         y = SCREEN_HEIGHT // 2 - 100
         for line in rules:
             s = self.font.render(line, True, (255, 255, 255))
@@ -1478,14 +1449,20 @@ class ExperimentSession:
         shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         shade.fill((0, 0, 0, 160))
         self.screen.blit(shade, (0, 0))
-        if self._memory_round_failed:
-            t = "未完成"
+        if not self._memory_round_failed:
+            t = f"正确调配  {self._memory_recipe_name}"
+            c = (100, 255, 100)
+        elif self._memory_fail_reason in ("wrong_order", "extra_recipe"):
+            t = "错误调配"
             c = (255, 100, 100)
         else:
-            t = f"成功制作 {self._memory_recipe_name}"
-            c = (100, 255, 100)
-        s = self.font.render(t, True, c)
-        self.screen.blit(s, (SCREEN_WIDTH // 2 - s.get_width() // 2, SCREEN_HEIGHT // 2 - 20))
+            t = "未完成"
+            c = (255, 180, 50)
+        main_s = self.font.render(t, True, c)
+        self.screen.blit(main_s, (SCREEN_WIDTH // 2 - main_s.get_width() // 2, SCREEN_HEIGHT // 2 - 40))
+        sub_line = f"配方: {self._memory_recipe_name}"
+        sub_s = self.small_font.render(sub_line, True, (180, 180, 180))
+        self.screen.blit(sub_s, (SCREEN_WIDTH // 2 - sub_s.get_width() // 2, SCREEN_HEIGHT // 2 + 10))
 
     def _draw_memory_rest_overlay(self) -> None:
         remain = max(0, 2.0 - self._memory_phase_timer)

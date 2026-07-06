@@ -1255,7 +1255,7 @@ class ExperimentSession:
 
         elif self._memory_phase == "playing":
             if not self._memory_all_spawned:
-                if time_module.time() - self._memory_last_spawn_time >= 0.8:
+                if time_module.time() - self._memory_last_spawn_time >= 1.2:
                     self._memory_last_spawn_time = time_module.time()
                     ing_type = self._memory_spawn_sequence[self._memory_spawn_index]
                     allowed_outlets = self._memory_free_outlets()
@@ -1333,7 +1333,7 @@ class ExperimentSession:
         recipe = self._memory_recipe_ingredients
         n = len(recipe)
         dist_pool = INGREDIENT_TIERS.get(self._current_tier, INGREDIENT_TIERS[1])["available"]
-        recipe_seq = list(recipe)
+        recipe_seq = list(recipe) * 2
         total_dist = n * 3
         gaps = len(recipe_seq)
         per_gap = total_dist / max(1, gaps)
@@ -1387,10 +1387,6 @@ class ExperimentSession:
                 else:
                     self._memory_round_failed = True
                     self._memory_fail_reason = "wrong_order"
-            else:
-                if hit.type in self._memory_recipe_ingredients:
-                    self._memory_round_failed = True
-                    self._memory_fail_reason = "extra_recipe"
 
     def _draw_memory_hud(self) -> None:
         if self._memory_phase == "rules":
@@ -1452,7 +1448,7 @@ class ExperimentSession:
         if not self._memory_round_failed:
             t = f"正确调配  {self._memory_recipe_name}"
             c = (100, 255, 100)
-        elif self._memory_fail_reason in ("wrong_order", "extra_recipe"):
+        elif self._memory_fail_reason == "wrong_order":
             t = "错误调配"
             c = (255, 100, 100)
         else:

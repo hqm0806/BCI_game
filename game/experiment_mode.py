@@ -40,11 +40,13 @@ from config import (
     INFO_REGIONS,
     INGREDIENT_COLORS,
     INGREDIENT_IMGS,
+    INGREDIENT_TIERS,
     NUM_IMG_DIR,
     OUTLET_POSITIONS,
     OVERLAY_CLEAR_REGIONS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    SECRET_RECIPE_SUSTAIN,
     WARMUP_FREEZE_TIME,
     WARMUP_LOW_THRESHOLD,
     WARMUP_RESUME_TIME,
@@ -118,9 +120,13 @@ class ExperimentSession:
         self.ingredient_manager = IngredientManager(tier=start_tier)
         self.ingredient_manager.spawn_interval = self.spawn_interval
 
+        tier_required = INGREDIENT_TIERS.get(start_tier, INGREDIENT_TIERS[1]).get("required", ["红茶"])
+        first_required = tier_required[0] if tier_required else "红茶"
+        self.score_manager.set_required_ingredient(first_required)
+
         self.cup_manager = CupManager(
-            has_required=self.has_required,
-            required_type=None,
+            has_required=True,
+            required_type=first_required,
             total_cups=999,
             secret_recipe_interval=self._mode_secret_interval,
         )
@@ -180,10 +186,16 @@ class ExperimentSession:
             except Exception:
                 self._digit_imgs.append(pygame.Surface((DIGIT_WIDTH, DIGIT_HEIGHT), pygame.SRCALPHA))
 
+        self._secret_img = None
+        img_path = INGREDIENT_IMGS.get("秘方", "")
+        if img_path and os.path.exists(img_path):
+            img = pygame.image.load(img_path).convert_alpha()
+            self._secret_img = pygame.transform.scale(img, (160, 160))
+
     def _init_state(self) -> None:
         self.running = True
         self.phase = "warmup"
-        self.phase_start_time = time_module.time()
+        self.phase_start_time = 0.0
         self.use_yaw_control = self.bci_available
         self.cup.yaw_control = self.use_yaw_control
 
@@ -217,6 +229,12 @@ class ExperimentSession:
 
         self._notice_timer = EXPERIMENT_WARMUP_NOTICE_DURATION
         self._show_notice = True
+        self._game_active = False
+        self._secret_popup_timer = 0.0
+        self._focus_above_seconds = 0.0
+        self._cup_attn_samples: list[float] = []
+        self._cup_baseline: float = 40.0
+        self._warmup_cup_start = 0.0
 
         self._esc_dialog_active = False
         self._esc_dialog_selected = 0
@@ -229,8 +247,6 @@ class ExperimentSession:
             self.cup.yaw_control = False
 
         self._current_tier = self._profile.level if self._profile else 1
-
-        self.cup_manager.start_new_cup()
 
     def _draw_initial_frame(self) -> None:
         if self.has_background and self.background:
@@ -280,9 +296,10 @@ class ExperimentSession:
             if not self.bci_mode:
                 self.attention = None
 
-        if self.attention is not None:
+        if self.attention is not None and self._game_active:
             now = time_module.time()
             self._warmup_samples.append((now, self.attention))
+            self._cup_attn_samples.append(self.attention)
 
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
         self.cup.update(keys=keys, dt=dt_sec)
@@ -362,6 +379,100 @@ class ExperimentSession:
         target_alpha = 180 if self._artifact_frozen else 0
         self._artifact_alpha += (target_alpha - self._artifact_alpha) * 0.1
 
+    def _check_warmup_secret_recipe(self, dt_sec: float) -> None:
+        if self._secret_popup_timer > 0:
+            return
+        if self.cup_manager.secret_recipe_spawned:
+            return
+        if self.cup_manager.cup_ended:
+            return
+
+        if self.bci_mode and self.bci_available:
+            threshold = self._cup_baseline + 10
+            attn = self.attention if self.attention is not None else 50.0
+            if attn > threshold:
+                self._focus_above_seconds += dt_sec
+            else:
+                self._focus_above_seconds = 0.0
+
+            if self._focus_above_seconds >= SECRET_RECIPE_SUSTAIN and self.cup_manager.trigger_secret_recipe():
+                self._secret_popup_timer = 4.0
+                self._focus_above_seconds = 0.0
+                if self._audio:
+                    self._audio.play_sfx("音效/触发秘方.wav", volume=0.7)
+                logger.info("热身秘方触发！专注力持续高于阈值 %.0f 达 %d 秒", threshold, SECRET_RECIPE_SUSTAIN)
+
+    def _check_warmup_cup_end(self) -> None:
+        if self.cup_manager.check_cup_end():
+            if self._cup_attn_samples:
+                self._cup_baseline = sum(self._cup_attn_samples) / len(self._cup_attn_samples)
+
+            self._cup_attn_samples = []
+
+            cup_money = self.cup_manager.settle_cup()
+            had_secret = self.cup_manager.secret_recipe_spawned
+            required_caught = self.cup_manager.cup_required_caught
+
+            if cup_money > 0 and required_caught:
+                if self.bci_mode:
+                    from config import get_attention_coefficient
+                    attn = self.attention if self.attention is not None else 50.0
+                    coeff = get_attention_coefficient(attn)
+                    cup_money = int(cup_money * coeff)
+
+                self.score_manager.add_cup_money(cup_money, had_secret)
+                if self._audio:
+                    self._audio.play_sfx("音效/加金币.wav", volume=0.5)
+
+            self.score_manager.reset_cup_ingredients()
+            self._focus_above_seconds = 0.0
+
+            self.cup_manager.start_new_cup()
+            self.cup.update_level(0)
+            self.score_manager.reset_cup_ingredients()
+
+    def _draw_secret_popup(self) -> None:
+        timer = self._secret_popup_timer
+        if timer > 3.5:
+            alpha = (4.0 - timer) / 0.5
+        elif timer < 0.5:
+            alpha = timer / 0.5
+        else:
+            alpha = 1.0
+        alpha = max(0.0, min(1.0, alpha))
+
+        overlay_alpha = int(80 * alpha)
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, overlay_alpha))
+        self.screen.blit(overlay, (0, 0))
+
+        popup_w, popup_h = 260, 270
+        popup_x = (SCREEN_WIDTH - popup_w) // 2
+        popup_y = (SCREEN_HEIGHT - popup_h) // 2
+
+        popup_surf = pygame.Surface((popup_w, popup_h), pygame.SRCALPHA)
+        bg_alpha = int(200 * alpha)
+        border_alpha = int(180 * alpha)
+        pygame.draw.rect(popup_surf, (30, 25, 20, bg_alpha), (0, 0, popup_w, popup_h), border_radius=16)
+        pygame.draw.rect(popup_surf, (255, 180, 100, border_alpha), (0, 0, popup_w, popup_h), 3, border_radius=16)
+        self.screen.blit(popup_surf, (popup_x, popup_y))
+
+        text_surf = self.font.render("触发秘方！", True, (255, 220, 100))
+        text_surf.set_alpha(int(255 * alpha))
+        text_x = popup_x + (popup_w - text_surf.get_width()) // 2
+        text_y = popup_y + popup_h - text_surf.get_height() - 20
+        self.screen.blit(text_surf, (text_x, text_y))
+
+        if self._secret_img is not None:
+            t = pygame.time.get_ticks() / 1000.0
+            wobble_x = int(math.sin(t * 4) * 5)
+            angle = math.sin(t * 3) * 2
+            rotated = pygame.transform.rotate(self._secret_img, angle)
+            rotated.set_alpha(int(255 * alpha))
+            rx = popup_x + (popup_w - rotated.get_width()) // 2 + wobble_x
+            ry = popup_y + 25
+            self.screen.blit(rotated, (rx, ry))
+
     def _finish_warmup(self) -> None:
         if not self._warmup_samples:
             self._warmup_baseline = 50.0
@@ -429,7 +540,7 @@ class ExperimentSession:
         values = [
             f"LV.{self._player_level}",
             self.mode_name,
-            "-",
+            str(self.score_manager.cup_count),
             str(self.score_manager.total_money),
         ]
         texts = [
@@ -490,6 +601,16 @@ class ExperimentSession:
         self.screen.blit(box_surf, (bx, by))
 
     def _draw_warmup_countdown(self) -> None:
+        if not self._game_active:
+            countdown_text = "热身 3:00"
+            cd_surf = self.phase_font.render(countdown_text, True, (255, 200, 100))
+            shadow = self.phase_font.render(countdown_text, True, (30, 20, 10))
+            x = SCREEN_WIDTH - cd_surf.get_width() - 30
+            y = SCREEN_HEIGHT - cd_surf.get_height() - 15
+            self.screen.blit(shadow, (x + 2, y + 2))
+            self.screen.blit(cd_surf, (x, y))
+            return
+
         elapsed = time_module.time() - self.phase_start_time
         remaining = max(0, EXPERIMENT_WARMUP_DURATION - elapsed)
         mins = int(remaining // 60)
@@ -701,6 +822,9 @@ class ExperimentSession:
         if self._esc_dialog_active:
             self._draw_esc_dialog()
 
+        if self._secret_popup_timer > 0:
+            self._draw_secret_popup()
+
         if self.phase == "transition":
             self._draw_phase_transition("热身结束 - 准备进入特调阶段")
             sub = self.hint_font.render(
@@ -731,6 +855,18 @@ class ExperimentSession:
 
             self._update_bci_data()
 
+            if not self._game_active:
+                self._notice_timer -= dt_sec
+                if self._notice_timer <= 0:
+                    self._game_active = True
+                    self._show_notice = False
+                    self.phase_start_time = time_module.time()
+                    self.cup_manager.start_new_cup()
+                    self._warmup_cup_start = time_module.time()
+                    logger.info("热身阶段正式开始，计时开始")
+                self._render()
+                continue
+
             self._update_cup(keys, dt_sec)
             self._update_pause_state(dt_sec)
             self._check_artifact(dt_sec)
@@ -740,9 +876,11 @@ class ExperimentSession:
                 self._update_warmup_speed()
                 self._update_game_objects(dt_sec)
                 self._handle_collisions()
+                self._check_warmup_secret_recipe(dt_sec)
+                self._check_warmup_cup_end()
 
-            if self._notice_timer > 0:
-                self._notice_timer -= dt_sec
+            if self._secret_popup_timer > 0:
+                self._secret_popup_timer -= dt_sec
 
             if self.phase == "warmup":
                 elapsed = time_module.time() - self.phase_start_time
@@ -769,6 +907,8 @@ class ExperimentSession:
         ingredient = self.ingredient_manager.update(required_types=None, ingredients_group=self.ingredients)
         if ingredient:
             self.ingredients.add(ingredient)
+            if ingredient.is_required:
+                ingredient.set_particle_group(self.particles)
 
         self.ingredients.update()
         self.catch_effects.update(dt=dt_sec)

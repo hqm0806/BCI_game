@@ -407,7 +407,7 @@ GAME_MODES = {
     "experiment": {
         "name": "实验模式",
         "description": "3min热身+7min特调+5min忆调",
-        "has_required": False,
+        "has_required": True,
         "free_combine": True,
         "bci_mode": True,
         "ingredient_speed": 3,

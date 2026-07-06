@@ -1059,8 +1059,9 @@ class ExperimentSession:
                     is_req = True
                 else:
                     available = [t for t in self.ingredient_manager._available if t not in tier_required]
+                    available.append("冰块")
                     if not available:
-                        available = list(self.ingredient_manager._available)
+                        available = ["冰块"]
                     ing_type = random.choice(available)
                     is_req = False
 

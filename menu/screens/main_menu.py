@@ -145,6 +145,22 @@ class MainMenu:
             image_path=os.path.join(IMAGES_DIR, "buttons", "退出.png"),
         )
 
+        training_x = col2_x + btn_w // 2 + 155
+        training_y = (row1_y + row2_y) // 2
+        self.training_btn = GlowButton(
+            "训练计划",
+            training_x,
+            training_y,
+            title_font,
+            title_font,
+            glow_color=(180, 120, 255),
+            bg_color=(35, 20, 55),
+            hover_color=(55, 30, 85),
+            text_color=(255, 255, 255),
+            width=btn_w // 2 + 40,
+            padding=(40, 30),
+        )
+
         self.btn_cx = (col1_x + col2_x) // 2  # 标题居中于四个按钮上方
 
         self.title_y = 400  # 疯狂奶茶杯的y坐标
@@ -317,6 +333,12 @@ class MainMenu:
                         self.result = "quit"
                         if self._audio:
                             self._audio.play_sfx("音效/按键2.mp3", volume=0.5)
+                    if self.training_btn.handle_event(event):
+                        self.training_btn.trigger_click()
+                        self.result = "start_training"
+                        click_frames[0] = 15
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
 
             if self._conn_dialog_active:
                 self._conn_dialog_timer += dt
@@ -358,6 +380,7 @@ class MainMenu:
         self.mode_selector.update(dt)
         self.settings_btn.update(dt)
         self.exit_btn.update(dt)
+        self.training_btn.update(dt)
 
         for item in self.floating_items:
             item.update()
@@ -529,6 +552,7 @@ class MainMenu:
         self.mode_selector.draw(self.screen)
         self.settings_btn.draw(self.screen)
         self.exit_btn.draw(self.screen)
+        self.training_btn.draw(self.screen)
 
         if self._conn_dialog_active:
             self._draw_connection_dialog()

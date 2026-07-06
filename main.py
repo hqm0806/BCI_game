@@ -15,6 +15,7 @@ from core.audio_manager import AudioManager
 from core.state_machine import GameEvent, GameState, State, StateMachine
 from data.player_profile import PlayerProfile
 from game.font_utils import load_chinese_font
+from data.training_plan import TrainingPlan
 from game.experiment_mode import run_experiment
 from game.memory_mode import run_memory_game
 from game.session import run_game
@@ -102,6 +103,8 @@ class MenuState(State):
             return GameState.GAME_MEMORY
         if result == "start_experiment":
             return GameState.TRANSITION
+        if result == "start_training":
+            return GameState.TRAINING_PLAN
         if result == "start":
             return GameState.TRANSITION
         return None
@@ -118,6 +121,45 @@ class QuitState(State):
 
     def enter(self) -> GameState | None:
         return None
+
+    def handle_event(self, event: GameEvent) -> GameState | None:
+        return None
+
+    def update(self) -> None:
+        pass
+
+
+class TrainingPlanState(State):
+    """训练计划配置 + 执行状态 — 每轮独立结算"""
+
+    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, context: dict) -> None:
+        self.screen = screen
+        self.clock = clock
+        self._context = context
+
+    def enter(self) -> GameState | None:
+        from menu.screens.training_plan import TrainingPlanScreen
+        from game.training_session import run_training
+
+        username = self._context.get("username", "default")
+        profile = self._context.get("profile")
+        audio = self._context.get("audio")
+        control_mode = self._context.get("control_mode", "bci")
+
+        while True:
+            plan_screen = TrainingPlanScreen(self.screen, username, bg=self.screen.copy())
+            result, plan = plan_screen.run()
+
+            if result == "start_training":
+                run_training(self.screen, self.clock, plan, username, profile=profile, control_mode=control_mode, audio=audio)
+                if profile:
+                    profile.save()
+                plan = TrainingPlan.load_for_user(username)
+                continue
+
+            if result == "quit":
+                return GameState.QUIT
+            return GameState.MENU
 
     def handle_event(self, event: GameEvent) -> GameState | None:
         return None
@@ -279,6 +321,7 @@ def main() -> None:
     sm.register(GameState.GAME, GameStateImpl(screen, clock, context))
     sm.register(GameState.GAME_MEMORY, MemoryGameState(screen, clock, context))
     sm.register(GameState.GAME_EXPERIMENT, ExperimentState(screen, clock, context))
+    sm.register(GameState.TRAINING_PLAN, TrainingPlanState(screen, clock, context))
     sm.register(GameState.QUIT, QuitState())
 
     sm.start(GameState.SPLASH)

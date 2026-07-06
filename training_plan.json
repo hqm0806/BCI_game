@@ -1,0 +1,24 @@
+{
+  "11": {
+    "phases": [
+      {
+        "mode": "infinite",
+        "name": "原萃阶段",
+        "duration": 179
+      },
+      {
+        "mode": "bci",
+        "name": "特调阶段",
+        "duration": 420
+      },
+      {
+        "mode": "memory",
+        "name": "忆调阶段",
+        "duration": 300
+      }
+    ],
+    "total_sessions": 14,
+    "completed_sessions": 0,
+    "current_phase": 0
+  }
+}

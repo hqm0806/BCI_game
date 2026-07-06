@@ -20,6 +20,8 @@ class GameState(Enum):
     GAME = auto()
     GAME_MEMORY = auto()
     GAME_EXPERIMENT = auto()
+    GAME_TRAINING = auto()
+    TRAINING_PLAN = auto()
     QUIT = auto()
 
 

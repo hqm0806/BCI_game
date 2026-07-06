@@ -1,5 +1,5 @@
 """疯狂奶茶杯 - 游戏主入口
-负责初始化 pygame、管理界面跳转（主菜单 -> 模式选择 -> 游戏）
+负责初始化 pygame、管   理界面跳转（主菜单 -> 模式选择 -> 游戏）
 """
 
 from __future__ import annotations
@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-    
+
 import pygame
 
 from config import IMAGES_DIR

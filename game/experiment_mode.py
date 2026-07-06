@@ -25,6 +25,7 @@ from config import (
     DIGIT_SPACING,
     DIGIT_WIDTH,
     EXPERIMENT_FORMAL_DURATION,
+    EXPERIMENT_MEMORY_DURATION,
     EXPERIMENT_WARMUP_DURATION,
     EXPERIMENT_WARMUP_NORM_WINDOW,
     EXPERIMENT_WARMUP_NOTICE_DURATION,
@@ -44,8 +45,12 @@ from config import (
     INFO_REGIONS,
     INGREDIENT_COLORS,
     INGREDIENT_IMGS,
+    INGREDIENT_POINTS,
     INGREDIENT_TIERS,
+    MEMORY_SPEED_MAX,
+    MEMORY_SPEED_MIN,
     NUM_IMG_DIR,
+    OUTLET_BLOCK_RADIUS,
     OUTLET_POSITIONS,
     OVERLAY_CLEAR_REGIONS,
     SCREEN_HEIGHT,
@@ -56,6 +61,7 @@ from config import (
     WARMUP_RESUME_TIME,
     get_attention_coefficient,
 )
+from data.memory_recipes import MEMORY_RECIPES
 from data.score_manager import ScoreManager
 from game.cup_manager import CupManager
 from game.font_utils import load_chinese_font
@@ -63,6 +69,33 @@ from game.ingredient_manager import IngredientManager
 from game.sprites import CatchEffect, Cup, Ingredient, MissEffect, Particle
 
 logger = logging.getLogger(__name__)
+
+
+class _ExperimentParticle(pygame.sprite.Sprite):
+    def __init__(self, x: float, y: float, color: tuple[int, int, int]) -> None:
+        super().__init__()
+        self.x = x
+        self.y = y
+        angle = random.uniform(0, 2 * math.pi)
+        speed = random.uniform(2, 7)
+        self.vx = math.cos(angle) * speed
+        self.vy = math.sin(angle) * speed
+        self.life = 1.0
+        self.decay = random.uniform(1.5, 3.0)
+        self.size = random.randint(2, 6)
+        self.image = pygame.Surface((self.size * 2, self.size * 2), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, (*color, 255), (self.size, self.size), self.size)
+        self.rect = self.image.get_rect(center=(int(x), int(y)))
+
+    def update(self, dt: float = 0.016) -> None:
+        self.life -= self.decay * dt
+        if self.life <= 0:
+            self.kill()
+            return
+        self.x += self.vx * dt * 60
+        self.y += self.vy * dt * 60
+        self.rect.center = (int(self.x), int(self.y))
+        self.image.set_alpha(int(self.life * 255))
 
 
 class ExperimentSession:
@@ -108,6 +141,7 @@ class ExperimentSession:
     def _load_fonts(self) -> None:
         self.font = load_chinese_font(36)
         self.hint_font = load_chinese_font(20)
+        self.small_font = load_chinese_font(18)
         self.pause_font = load_chinese_font(48)
         self.phase_font = load_chinese_font(32)
 
@@ -259,6 +293,29 @@ class ExperimentSession:
             self.cup.yaw_control = False
 
         self._current_tier = self._profile.level if self._profile else 1
+        self.phase_memory_start = 0.0
+        self._memory_session_ending = False
+        self._memory_level = 2
+        self._memory_success_streak = 0
+        self._memory_fail_streak = 0
+        self._memory_score = 0
+        self._memory_success_rounds = 0
+        self._memory_total_rounds = 0
+        self._memory_phase = ""
+        self._memory_phase_timer = 0.0
+        self._memory_recipe_ingredients: list[str] = []
+        self._memory_recipe_name = ""
+        self._memory_spawn_sequence: list[str] = []
+        self._memory_spawn_index = 0
+        self._memory_catch_index = 0
+        self._memory_round_failed = False
+        self._memory_all_spawned = False
+        self._memory_first_round = True
+        self._memory_ingredients = pygame.sprite.Group()
+        self._memory_particles = pygame.sprite.Group()
+        self._memory_last_spawn_time = 0.0
+        self._memory_yaw_data_ok = False
+        self._memory_platform_focus_x = float(SCREEN_WIDTH // 2)
     def _draw_initial_frame(self) -> None:
         if self.has_background and self.background:
             self.screen.blit(self.background, (0, 0))
@@ -683,10 +740,12 @@ class ExperimentSession:
         self.screen.blit(box_surf, (bx, by))
 
     def _draw_phase_label(self) -> None:
-        if self.phase == "warmup" or self.phase == "transition":
+        if self.phase in ("warmup", "transition"):
             label = "热身阶段"
         elif self.phase == "formal":
             label = "特调阶段"
+        elif self.phase == "memory":
+            label = "忆调阶段"
         else:
             label = self.mode_name
         label_surf = self.phase_font.render(label, True, (200, 150, 255))
@@ -719,6 +778,12 @@ class ExperimentSession:
             mins = int(remaining // 60)
             secs = int(remaining % 60)
             countdown_text = f"特调 {mins}:{secs:02d}"
+        elif self.phase == "memory":
+            elapsed = time_module.time() - self.phase_memory_start - self._total_pause
+            remaining = max(0, EXPERIMENT_MEMORY_DURATION - elapsed)
+            mins = int(remaining // 60)
+            secs = int(remaining % 60)
+            countdown_text = f"忆调 {mins}:{secs:02d}"
         else:
             return
 
@@ -844,11 +909,12 @@ class ExperimentSession:
         else:
             self.screen.fill((255, 255, 255))
 
-        self.all_sprites.draw(self.screen)
-        self.particles.draw(self.screen)
-        self.ingredients.draw(self.screen)
-        self.catch_effects.draw(self.screen)
-        self.miss_effects.draw(self.screen)
+        if self.phase not in ("memory", "transition", "transition_memory"):
+            self.all_sprites.draw(self.screen)
+            self.particles.draw(self.screen)
+            self.ingredients.draw(self.screen)
+            self.catch_effects.draw(self.screen)
+            self.miss_effects.draw(self.screen)
 
         if config.SHOW_HUD_INFO and self._info_bar:
             self.screen.blit(self._info_bar, (0, 0))
@@ -869,6 +935,10 @@ class ExperimentSession:
 
         self._draw_phase_label()
         self._draw_phase_countdown()
+
+        if self.phase == "memory":
+            self._draw_memory_sprites()
+            self._draw_memory_hud()
 
         if self._show_notice:
             if self._notice_timer > 0:
@@ -974,6 +1044,14 @@ class ExperimentSession:
                 self._render()
                 continue
 
+            if self.phase == "formal" and self._game_active and keys[pygame.K_o]:
+                self.phase = "transition_memory"
+                self._transition_start = time_module.time()
+                self._pause_accumulated = 0.0
+                logger.info("特调阶段被手动跳过（按O），进入忆调阶段")
+                self._render()
+                continue
+
             if not self._game_active:
                 self._notice_timer -= dt_sec
                 if self._notice_timer <= 0:
@@ -987,7 +1065,8 @@ class ExperimentSession:
                 self._render()
                 continue
 
-            self._update_cup(keys, dt_sec)
+            if self.phase != "memory":
+                self._update_cup(keys, dt_sec)
             self._update_pause_state(dt_sec)
             self._check_artifact(dt_sec)
             self._update_artifact_freeze(dt_sec)
@@ -997,15 +1076,22 @@ class ExperimentSession:
                     self._update_warmup_speed()
                 elif self.phase == "formal":
                     self._update_formal_speed()
+                elif self.phase == "memory":
+                    self._update_memory_speed()
 
                 if self.phase == "warmup":
                     self._check_warmup_secret_recipe(dt_sec)
                 elif self.phase == "formal":
                     self._check_formal_secret_recipe(dt_sec)
 
-                self._check_cup_end()
+                if self.phase == "memory":
+                    self._update_memory_cup(keys, dt_sec)
+                    self._update_memory_game(dt_sec)
 
-                if self._secret_popup_timer <= 0 and self.phase not in ("transition", "transition_memory"):
+                if self.phase in ("warmup", "formal"):
+                    self._check_cup_end()
+
+                if self._secret_popup_timer <= 0 and self.phase not in ("transition", "transition_memory", "memory"):
                     self._update_game_objects(dt_sec)
                     self._handle_collisions()
 
@@ -1053,7 +1139,16 @@ class ExperimentSession:
 
             if self.phase == "transition_memory":
                 if time_module.time() - self._transition_start >= 2.0:
-                    self.running = False
+                    self.phase = "memory"
+                    self.phase_memory_start = time_module.time()
+                    self._pause_accumulated = 0.0
+                    self._start_memory_phase()
+                    logger.info("进入忆调阶段！计时开始")
+
+            if self.phase == "memory":
+                elapsed = time_module.time() - self.phase_memory_start - self._total_pause
+                if elapsed >= EXPERIMENT_MEMORY_DURATION:
+                    self._memory_session_ending = True
 
             self._render()
 
@@ -1131,6 +1226,282 @@ class ExperimentSession:
                     p.decay *= 1.5
                     self.particles.add(p)
                 self.ingredients.remove(ing)
+
+    def _start_memory_phase(self) -> None:
+        self._memory_phase = "rules"
+        self._memory_phase_timer = 0.0
+        self._memory_first_round = True
+        self._memory_session_ending = False
+        self._memory_level = 2
+        self._memory_success_streak = 0
+        self._memory_fail_streak = 0
+        self._memory_score = 0
+        self._memory_success_rounds = 0
+        self._memory_total_rounds = 0
+        self._memory_ingredients.empty()
+
+    def _update_memory_speed(self) -> None:
+        if not self.bci_available:
+            self._memory_ingredient_speed = MEMORY_SPEED_MIN + (MEMORY_SPEED_MAX - MEMORY_SPEED_MIN) * 0.5
+            return
+        attn = max(0, min(100, self.attention if self.attention is not None else 50))
+        self._memory_ingredient_speed = MEMORY_SPEED_MAX - (attn / 100.0) * (MEMORY_SPEED_MAX - MEMORY_SPEED_MIN)
+
+    def _update_memory_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
+        if self._memory_phase in ("rules", "memorize", "result", "rest"):
+            self.cup.rect.centerx = SCREEN_WIDTH // 2
+            self.cup.rect.bottom = SCREEN_HEIGHT - 10
+            return
+        kb_pressed = keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
+        if self.bci_available and not kb_pressed:
+            self.cup.rect.centerx = max(self.focus_min, min(self.focus_max, int(self.platform_focus_x)))
+        else:
+            self.cup.update(keys={pygame.K_LEFT: keys[pygame.K_LEFT], pygame.K_RIGHT: keys[pygame.K_RIGHT]}, dt=dt_sec)
+
+    def _update_memory_game(self, dt_sec: float) -> None:
+        self._memory_phase_timer += dt_sec
+
+        if self._memory_phase == "rules":
+            if self._memory_phase_timer >= 3.5:
+                self._pick_random_recipe()
+                self._generate_spawn_sequence()
+                self._memory_phase = "memorize"
+                self._memory_phase_timer = 0.0
+
+        elif self._memory_phase == "memorize":
+            if self._memory_phase_timer >= 2.0:
+                self._memory_phase = "playing"
+                self._memory_phase_timer = 0.0
+                self._memory_spawn_index = 0
+                self._memory_catch_index = 0
+                self._memory_round_failed = False
+                self._memory_all_spawned = False
+                self._memory_ingredients.empty()
+                self._memory_last_spawn_time = time_module.time()
+                if self._memory_first_round:
+                    self._memory_first_round = False
+
+        elif self._memory_phase == "playing":
+            if not self._memory_round_failed and not self._memory_all_spawned:
+                if time_module.time() - self._memory_last_spawn_time >= 0.8:
+                    self._memory_last_spawn_time = time_module.time()
+                    ing_type = self._memory_spawn_sequence[self._memory_spawn_index]
+                    allowed_outlets = self._memory_free_outlets()
+                    if allowed_outlets:
+                        idx = random.choice(allowed_outlets)
+                        ing = Ingredient(ing_type, speed=self._memory_ingredient_speed, outlet_index=idx)
+                        ing.rect.width = 80
+                        ing.rect.height = 80
+                        self._memory_ingredients.add(ing)
+                        self._memory_spawn_index += 1
+                        if self._memory_spawn_index >= len(self._memory_spawn_sequence):
+                            self._memory_all_spawned = True
+                    else:
+                        self._memory_last_spawn_time += 0.2
+
+            self._memory_ingredients.update()
+            self._memory_particles.update(dt_sec)
+            self._check_memory_collisions()
+            self._memory_cleanup_offscreen()
+
+            all_gone = len(self._memory_ingredients) == 0 and self._memory_all_spawned
+            if all_gone:
+                if not self._memory_round_failed and self._memory_catch_index < len(self._memory_recipe_ingredients):
+                    self._memory_round_failed = True
+                self._memory_phase = "result"
+                self._memory_phase_timer = 0.0
+
+        elif self._memory_phase == "result":
+            if self._memory_phase_timer >= 1.5:
+                self._memory_total_rounds += 1
+                if self._memory_round_failed:
+                    self._memory_fail_streak += 1
+                    self._memory_success_streak = 0
+                    if self._memory_fail_streak >= 2 and self._memory_level > 2:
+                        self._memory_level -= 1
+                        self._memory_fail_streak = 0
+                else:
+                    self._memory_success_streak += 1
+                    self._memory_fail_streak = 0
+                    self._memory_success_rounds += 1
+                    recipe_len = len(self._memory_recipe_ingredients)
+                    self._memory_score += recipe_len * 10
+                    if self._memory_success_streak >= 3 and self._memory_level < 5:
+                        self._memory_level += 1
+                        self._memory_success_streak = 0
+
+                if self._memory_session_ending:
+                    self.running = False
+                else:
+                    self._memory_phase = "rest"
+                    self._memory_phase_timer = 0.0
+
+        elif self._memory_phase == "rest":
+            if self._memory_phase_timer >= 2.0:
+                if self._memory_session_ending:
+                    self.running = False
+                else:
+                    self._pick_random_recipe()
+                    self._generate_spawn_sequence()
+                    self._memory_phase = "memorize"
+                    self._memory_phase_timer = 0.0
+
+    def _pick_random_recipe(self) -> None:
+        level = max(2, min(5, self._memory_level))
+        recipes = MEMORY_RECIPES.get(level, [])
+        if not recipes:
+            recipes = MEMORY_RECIPES.get(2, [])
+        recipe = random.choice(recipes)
+        self._memory_recipe_ingredients = list(recipe["ingredients"])
+        self._memory_recipe_name = recipe["name"]
+
+    def _generate_spawn_sequence(self) -> None:
+        recipe = self._memory_recipe_ingredients
+        n = len(recipe)
+        dist_pool = INGREDIENT_TIERS.get(self._current_tier, INGREDIENT_TIERS[1])["available"]
+        recipe_seq = [ing for ing in recipe for _ in range(2)]
+        total_dist = n * 3
+        gaps = len(recipe_seq)
+        per_gap = total_dist / max(1, gaps)
+        result: list[str] = []
+        dist_used = 0
+        for i, ri in enumerate(recipe_seq):
+            target = int(per_gap * (i + 1)) - dist_used
+            for _ in range(target):
+                result.append(random.choice(dist_pool))
+                dist_used += 1
+            result.append(ri)
+        while dist_used < total_dist:
+            result.append(random.choice(dist_pool))
+            dist_used += 1
+        self._memory_spawn_sequence = result
+        self._memory_spawn_index = 0
+
+    def _memory_free_outlets(self) -> list[int]:
+        occupied = set()
+        for ing in self._memory_ingredients:
+            if ing.rect.y < SCREEN_HEIGHT * 0.35:
+                for i, (ox, oy) in enumerate(OUTLET_POSITIONS):
+                    dx = ing.rect.centerx - ox
+                    dy = ing.rect.centery - oy
+                    if dx * dx + dy * dy < OUTLET_BLOCK_RADIUS * OUTLET_BLOCK_RADIUS:
+                        occupied.add(i)
+        return [i for i in range(len(OUTLET_POSITIONS)) if i not in occupied]
+
+    def _memory_cleanup_offscreen(self) -> None:
+        for ing in list(self._memory_ingredients):
+            if ing.rect.top > SCREEN_HEIGHT:
+                self._memory_ingredients.remove(ing)
+
+    def _check_memory_collisions(self) -> None:
+        threshold_y = self.cup.rect.top + self.cup.rect.height * 0.8
+        hits = pygame.sprite.spritecollide(self.cup, self._memory_ingredients, False)
+        for hit in hits:
+            if hit.rect.bottom > threshold_y:
+                hit.rect.bottom = int(threshold_y)
+                self._memory_ingredients.remove(hit)
+                continue
+            self._memory_ingredients.remove(hit)
+            color = INGREDIENT_COLORS.get(hit.type, (255, 200, 0))
+            for _ in range(8):
+                self._memory_particles.add(_ExperimentParticle(hit.rect.centerx, hit.rect.centery, color))
+            self.cup.trigger_bounce()
+            if self._memory_catch_index < len(self._memory_recipe_ingredients):
+                expected = self._memory_recipe_ingredients[self._memory_catch_index]
+                if hit.type == expected:
+                    self._memory_catch_index += 1
+                else:
+                    self._memory_round_failed = True
+                    self._memory_all_spawned = True
+                    self._memory_spawn_index = len(self._memory_spawn_sequence)
+
+    def _draw_memory_hud(self) -> None:
+        if self._memory_phase == "rules":
+            self._draw_memory_rules_overlay()
+        elif self._memory_phase == "memorize":
+            self._draw_memory_memorize_overlay()
+        elif self._memory_phase == "playing":
+            self._draw_memory_playing_hud()
+        elif self._memory_phase == "result":
+            self._draw_memory_result_overlay()
+        elif self._memory_phase == "rest":
+            self._draw_memory_rest_overlay()
+
+    def _draw_memory_rules_overlay(self) -> None:
+        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 180))
+        self.screen.blit(shade, (0, 0))
+        rules = ["忆调阶段 — 记忆配方，按序接食材", "", "1. 记住下方食材和名称", "2. 按配方顺序依次接住", "3. 接错即失败，15分钟训练"]
+        y = SCREEN_HEIGHT // 2 - 100
+        for line in rules:
+            s = self.font.render(line, True, (255, 255, 255))
+            self.screen.blit(s, (SCREEN_WIDTH // 2 - s.get_width() // 2, y))
+            y += 36
+
+    def _draw_memory_memorize_overlay(self) -> None:
+        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 180))
+        self.screen.blit(shade, (0, 0))
+        cx = SCREEN_WIDTH // 2
+        cy = SCREEN_HEIGHT // 2 - 40
+        total_w = len(self._memory_recipe_ingredients) * 100 + (len(self._memory_recipe_ingredients) - 1) * 20
+        start_x = cx - total_w // 2
+        for i, ing_type in enumerate(self._memory_recipe_ingredients):
+            path = INGREDIENT_IMGS.get(ing_type, "")
+            if path and os.path.exists(path):
+                img = pygame.image.load(path).convert_alpha()
+                img = pygame.transform.scale(img, (90, 90))
+                self.screen.blit(img, (start_x + i * 120, cy - 45))
+        name_s = self.font.render(self._memory_recipe_name, True, (255, 220, 100))
+        self.screen.blit(name_s, (cx - name_s.get_width() // 2, cy + 60))
+        remain = max(0, 2.0 - self._memory_phase_timer)
+        bar_w = int(300 * remain / 2.0)
+        pygame.draw.rect(self.screen, (60, 60, 60), (cx - 150, cy + 100, 300, 10))
+        if bar_w > 0:
+            pygame.draw.rect(self.screen, (255, 220, 100), (cx - 150, cy + 100, bar_w, 10))
+
+    def _draw_memory_playing_hud(self) -> None:
+        attn = self.attention if self.attention is not None else 0
+        s = self.small_font.render(f"专注力: {int(attn)}", True, (100, 200, 255))
+        self.screen.blit(s, (20, 82))
+        lv = self._memory_level
+        ls = self.small_font.render(f"Lv.{lv}  成功:{self._memory_success_rounds}/{self._memory_total_rounds}", True, (200, 200, 200))
+        self.screen.blit(ls, (20, 115))
+
+    def _draw_memory_result_overlay(self) -> None:
+        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 160))
+        self.screen.blit(shade, (0, 0))
+        if self._memory_round_failed:
+            t = "未完成"
+            c = (255, 100, 100)
+        else:
+            t = f"成功制作 {self._memory_recipe_name}"
+            c = (100, 255, 100)
+        s = self.font.render(t, True, c)
+        self.screen.blit(s, (SCREEN_WIDTH // 2 - s.get_width() // 2, SCREEN_HEIGHT // 2 - 20))
+
+    def _draw_memory_rest_overlay(self) -> None:
+        remain = max(0, 2.0 - self._memory_phase_timer)
+        t = f"下一杯即将开始... {int(remain + 0.9)}s"
+        s = self.font.render(t, True, (200, 200, 200))
+        self.screen.blit(s, (SCREEN_WIDTH // 2 - s.get_width() // 2, SCREEN_HEIGHT // 2 - 20))
+        stats = [
+            f"等级: Lv.{self._memory_level}",
+            f"成功: {self._memory_success_rounds}/{self._memory_total_rounds}",
+        ]
+        y = SCREEN_HEIGHT // 2 + 30
+        for st in stats:
+            ss = self.small_font.render(st, True, (180, 180, 180))
+            self.screen.blit(ss, (SCREEN_WIDTH // 2 - ss.get_width() // 2, y))
+            y += 24
+
+    def _draw_memory_sprites(self) -> None:
+        for ing in self._memory_ingredients:
+            self.screen.blit(ing.image, ing.rect)
+        for p in self._memory_particles:
+            self.screen.blit(p.image, p.rect)
+        self.screen.blit(self.cup.image, self.cup.rect)
 
     def _end_game(self) -> str:
         if self.bci_available:

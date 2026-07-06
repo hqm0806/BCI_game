@@ -1463,15 +1463,15 @@ class ExperimentSession:
     def _draw_memory_rest_overlay(self) -> None:
         remain = max(0, 2.0 - self._memory_phase_timer)
         t = f"下一杯即将开始... {int(remain + 0.9)}s"
-        s = self.font.render(t, True, (200, 200, 200))
-        self.screen.blit(s, (SCREEN_WIDTH // 2 - s.get_width() // 2, SCREEN_HEIGHT // 2 - 20))
+        s = self.font.render(t, True, (0, 0, 0))
+        self.screen.blit(s, (SCREEN_WIDTH // 2 - s.get_width() // 2, 180))
         stats = [
             f"等级: Lv.{self._memory_level}",
             f"成功: {self._memory_success_rounds}/{self._memory_total_rounds}",
         ]
-        y = SCREEN_HEIGHT // 2 + 30
+        y = 220
         for st in stats:
-            ss = self.small_font.render(st, True, (180, 180, 180))
+            ss = self.small_font.render(st, True, (0, 0, 0))
             self.screen.blit(ss, (SCREEN_WIDTH // 2 - ss.get_width() // 2, y))
             y += 24
 

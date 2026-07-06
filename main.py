@@ -129,7 +129,7 @@ class QuitState(State):
 
 
 class TrainingPlanState(State):
-    """训练计划配置 + 执行状态"""
+    """训练计划配置 + 执行状态 — 每轮独立结算"""
 
     def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, context: dict) -> None:
         self.screen = screen
@@ -138,23 +138,26 @@ class TrainingPlanState(State):
 
     def enter(self) -> GameState | None:
         from menu.screens.training_plan import TrainingPlanScreen
+        from game.training_session import run_training
+
         username = self._context.get("username", "default")
-        bg_snapshot = self.screen.copy()
-        plan_screen = TrainingPlanScreen(self.screen, username, bg=bg_snapshot)
-        result, plan = plan_screen.run()
+        profile = self._context.get("profile")
+        audio = self._context.get("audio")
+        control_mode = self._context.get("control_mode", "bci")
 
-        if result == "start_training":
-            from game.training_session import run_training
-            audio = self._context.get("audio")
-            control_mode = self._context.get("control_mode", "bci")
-            profile = self._context.get("profile")
-            run_training(self.screen, self.clock, plan, username, profile=profile, control_mode=control_mode, audio=audio)
-            if profile:
-                profile.save()
+        while True:
+            plan_screen = TrainingPlanScreen(self.screen, username, bg=self.screen.copy())
+            result, plan = plan_screen.run()
 
-        if result == "quit":
-            return GameState.QUIT
-        return GameState.MENU
+            if result == "start_training":
+                run_training(self.screen, self.clock, plan, username, profile=profile, control_mode=control_mode, audio=audio)
+                if profile:
+                    profile.save()
+                continue
+
+            if result == "quit":
+                return GameState.QUIT
+            return GameState.MENU
 
     def handle_event(self, event: GameEvent) -> GameState | None:
         return None

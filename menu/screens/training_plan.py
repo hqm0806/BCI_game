@@ -39,6 +39,8 @@ class TrainingPlanScreen:
         self._editing_phase = -1
         self._editing_sessions = False
         self._scroll = 0
+        self._dur_minus_rects: list[pygame.Rect] = []
+        self._dur_plus_rects: list[pygame.Rect] = []
 
     def run(self) -> tuple[str, TrainingPlan]:
         while self.running:
@@ -79,12 +81,10 @@ class TrainingPlanScreen:
                 if len(self._phases) > 1:
                     self._phases.pop(i)
                 return
-            if 480 < mx < 560 and y < my < y + row_h:
-                # duration - button
+            if i < len(self._dur_minus_rects) and self._dur_minus_rects[i].collidepoint(mx, my):
                 phase["duration"] = max(1, phase["duration"] - 1)
                 return
-            if 560 < mx < 600 and y < my < y + row_h:
-                # duration + button
+            if i < len(self._dur_plus_rects) and self._dur_plus_rects[i].collidepoint(mx, my):
                 phase["duration"] = min(3600, phase["duration"] + 1)
                 return
             if 200 < mx < 450 and y < my < y + row_h:
@@ -97,7 +97,7 @@ class TrainingPlanScreen:
                 return
         # add phase button
         if 200 < mx < 400 and start_y + len(self._phases) * row_h - self._scroll < my < start_y + (len(self._phases) + 1) * row_h - self._scroll:
-            self._phases.append({"mode": "infinite", "name": "原萃阶段", "duration": 180})
+            self._phases.append({"mode": "infinite", "name": "热身阶段", "duration": 180})
             return
         # sessions +/-
         if hasattr(self, "_minus_rect") and self._minus_rect.collidepoint(mx, my):
@@ -155,8 +155,28 @@ class TrainingPlanScreen:
             s2 = self.font.render(f"[{mode_name}]", True, (200, 180, 255))
             self.screen.blit(s2, (220, y))
             # duration
-            s3 = self.small_font.render(f"时长: [-] {dur_str} [+]", True, (180, 180, 180))
-            self.screen.blit(s3, (480, y + 10))
+            self._dur_minus_rects = []
+            self._dur_plus_rects = []
+            label_d = self.small_font.render("时长:", True, (180, 180, 180))
+            self.screen.blit(label_d, (480, y + 10))
+            dur_x = 480 + label_d.get_width() + 6
+            # [-]
+            m_rect = pygame.Rect(dur_x, y + 5, 30, 30)
+            self._dur_minus_rects.append(m_rect)
+            pygame.draw.rect(self.screen, (80, 40, 20), m_rect, border_radius=6)
+            pygame.draw.rect(self.screen, (255, 255, 255, 60), m_rect, 2, border_radius=6)
+            m_t = self.small_font.render("-", True, (255, 255, 255))
+            self.screen.blit(m_t, (dur_x + 15 - m_t.get_width() // 2, y + 9))
+            # dur_str
+            dur_text = self.small_font.render(dur_str, True, (255, 220, 100))
+            self.screen.blit(dur_text, (dur_x + 35, y + 10))
+            # [+]
+            p_rect = pygame.Rect(dur_x + 35 + dur_text.get_width() + 5, y + 5, 30, 30)
+            self._dur_plus_rects.append(p_rect)
+            pygame.draw.rect(self.screen, (20, 80, 40), p_rect, border_radius=6)
+            pygame.draw.rect(self.screen, (255, 255, 255, 60), p_rect, 2, border_radius=6)
+            p_t = self.small_font.render("+", True, (255, 255, 255))
+            self.screen.blit(p_t, (p_rect.x + 15 - p_t.get_width() // 2, y + 9))
             # delete
             s4 = self.small_font.render("[X]", True, (200, 80, 80))
             self.screen.blit(s4, (610, y + 10))

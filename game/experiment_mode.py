@@ -106,12 +106,17 @@ class ExperimentSession:
         profile=None,
         control_mode: str = "bci",
         audio=None,
+        phase_durations: dict | None = None,
     ) -> None:
         self.screen = screen
         self.clock = clock
         self._profile = profile
         self._control_mode = control_mode
         self._audio = audio
+        self._phase_durations = phase_durations or {}
+        self._warmup_dur = self._phase_durations.get("warmup", EXPERIMENT_WARMUP_DURATION)
+        self._formal_dur = self._phase_durations.get("formal", EXPERIMENT_FORMAL_DURATION)
+        self._memory_dur = self._phase_durations.get("memory", EXPERIMENT_MEMORY_DURATION)
 
         self.game_mode = "experiment"
         self._load_mode_config()
@@ -744,22 +749,22 @@ class ExperimentSession:
     def _draw_phase_countdown(self) -> None:
         if self.phase == "warmup" or self.phase == "transition":
             if not self._game_active:
-                countdown_text = "热身 3:00"
+                countdown_text = f"热身 {self._warmup_dur // 60}:00"
             else:
                 elapsed = time_module.time() - self.phase_start_time - self._total_pause
-                remaining = max(0, EXPERIMENT_WARMUP_DURATION - elapsed)
+                remaining = max(0, self._warmup_dur - elapsed)
                 mins = int(remaining // 60)
                 secs = int(remaining % 60)
                 countdown_text = f"热身 {mins}:{secs:02d}"
         elif self.phase == "formal":
             elapsed = time_module.time() - self.phase_formal_start - self._total_pause
-            remaining = max(0, EXPERIMENT_FORMAL_DURATION - elapsed)
+            remaining = max(0, self._formal_dur - elapsed)
             mins = int(remaining // 60)
             secs = int(remaining % 60)
             countdown_text = f"特调 {mins}:{secs:02d}"
         elif self.phase == "memory":
             elapsed = time_module.time() - self.phase_memory_start - self._total_pause
-            remaining = max(0, EXPERIMENT_MEMORY_DURATION - elapsed)
+            remaining = max(0, self._memory_dur - elapsed)
             mins = int(remaining // 60)
             secs = int(remaining % 60)
             countdown_text = f"忆调 {mins}:{secs:02d}"
@@ -1105,7 +1110,7 @@ class ExperimentSession:
 
             if self.phase == "warmup":
                 elapsed = time_module.time() - self.phase_start_time - self._total_pause
-                if elapsed >= EXPERIMENT_WARMUP_DURATION:
+                if elapsed >= self._warmup_dur:
                     self._finish_warmup()
                     self.normalization_lower = self._warmup_norm_min
                     self.normalization_upper = self._warmup_norm_max
@@ -1132,7 +1137,7 @@ class ExperimentSession:
 
             if self.phase == "formal":
                 elapsed = time_module.time() - self.phase_formal_start - self._total_pause
-                if elapsed >= EXPERIMENT_FORMAL_DURATION:
+                if elapsed >= self._formal_dur:
                     logger.info(
                         "特调阶段结束！累计成功杯数=%d 收益=%d",
                         self.score_manager.cup_count,
@@ -1152,7 +1157,7 @@ class ExperimentSession:
 
             if self.phase == "memory":
                 elapsed = time_module.time() - self.phase_memory_start - self._total_pause
-                if elapsed >= EXPERIMENT_MEMORY_DURATION:
+                if elapsed >= self._memory_dur:
                     self._memory_session_ending = True
 
             self._render()

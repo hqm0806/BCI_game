@@ -8,7 +8,7 @@ import sys
 
 DEFAULT_PLAN = {
     "phases": [
-        {"mode": "infinite", "name": "原萃阶段", "duration": 180},
+        {"mode": "infinite", "name": "热身阶段", "duration": 180},
         {"mode": "bci", "name": "特调阶段", "duration": 420},
         {"mode": "memory", "name": "忆调阶段", "duration": 300},
     ],

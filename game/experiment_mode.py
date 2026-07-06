@@ -1434,12 +1434,7 @@ class ExperimentSession:
             pygame.draw.rect(self.screen, (255, 220, 100), (cx - 150, cy + 100, bar_w, 10))
 
     def _draw_memory_playing_hud(self) -> None:
-        attn = self.attention if self.attention is not None else 0
-        s = self.small_font.render(f"专注力: {int(attn)}", True, (100, 200, 255))
-        self.screen.blit(s, (20, 82))
-        lv = self._memory_level
-        ls = self.small_font.render(f"Lv.{lv}  成功:{self._memory_success_rounds}/{self._memory_total_rounds}", True, (200, 200, 200))
-        self.screen.blit(ls, (20, 115))
+        pass
 
     def _draw_memory_result_overlay(self) -> None:
         shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
@@ -1465,15 +1460,6 @@ class ExperimentSession:
         t = f"下一杯即将开始... {int(remain + 0.9)}s"
         s = self.font.render(t, True, (0, 0, 0))
         self.screen.blit(s, (SCREEN_WIDTH // 2 - s.get_width() // 2, 180))
-        stats = [
-            f"等级: Lv.{self._memory_level}",
-            f"成功: {self._memory_success_rounds}/{self._memory_total_rounds}",
-        ]
-        y = 220
-        for st in stats:
-            ss = self.small_font.render(st, True, (0, 0, 0))
-            self.screen.blit(ss, (SCREEN_WIDTH // 2 - ss.get_width() // 2, y))
-            y += 24
 
     def _draw_memory_sprites(self) -> None:
         for ing in self._memory_ingredients:

@@ -993,7 +993,7 @@ class ExperimentSession:
 
                 self._check_cup_end()
 
-                if self._secret_popup_timer <= 0:
+                if self._secret_popup_timer <= 0 and self.phase not in ("transition", "transition_memory"):
                     self._update_game_objects(dt_sec)
                     self._handle_collisions()
 
@@ -1011,7 +1011,7 @@ class ExperimentSession:
                     self._pause_accumulated = 0.0
 
             if self.phase == "transition":
-                if time_module.time() - self._transition_start >= 3.0:
+                if time_module.time() - self._transition_start >= 2.0:
                     self.phase = "formal"
                     self.phase_formal_start = time_module.time()
                     self._pause_accumulated = 0.0
@@ -1040,7 +1040,7 @@ class ExperimentSession:
                     self._pause_accumulated = 0.0
 
             if self.phase == "transition_memory":
-                if time_module.time() - self._transition_start >= 3.0:
+                if time_module.time() - self._transition_start >= 2.0:
                     self.running = False
 
             self._render()

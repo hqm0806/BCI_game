@@ -1326,6 +1326,7 @@ class ExperimentSession:
                     self._memory_success_rounds += 1
                     recipe_len = len(self._memory_recipe_ingredients)
                     self._memory_score += recipe_len * 10
+                    self.score_manager.add_cup_money(recipe_len * 10, had_secret=False)
                     if self._memory_success_streak >= 3 and self._memory_level < 5:
                         self._memory_level += 1
                         self._memory_success_streak = 0

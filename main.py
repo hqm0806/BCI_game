@@ -5,9 +5,9 @@
 from __future__ import annotations
 
 import logging
-import os   
+import os
 import sys
-
+    
 import pygame
 
 from config import IMAGES_DIR

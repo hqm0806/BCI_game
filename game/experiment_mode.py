@@ -84,10 +84,11 @@ class ExperimentSession:
         self._load_mode_config()
         self._load_fonts()
         self._init_game_objects()
-        self._init_bci()
         self._load_background()
+        self.bci_available = False
         self._init_state()
         self._draw_initial_frame()
+        self._init_bci()
 
     def _load_mode_config(self) -> None:
         mode_config = GAME_MODES.get(self.game_mode, GAME_MODES["bci"])
@@ -258,15 +259,25 @@ class ExperimentSession:
             self.cup.yaw_control = False
 
         self._current_tier = self._profile.level if self._profile else 1
-
     def _draw_initial_frame(self) -> None:
         if self.has_background and self.background:
             self.screen.blit(self.background, (0, 0))
         else:
             self.screen.fill((255, 255, 255))
+
         self.all_sprites.draw(self.screen)
         mode_text = self.font.render(f"{self.mode_name}", True, (100, 50, 150))
         self.screen.blit(mode_text, (10, 10))
+
+        self._draw_warmup_notice()
+        self._draw_phase_label()
+        cd_surf = self.phase_font.render("热身 3:00", True, (255, 200, 100))
+        shadow = self.phase_font.render("热身 3:00", True, (30, 20, 10))
+        x = SCREEN_WIDTH - cd_surf.get_width() - 30
+        y = SCREEN_HEIGHT - cd_surf.get_height() - 15
+        self.screen.blit(shadow, (x + 2, y + 2))
+        self.screen.blit(cd_surf, (x, y))
+
         pygame.display.flip()
 
     @property

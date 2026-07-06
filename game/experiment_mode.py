@@ -308,6 +308,7 @@ class ExperimentSession:
         self._memory_spawn_sequence: list[str] = []
         self._memory_spawn_index = 0
         self._memory_catch_index = 0
+        self._memory_caught_count = 0
         self._memory_round_failed = False
         self._memory_all_spawned = False
         self._memory_first_round = True
@@ -1274,6 +1275,7 @@ class ExperimentSession:
                 self._memory_phase_timer = 0.0
                 self._memory_spawn_index = 0
                 self._memory_catch_index = 0
+                self._memory_caught_count = 0
                 self._memory_round_failed = False
                 self._memory_all_spawned = False
                 self._memory_ingredients.empty()
@@ -1410,7 +1412,10 @@ class ExperimentSession:
             if self._memory_catch_index < len(self._memory_recipe_ingredients):
                 expected = self._memory_recipe_ingredients[self._memory_catch_index]
                 if hit.type == expected:
-                    self._memory_catch_index += 1
+                    self._memory_caught_count += 1
+                    if self._memory_caught_count >= 2:
+                        self._memory_catch_index += 1
+                        self._memory_caught_count = 0
                 else:
                     self._memory_round_failed = True
                     self._memory_all_spawned = True

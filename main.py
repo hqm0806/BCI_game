@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import logging
-import os
+import os   
 import sys
 
 import pygame
@@ -101,7 +101,7 @@ class MenuState(State):
         if result == "start_memory":
             return GameState.GAME_MEMORY
         if result == "start_experiment":
-            return GameState.GAME_EXPERIMENT
+            return GameState.TRANSITION
         if result == "start":
             return GameState.TRANSITION
         return None
@@ -151,14 +151,18 @@ class SettingsState(State):
 class TransitionState(State):
     """过场动画状态"""
 
-    def __init__(self, screen: pygame.Surface, audio: AudioManager) -> None:
+    def __init__(self, screen: pygame.Surface, audio: AudioManager, context: dict) -> None:
         self.screen = screen
         self._audio = audio
+        self._context = context
 
     def enter(self) -> GameState | None:
         self._audio.stop_bgm()
         self._audio.play_bgm("晨光木盒.mp3", volume=0.5)
         SplashScreen(self.screen, load_chinese_font(110)).run()
+        game_mode = self._context.get("game_mode", "bci")
+        if game_mode == "experiment":
+            return GameState.GAME_EXPERIMENT
         return GameState.GAME
 
     def handle_event(self, event: GameEvent) -> GameState | None:
@@ -271,7 +275,7 @@ def main() -> None:
     sm.register(GameState.LOGIN, LoginState(screen, context))
     sm.register(GameState.MENU, MenuState(screen, context, audio))
     sm.register(GameState.SETTINGS, SettingsState(screen, audio))
-    sm.register(GameState.TRANSITION, TransitionState(screen, audio))
+    sm.register(GameState.TRANSITION, TransitionState(screen, audio, context))
     sm.register(GameState.GAME, GameStateImpl(screen, clock, context))
     sm.register(GameState.GAME_MEMORY, MemoryGameState(screen, clock, context))
     sm.register(GameState.GAME_EXPERIMENT, ExperimentState(screen, clock, context))

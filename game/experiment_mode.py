@@ -107,12 +107,14 @@ class ExperimentSession:
         control_mode: str = "bci",
         audio=None,
         phase_durations: dict | None = None,
+        context: dict | None = None,
     ) -> None:
         self.screen = screen
         self.clock = clock
         self._profile = profile
         self._control_mode = control_mode
         self._audio = audio
+        self._hdata_ctx = context or {}
         self._phase_durations = phase_durations or {}
         self._warmup_dur = self._phase_durations.get("warmup", EXPERIMENT_WARMUP_DURATION)
         self._formal_dur = self._phase_durations.get("formal", EXPERIMENT_FORMAL_DURATION)
@@ -1014,6 +1016,9 @@ class ExperimentSession:
         pygame.display.flip()
 
     def run(self) -> str:
+        from bci.hdata_bridge import init_hdata, tick_hdata, stop_hdata
+        init_hdata(self._hdata_ctx)
+
         self._render()
         self.clock.tick(60)
 
@@ -1025,6 +1030,8 @@ class ExperimentSession:
             self._handle_events()
             if not self.running:
                 break
+
+            tick_hdata()
 
             if self._esc_dialog_active:
                 self._render()
@@ -1508,6 +1515,8 @@ class ExperimentSession:
         self.screen.blit(self.cup.image, self.cup.rect)
 
     def _end_game(self) -> str:
+        from bci.hdata_bridge import stop_hdata
+        stop_hdata()
         if self._audio:
             self._audio.play_sfx("音效/游戏结束.wav", volume=0.6)
 
@@ -1578,6 +1587,8 @@ def run_experiment(
     profile=None,
     control_mode: str = "bci",
     audio=None,
+    phase_durations: dict | None = None,
+    context: dict | None = None,
 ) -> str:
-    session = ExperimentSession(screen, clock, profile, control_mode=control_mode, audio=audio)
+    session = ExperimentSession(screen, clock, profile, control_mode=control_mode, audio=audio, phase_durations=phase_durations, context=context)
     return session.run()

@@ -36,11 +36,13 @@ class MainMenu:
         history_games: list | None = None,
         profile=None,
         audio=None,
+        hdata_recorder=None,
     ) -> None:
         self.screen = screen
         self.font = font
         self.title_font = title_font
         self._audio = audio
+        self._hdata = hdata_recorder
         self.big_title_font = load_chinese_font(64)
         self.clock = pygame.time.Clock()
         self.running = True
@@ -197,11 +199,14 @@ class MainMenu:
         self._conn_callback_result = callback_result
         self._conn_callback_mode = callback_mode
         self._conn_last_connect_attempt = 0.0
+        self._conn_hdata_connected = False
         try:
             self._conn_bci_reader = BCIDataReader()
             self._conn_bci_reader.connect(connect_timeout=0.1)
         except Exception:
             self._conn_bci_reader = None
+        if self._hdata and self._hdata.enabled:
+            self._hdata.start()
 
     def _try_bci_read(self) -> bool:
         if self._conn_bci_reader is None:
@@ -342,6 +347,16 @@ class MainMenu:
 
             if self._conn_dialog_active:
                 self._conn_dialog_timer += dt
+                if self._hdata and self._hdata.enabled:
+                    self._hdata.start()
+                    if not self._conn_hdata_connected and self._hdata.state == "recording":
+                        self._conn_hdata_connected = True
+                        self._conn_dialog_active = False
+                        self._conn_bci_reader = None
+                        self.result = self._conn_callback_result
+                        self.current_mode = self._conn_callback_mode
+                        self._control_mode = "bci"
+                        click_frames[0] = 15
                 if self._conn_dialog_state in ("connecting", "reconnecting"):
                     if self._conn_bci_reader and self._conn_bci_reader.connected:
                         if self._try_bci_read():

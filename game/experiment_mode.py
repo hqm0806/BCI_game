@@ -725,7 +725,7 @@ class ExperimentSession:
 
     def _draw_phase_label(self) -> None:
         if self.phase in ("warmup", "transition"):
-            label = "热身阶段"
+            label = "原萃阶段"
         elif self.phase == "formal":
             label = "特调阶段"
         elif self.phase == "memory":

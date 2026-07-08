@@ -7,7 +7,7 @@ from data.training_plan import TrainingPlan
 
 def run_training(
     screen, clock, plan: TrainingPlan, username: str,
-    profile=None, control_mode: str = "bci", audio=None, context=None,
+    profile=None, control_mode: str = "bci", audio=None,
 ) -> str:
     session_num = plan.completed_sessions + 1
     if session_num > plan.total_sessions:
@@ -27,7 +27,6 @@ def run_training(
         control_mode=control_mode,
         audio=audio,
         phase_durations=phase_durations,
-        context=context,
     )
     result = exp.run()
 

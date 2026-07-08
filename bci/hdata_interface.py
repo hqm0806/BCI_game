@@ -68,6 +68,17 @@ class HDataInterface:
         self._cb_stream = CbStream(_on_stream)
         self._lib.registerStreamDataReadyCallback(self._cb_stream)
 
+        self._gyro = (0, 0, 0)
+        self._battery = 0
+        self._wear_state = 0
+        CbAdd = CFUNCTYPE(None, c_int, c_int, c_int, c_int, c_int)
+        def _on_add(gx, gy, gz, wear, batt):
+            self._gyro = (gx, gy, gz)
+            self._battery = batt
+            self._wear_state = wear
+        self._cb_add = CbAdd(_on_add)
+        self._lib.registerStreamingAdditionalDataReadyCallback(self._cb_add)
+
         self._lib.setDeviceType.argtypes = [c_int]
         self._lib.setDeviceType.restype = None
         self._lib.setTransportInfo.argtypes = [c_char_p, c_int]

@@ -107,14 +107,12 @@ class ExperimentSession:
         control_mode: str = "bci",
         audio=None,
         phase_durations: dict | None = None,
-        context: dict | None = None,
     ) -> None:
         self.screen = screen
         self.clock = clock
         self._profile = profile
         self._control_mode = control_mode
         self._audio = audio
-        self._hdata_ctx = context or {}
         self._phase_durations = phase_durations or {}
         self._warmup_dur = self._phase_durations.get("warmup", EXPERIMENT_WARMUP_DURATION)
         self._formal_dur = self._phase_durations.get("formal", EXPERIMENT_FORMAL_DURATION)
@@ -180,10 +178,25 @@ class ExperimentSession:
         self._current_tier = 1
 
     def _init_bci(self) -> None:
-        self.bci_reader = BCIDataReader()
-        self.bci_available = False
-        if self.bci_mode and self._control_mode != "bci_failed":
-            self.bci_available = self.bci_reader.connect()
+        from bci.hdata_session import get_instance, load_hdata_config, HDataSession
+        hdata_cfg = load_hdata_config()
+        logger.info("[HData] 配置: enabled=%s device=%s", hdata_cfg.get("enabled"), hdata_cfg.get("device_name"))
+        if hdata_cfg.get("enabled", False):
+            self._hdata_session = get_instance()
+            if self._hdata_session is None:
+                username = self._profile._username if self._profile else "default"
+                self._hdata_session = HDataSession(username=str(username))
+                self._hdata_session.connect()
+            self.bci_reader = self._hdata_session
+            self.bci_available = False
+            logger.info("[HData] HDataSession 已就绪, connected=%s", self._hdata_session.connected)
+        else:
+            self.bci_reader = BCIDataReader()
+            self.bci_available = False
+            if self.bci_mode and self._control_mode != "bci_failed":
+                self.bci_available = self.bci_reader.connect()
+            self._hdata_session = None
+            logger.info("[HData] 配置已禁用，使用 BCI TCP")
 
     def _load_background(self) -> None:
         self.background = None
@@ -373,10 +386,9 @@ class ExperimentSession:
             self.ingredient_manager.set_spawn_interval(self.spawn_interval)
 
     def _update_bci_data(self) -> None:
-        if self.bci_available:
+        if self.bci_reader is not None:
             result = self.bci_reader.read_with_timeout()
-            self.bci_available = self.bci_reader.connected
-            if self.bci_available and result[0] is not None:
+            if result[0] is not None:
                 (
                     self.attention,
                     self.platform_focus_x,
@@ -385,11 +397,13 @@ class ExperimentSession:
                     self.raw_gyro_y,
                     self.raw_gyro_z,
                 ) = result
+                if self._hdata_session is not None:
+                    self.use_yaw_control = True
+                    self.cup.yaw_control = True
             else:
-                self.attention = 50
+                self.attention = 50 if self.bci_mode else None
         else:
-            if not self.bci_mode:
-                self.attention = None
+            self.attention = None if not self.bci_mode else 50
 
         if self.attention is not None and self._game_active:
             now = time_module.time()
@@ -399,7 +413,7 @@ class ExperimentSession:
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
         self.cup.update(keys=keys, dt=dt_sec)
         kb_pressed = keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
-        if not kb_pressed and self.use_yaw_control and self.bci_available:
+        if not kb_pressed and self.use_yaw_control:
             fx = int(self.platform_focus_x)
             self.cup.rect.centerx = max(self.focus_min, min(self.focus_max, fx))
 
@@ -1016,9 +1030,6 @@ class ExperimentSession:
         pygame.display.flip()
 
     def run(self) -> str:
-        from bci.hdata_bridge import init_hdata, tick_hdata, stop_hdata
-        init_hdata(self._hdata_ctx)
-
         self._render()
         self.clock.tick(60)
 
@@ -1031,7 +1042,9 @@ class ExperimentSession:
             if not self.running:
                 break
 
-            tick_hdata()
+            if self._hdata_session is not None:
+                self._hdata_session.drive()
+                self.bci_available = self._hdata_session.connected
 
             if self._esc_dialog_active:
                 self._render()
@@ -1515,8 +1528,9 @@ class ExperimentSession:
         self.screen.blit(self.cup.image, self.cup.rect)
 
     def _end_game(self) -> str:
-        from bci.hdata_bridge import stop_hdata
-        stop_hdata()
+        if self._hdata_session is not None:
+            self._hdata_session.disconnect()
+            self._hdata_session = None
         if self._audio:
             self._audio.play_sfx("音效/游戏结束.wav", volume=0.6)
 
@@ -1588,7 +1602,6 @@ def run_experiment(
     control_mode: str = "bci",
     audio=None,
     phase_durations: dict | None = None,
-    context: dict | None = None,
 ) -> str:
-    session = ExperimentSession(screen, clock, profile, control_mode=control_mode, audio=audio, phase_durations=phase_durations, context=context)
+    session = ExperimentSession(screen, clock, profile, control_mode=control_mode, audio=audio, phase_durations=phase_durations)
     return session.run()

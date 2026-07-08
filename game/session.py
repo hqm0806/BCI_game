@@ -128,7 +128,6 @@ class GameSession:
         profile=None,
         control_mode: str = "bci",
         audio=None,
-        context: dict | None = None,
     ) -> None:
         self.screen = screen
         self.clock = clock
@@ -137,7 +136,6 @@ class GameSession:
         self._profile = profile
         self._upgrade_level = 0
         self._audio = audio
-        self._hdata_ctx = context or {}
         self._audio = audio
 
         self._load_mode_config()
@@ -460,9 +458,6 @@ class GameSession:
         return self._paused or self._artifact_frozen
 
     def run(self) -> str:
-        from bci.hdata_bridge import init_hdata, tick_hdata, stop_hdata
-        init_hdata(getattr(self, "_hdata_ctx", {}))
-
         self._render()
         self.clock.tick(60)
         while self.running:
@@ -473,8 +468,6 @@ class GameSession:
             self._handle_events()
             if not self.running:
                 break
-
-            tick_hdata()
 
             if self._esc_dialog_active:
                 if getattr(self, "_skip_frame", False):
@@ -691,7 +684,7 @@ class GameSession:
     def _update_cup(self, keys: pygame.key.ScancodeWrapper, dt_sec: float) -> None:
         self.cup.update(keys=keys, dt=dt_sec)
         kb_pressed = keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
-        if not kb_pressed and self.use_yaw_control and self.bci_available:
+        if not kb_pressed and self.use_yaw_control:
             fx = int(self.platform_focus_x)
             self.cup.rect.centerx = max(self.focus_min, min(self.focus_max, fx))
 
@@ -1025,8 +1018,6 @@ class GameSession:
             self.screen.blit(rotated, (rx, ry))
 
     def _end_game(self) -> str:
-        from bci.hdata_bridge import stop_hdata
-        stop_hdata()
         if self._audio:
             self._audio.play_sfx("音效/游戏结束.wav", volume=0.6)
         if self.show_summary:
@@ -1101,9 +1092,8 @@ def run_game(
     profile=None,
     control_mode: str = "bci",
     audio=None,
-    context: dict | None = None,
 ) -> str:
-    session = GameSession(screen, clock, game_mode, profile, control_mode=control_mode, audio=audio, context=context)
+    session = GameSession(screen, clock, game_mode, profile, control_mode=control_mode, audio=audio)
     return session.run()
 
 

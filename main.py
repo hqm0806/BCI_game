@@ -59,8 +59,6 @@ class LoginState(State):
             return GameState.QUIT
         self._context["username"] = username
         self._context["profile"] = PlayerProfile.load_for_user(username)
-        from bci.hdata_recorder import HDataRecorder
-        self._context["hdata_recorder"] = HDataRecorder(username=username)
         return GameState.MENU
 
     def handle_event(self, event: GameEvent) -> GameState | None:
@@ -87,7 +85,7 @@ class MenuState(State):
         player_level = profile.level if profile else 1
         history_games = profile.games_history if profile else []
         menu = MainMenu(
-            self.screen, self.font, self.title_font, player_level, history_games, profile=profile, audio=self._audio, hdata_recorder=self._context.get("hdata_recorder")
+            self.screen, self.font, self.title_font, player_level, history_games, profile=profile, audio=self._audio
         )
         result, game_mode, control_mode = menu.run()
         result = result or "quit"
@@ -152,7 +150,7 @@ class TrainingPlanState(State):
             result, plan = plan_screen.run()
 
             if result == "start_training":
-                run_training(self.screen, self.clock, plan, username, profile=profile, control_mode=control_mode, audio=audio, context=self._context)
+                run_training(self.screen, self.clock, plan, username, profile=profile, control_mode=control_mode, audio=audio)
                 if profile:
                     profile.save()
                 continue
@@ -252,7 +250,7 @@ class ExperimentState(State):
         audio = self._context.get("audio")
         control_mode = self._context.get("control_mode", "bci")
         profile = self._context.get("profile")
-        result = run_experiment(self.screen, self.clock, profile=profile, control_mode=control_mode, audio=audio, context=self._context)
+        result = run_experiment(self.screen, self.clock, profile=profile, control_mode=control_mode, audio=audio)
         if result == "quit":
             return GameState.QUIT
         return GameState.MENU
@@ -278,7 +276,7 @@ class GameStateImpl(State):
         profile = self._context.get("profile")
         audio = self._context.get("audio")
         game_result = run_game(
-            self.screen, self.clock, game_mode=game_mode, profile=profile, control_mode=control_mode, audio=audio, context=self._context
+            self.screen, self.clock, game_mode=game_mode, profile=profile, control_mode=control_mode, audio=audio
         )
         if profile and game_result == "save":
             profile.save()

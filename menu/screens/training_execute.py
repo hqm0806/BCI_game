@@ -60,6 +60,14 @@ class TrainingExecuteScreen:
         self._phase: str = "intro" if skip_connection else "idle"
         self._phase_timer: float = 0.0
 
+        self._intro_texts = [
+            ["决定您在下一阶段的", "基线值和游戏难度"],
+            ["根据个性化调节了", "本阶段的游戏难度"],
+        ]
+        self._attn_samples: list[float] = []
+        self._baseline: float = 40.0
+        self._clearing_timer: float = 0.0
+
         self._panel_w, self._panel_h = 820, 560
         self._panel_x = (SCREEN_WIDTH - self._panel_w) // 2
         self._panel_y = (SCREEN_HEIGHT - self._panel_h) // 2
@@ -188,7 +196,7 @@ class TrainingExecuteScreen:
                     self.result = "quit"
                 elif self._conn_dialog_active:
                     self._handle_connection_event(event)
-                elif self._phase == "game":
+                elif self._phase in ("game", "clearing"):
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                         self.running = False
                         self.result = "back"
@@ -255,6 +263,10 @@ class TrainingExecuteScreen:
                 self._enter_game()
         elif self._phase == "game":
             self._update_game(dt_sec)
+        elif self._phase == "clearing":
+            self._clearing_timer += dt_sec
+            if self._clearing_timer >= 2.0:
+                self._start_next_stage()
         elif self._phase == "idle":
             self.back_btn.update(dt_sec)
             self.training_btn.update(dt_sec)
@@ -293,16 +305,74 @@ class TrainingExecuteScreen:
             session._check_cup_end()
 
         if not session.running:
-            self._phase = "done"
+            self._finish_stage()
             return
 
         if not session._game_frozen:
             session._update_game_objects(dt_sec)
             session._handle_collisions()
 
+        if session.attention is not None:
+            self._attn_samples.append(session.attention)
+
         if self._get_remaining_seconds() <= 0:
             session.running = False
-            self._phase = "done"
+            self._finish_stage()
+
+    def _finish_stage(self) -> None:
+        session = self._session
+        if session is None:
+            return
+
+        if self._attn_samples:
+            self._baseline = sum(self._attn_samples) / len(self._attn_samples)
+
+        session.ingredients.empty()
+        session.catch_effects.empty()
+        session.miss_effects.empty()
+        session.particles.empty()
+
+        self._clearing_timer = 0.0
+        self._phase = "clearing"
+
+    def _start_next_stage(self) -> None:
+        old_session = self._session
+        if old_session is not None:
+            old_session._end_game()
+
+        self._current_stage_index += 1
+        self._attn_samples = []
+        self._session = None
+
+        from game.session import GameSession
+
+        stage_idx = self._current_stage_index
+        duration = self._stage_durations[stage_idx] * 60
+
+        norm_lower = max(self._baseline - 10, 0.0)
+        norm_upper = 70.0
+        if old_session is not None and old_session.focus_samples:
+            n_last = min(len(old_session.focus_samples), 30 * 60)
+            last_30_focus = old_session.focus_samples[-n_last:]
+            if last_30_focus:
+                norm_upper = max(last_30_focus)
+
+        self._session = GameSession(
+            self.screen,
+            self.clock,
+            game_mode="regular",
+            profile=self._profile,
+            control_mode=self._external_control_mode,
+            audio=self._audio,
+            training_duration=duration,
+            fixed_baseline=self._baseline,
+            norm_lower=norm_lower,
+            norm_upper=norm_upper,
+        )
+        self._session.bci_mode = True
+
+        self._phase = "intro"
+        self._phase_timer = 0.0
 
     def _draw(self) -> None:
         if self._conn_dialog_active:
@@ -314,7 +384,7 @@ class TrainingExecuteScreen:
             else:
                 self._draw_idle_bg()
             self._draw_intro()
-        elif self._phase in ("game", "done"):
+        elif self._phase in ("game", "done", "clearing"):
             self._draw_game()
         else:
             self._draw_idle_bg()
@@ -357,10 +427,7 @@ class TrainingExecuteScreen:
         ty = SCREEN_HEIGHT // 2 - 80
         self.screen.blit(title_text, (tx, ty))
 
-        lines = [
-            "决定您在下一阶段的",
-            "基线值和游戏难度",
-        ]
+        lines = self._intro_texts[min(stage_idx, len(self._intro_texts) - 1)]
         for i, line in enumerate(lines):
             line_surf = self.title_font.render(line, True, (220, 220, 220))
             lx = SCREEN_WIDTH // 2 - line_surf.get_width() // 2
@@ -401,11 +468,16 @@ class TrainingExecuteScreen:
                 self.screen.blit(overlay, (0, 0))
             else:
                 self.screen.fill((255, 255, 255))
-            s.all_sprites.draw(self.screen)
-            s.particles.draw(self.screen)
-            s.ingredients.draw(self.screen)
-            s.catch_effects.draw(self.screen)
-            s.miss_effects.draw(self.screen)
+
+            if self._phase == "clearing":
+                s.all_sprites.draw(self.screen)
+            else:
+                s.all_sprites.draw(self.screen)
+                s.particles.draw(self.screen)
+                s.ingredients.draw(self.screen)
+                s.catch_effects.draw(self.screen)
+                s.miss_effects.draw(self.screen)
+
             s._render_formal_hud()
             if s._secret_popup_timer > 0:
                 s._draw_secret_popup()

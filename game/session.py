@@ -129,6 +129,9 @@ class GameSession:
         control_mode: str = "bci",
         audio=None,
         training_duration: float = 0,
+        fixed_baseline: float | None = None,
+        norm_lower: float = 30.0,
+        norm_upper: float = 70.0,
     ) -> None:
         self.screen = screen
         self.clock = clock
@@ -139,6 +142,9 @@ class GameSession:
         self._audio = audio
         self._training_duration = training_duration
         self._training_start_time = 0.0
+        self._fixed_baseline = fixed_baseline
+        self._norm_lower = norm_lower
+        self._norm_upper = norm_upper
 
         self._load_mode_config()
         self._load_fonts()
@@ -294,7 +300,7 @@ class GameSession:
         self._artifact_alpha = 0.0
         self._secret_popup_timer = 0.0
         self._cup_attn_samples: list[float] = []
-        self._cup_baseline: float = 40.0
+        self._cup_baseline: float = self._fixed_baseline if self._fixed_baseline is not None else 40.0
 
         self.focus_min = CUP_WIDTH // 2
         self.focus_max = SCREEN_WIDTH - CUP_WIDTH // 2
@@ -307,8 +313,8 @@ class GameSession:
         self._current_tier = self._profile.level if self._profile else 1
 
         self.phase = "formal"
-        self.normalization_lower = 30.0
-        self.normalization_upper = 70.0
+        self.normalization_lower = self._norm_lower
+        self.normalization_upper = self._norm_upper
         self.cup_manager.start_new_cup()
 
     def start_training(self) -> None:
@@ -738,10 +744,10 @@ class GameSession:
 
     def _check_cup_end(self) -> None:
         if self.cup_manager.check_cup_end():
-            if self._cup_attn_samples:
+            if self._cup_attn_samples and self._fixed_baseline is None:
                 self._cup_baseline = sum(self._cup_attn_samples) / len(self._cup_attn_samples)
 
-            if self.cup_manager.cup_number == 1 and not self._raw_attention and self._cup_attn_samples:
+            if self.cup_manager.cup_number == 1 and not self._raw_attention and self._cup_attn_samples and self._fixed_baseline is None:
                 max_attn = max(self._cup_attn_samples)
                 avg_attn = sum(self._cup_attn_samples) / len(self._cup_attn_samples)
                 self.normalization_lower = max(avg_attn - 15.0, 0.0)

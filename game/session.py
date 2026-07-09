@@ -408,7 +408,7 @@ class GameSession:
         if self.attention <= WARMUP_LOW_THRESHOLD:
             self._low_attn_seconds += dt_sec
             self._high_attn_seconds = 0.0
-        elif self.attention > 15:
+        elif self.attention > WARMUP_LOW_THRESHOLD:
             self._high_attn_seconds += dt_sec
             self._low_attn_seconds = 0.0
         else:
@@ -962,7 +962,7 @@ class GameSession:
                     (SCREEN_WIDTH // 2 - pause_text.get_width() // 2, SCREEN_HEIGHT // 2 - 60),
                 )
                 sub_text = self.hint_font.render(
-                    f"保持专注力 >15 持续 {max(0, int(WARMUP_RESUME_TIME) - self._high_attn_seconds):.0f}s 恢复游戏",
+                    f"保持专注力 >{WARMUP_LOW_THRESHOLD} 持续 {max(0, int(WARMUP_RESUME_TIME) - self._high_attn_seconds):.0f}s 恢复游戏",
                     True,
                     (200, 200, 200),
                 )

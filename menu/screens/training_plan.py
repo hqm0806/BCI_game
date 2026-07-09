@@ -401,7 +401,10 @@ class TrainingPlanScreen:
 
     def _open_execute(self) -> None:
         bg_snapshot = self.screen.copy()
-        exec_screen = TrainingExecuteScreen(self.screen, self.font, self.title_font, audio=self._audio, bg=bg_snapshot)
+        exec_screen = TrainingExecuteScreen(
+            self.screen, self.font, self.title_font,
+            audio=self._audio, bg=bg_snapshot, rounds=self.round_input.value,
+        )
         exec_screen.run()
 
     def run(self) -> str | None:

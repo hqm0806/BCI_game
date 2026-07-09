@@ -7,6 +7,7 @@ import os
 import pygame
 
 from config import SCREEN_HEIGHT, SCREEN_WIDTH, SETTINGS_PANEL_IMG
+from game.font_utils import load_chinese_font
 from menu.components import MenuItem
 
 
@@ -25,12 +26,15 @@ class TrainingExecuteScreen:
         title_font: pygame.font.Font,
         audio=None,
         bg: pygame.Surface | None = None,
+        rounds: int = 16,
     ) -> None:
         self.screen = screen
         self.font = font
         self.title_font = title_font
         self._audio = audio
         self._bg = bg
+        self._rounds = rounds
+        self._big_font = load_chinese_font(72)
         self.clock = pygame.time.Clock()
         self.running = True
         self.result = None
@@ -63,7 +67,7 @@ class TrainingExecuteScreen:
             width=120,
         )
         self.training_btn = _PlainButton(
-            "进入训练",
+            "开始训练",
             cx + 150,
             btn_y,
             title_font,
@@ -119,6 +123,12 @@ class TrainingExecuteScreen:
             pygame.draw.rect(panel_surf, (30, 28, 20, 230), (0, 0, self._panel_w, self._panel_h), border_radius=16)
             pygame.draw.rect(panel_surf, (200, 160, 100, 180), (0, 0, self._panel_w, self._panel_h), 3, border_radius=16)
         self.screen.blit(panel_surf, (self._panel_x, self._panel_y))
+
+        progress_text = f"轮次 0/{self._rounds}"
+        progress_surf = self._big_font.render(progress_text, True, (30, 30, 30))
+        tx = SCREEN_WIDTH // 2 - progress_surf.get_width() // 2
+        ty = SCREEN_HEIGHT // 2 - progress_surf.get_height() // 2 - 30
+        self.screen.blit(progress_surf, (tx, ty))
 
         self.back_btn.draw(self.screen)
         self.training_btn.draw(self.screen)

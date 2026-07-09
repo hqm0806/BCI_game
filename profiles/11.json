@@ -41,6 +41,25 @@
       "stage3_min": 5,
       "rounds": 16,
       "date": "2026-07-10 00:38"
+    },
+    {
+      "mode": "training",
+      "total_money": 0,
+      "total_cups": 0,
+      "secret_count": 0,
+      "failed_cup_count": 0,
+      "memory_successes": 0,
+      "memory_failures": 0,
+      "avg_attention": 0.0,
+      "stage1_avg": 0.0,
+      "stage2_avg": 0.0,
+      "stage3_avg": 0.0,
+      "duration": 900.0,
+      "stage1_min": 3,
+      "stage2_min": 7,
+      "stage3_min": 5,
+      "rounds": 16,
+      "date": "2026-07-10 00:42"
     }
   ]
 }

@@ -586,6 +586,7 @@ class TrainingExecuteScreen:
                     self._all_focus_samples.extend(session.focus_samples)
                     self._stage_focus_samples.append(list(session.focus_samples))
                 self._show_training_summary()
+            self.running = False
             self._phase = "done"
             return
 

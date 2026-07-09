@@ -9,6 +9,104 @@ import pygame
 from config import SCREEN_HEIGHT, SCREEN_WIDTH, SETTINGS_PANEL_IMG
 from menu.components import MenuItem
 
+_CTRL_WIDTH = 260
+_CTRL_LEFT = SCREEN_WIDTH // 2 - _CTRL_WIDTH // 2 - 100
+_LABEL_RIGHT = _CTRL_LEFT - 20
+
+_last_values: dict[str, int] = {}
+
+
+class StageSlider:
+    """阶段滑轨组件（整数 0-10，步长 1）"""
+
+    def __init__(
+        self,
+        screen: pygame.Surface,
+        font: pygame.font.Font,
+        cx: int,
+        cy: int,
+        label: str,
+        default_value: int = 0,
+    ) -> None:
+        self.screen = screen
+        self.font = font
+        self.track_width = _CTRL_WIDTH
+        self.track_height = 6
+        self.track_x = _CTRL_LEFT
+        self.track_y = cy
+        self.handle_radius = 12
+        self._min = 0
+        self._max = 10
+        self._value = max(self._min, min(self._max, default_value))
+        self._dragging = False
+        self._label_surf = font.render(label, True, (40, 40, 40))
+        self.label_x = _LABEL_RIGHT - self._label_surf.get_width()
+
+    @property
+    def value(self) -> int:
+        return self._value
+
+    @value.setter
+    def value(self, v: int) -> None:
+        self._value = max(self._min, min(self._max, v))
+
+    def _pos_to_value(self, mx: int) -> int:
+        ratio = max(0.0, min(1.0, (mx - self.track_x) / self.track_width))
+        return int(round(ratio * (self._max - self._min) + self._min))
+
+    def handle_event(self, event: pygame.event.Event) -> bool:
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mx, my = event.pos
+            ratio = (self._value - self._min) / (self._max - self._min)
+            hx = self.track_x + int(ratio * self.track_width)
+            hy = self.track_y
+            if (mx - hx) ** 2 + (my - hy) ** 2 <= (self.handle_radius + 6) ** 2:
+                self._dragging = True
+                return True
+            if (
+                self.track_x - self.handle_radius <= mx <= self.track_x + self.track_width + self.handle_radius
+                and abs(my - self.track_y) <= self.handle_radius + 6
+            ):
+                self._dragging = True
+                self._value = self._pos_to_value(mx)
+                return True
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            self._dragging = False
+        elif event.type == pygame.MOUSEMOTION and self._dragging:
+            mx, _ = event.pos
+            self._value = self._pos_to_value(mx)
+            return True
+        return False
+
+    def draw(self) -> None:
+        ly = self.track_y - self._label_surf.get_height() // 2
+        self.screen.blit(self._label_surf, (self.label_x, ly))
+
+        val_text = self.font.render(f"{self._value}min", True, (40, 40, 40))
+        val_x = self.track_x + self.track_width + 20
+        vy = self.track_y - val_text.get_height() // 2
+        self.screen.blit(val_text, (val_x, vy))
+
+        track_rect = pygame.Rect(
+            self.track_x, self.track_y - self.track_height // 2,
+            self.track_width, self.track_height,
+        )
+        pygame.draw.rect(self.screen, (60, 60, 70), track_rect, border_radius=4)
+
+        ratio = (self._value - self._min) / (self._max - self._min)
+        filled_w = int(ratio * self.track_width)
+        if filled_w > 0:
+            filled_rect = pygame.Rect(
+                self.track_x, self.track_y - self.track_height // 2,
+                filled_w, self.track_height,
+            )
+            pygame.draw.rect(self.screen, (100, 140, 200), filled_rect, border_radius=4)
+
+        hx = self.track_x + int(ratio * self.track_width)
+        handle_color = (255, 255, 255) if self._dragging else (210, 210, 210)
+        pygame.draw.circle(self.screen, handle_color, (hx, self.track_y), self.handle_radius)
+        pygame.draw.circle(self.screen, (100, 140, 200), (hx, self.track_y), self.handle_radius, 2)
+
 
 class TrainingPlanScreen:
     """训练计划页面"""
@@ -43,7 +141,13 @@ class TrainingPlanScreen:
                 pass
 
         cx = SCREEN_WIDTH // 2
-        btn_y = SCREEN_HEIGHT // 2 + 220
+        cy = SCREEN_HEIGHT // 2
+
+        self.stage1_slider = StageSlider(screen, font, cx, cy - 80, "原萃阶段", default_value=_last_values.get("stage1", 3))
+        self.stage2_slider = StageSlider(screen, font, cx, cy - 30, "特调阶段", default_value=_last_values.get("stage2", 7))
+        self.stage3_slider = StageSlider(screen, font, cx, cy + 20, "忆调阶段", default_value=_last_values.get("stage3", 5))
+
+        btn_y = cy + 220
         self.back_btn = MenuItem(
             "返回",
             cx,
@@ -73,11 +177,17 @@ class TrainingPlanScreen:
                     if self.back_btn.handle_event(event):
                         self.running = False
                         self.result = "back"
+                    self.stage1_slider.handle_event(event)
+                    self.stage2_slider.handle_event(event)
+                    self.stage3_slider.handle_event(event)
 
             self._update(dt)
             self._draw()
             pygame.display.flip()
 
+        _last_values["stage1"] = self.stage1_slider.value
+        _last_values["stage2"] = self.stage2_slider.value
+        _last_values["stage3"] = self.stage3_slider.value
         return self.result
 
     def _update(self, dt: float) -> None:
@@ -103,5 +213,9 @@ class TrainingPlanScreen:
 
         title = self.title_font.render("训练计划", True, (30, 30, 30))
         self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, self._panel_y + 135))
+
+        self.stage1_slider.draw()
+        self.stage2_slider.draw()
+        self.stage3_slider.draw()
 
         self.back_btn.draw(self.screen)

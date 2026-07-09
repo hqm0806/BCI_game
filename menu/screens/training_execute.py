@@ -656,14 +656,22 @@ class TrainingExecuteScreen:
 
     def _start_next_stage(self) -> None:
         old_session = self._session
+        old_bci_reader = None
+        old_cup_x = None
+
         if old_session is not None:
+            if old_session.bci_available and old_session.bci_reader:
+                old_bci_reader = old_session.bci_reader
+                old_session.bci_reader = None
+            old_cup_x = old_session.cup.rect.centerx
+
             sm = old_session.score_manager
             cm = old_session.cup_manager
             if self._current_stage_index == 2:
                 self._accumulated_cups += self._round_successes
             else:
                 self._accumulated_cups += sum(1 for m in cm.cup_money_history if m > 0)
-                self._accumulated_money += sm.total_money - self._accumulated_money_before_stage
+            self._accumulated_money += sm.total_money - self._accumulated_money_before_stage
             self._accumulated_secret_count += sm.secret_recipe_count
             self._accumulated_failed_cups += sum(1 for m in cm.cup_money_history if m == 0)
             if old_session.focus_samples:
@@ -704,6 +712,14 @@ class TrainingExecuteScreen:
         self._session.score_manager.total_money = self._accumulated_money
         self._session.score_manager.cup_count = self._accumulated_cups
         self._session.cup_manager.cup_number = self._accumulated_cups
+
+        if old_bci_reader:
+            self._session.bci_reader = old_bci_reader
+            self._session.bci_available = True
+            self._session.use_yaw_control = True
+            self._session.cup.yaw_control = True
+        if old_cup_x is not None:
+            self._session.cup.rect.centerx = old_cup_x
 
         self._phase = "intro"
         self._phase_timer = 0.0

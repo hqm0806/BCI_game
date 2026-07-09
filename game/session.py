@@ -1043,7 +1043,7 @@ class GameSession:
 
     def _end_game(self) -> str:
         if self._training_duration > 0:
-            if self.bci_available:
+            if self.bci_reader and self.bci_available:
                 self.bci_reader.disconnect()
             return ""
         if self._audio:

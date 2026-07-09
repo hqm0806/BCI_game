@@ -196,10 +196,16 @@ class TrainingExecuteScreen:
                     self.result = "quit"
                 elif self._conn_dialog_active:
                     self._handle_connection_event(event)
-                elif self._phase in ("game", "clearing"):
-                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                        self.running = False
-                        self.result = "back"
+                elif self._phase in ("game", "clearing", "intro", "done"):
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_ESCAPE:
+                            self.running = False
+                            self.result = "back"
+                        elif event.key == pygame.K_o:
+                            if self._phase == "intro":
+                                self._enter_game()
+                            else:
+                                self._finish_stage()
                 elif self._phase == "idle":
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                         self.running = False
@@ -259,7 +265,7 @@ class TrainingExecuteScreen:
             self._update_connecting(dt_sec)
         elif self._phase == "intro":
             self._phase_timer += dt_sec
-            if self._phase_timer >= 2.0:
+            if self._phase_timer >= 3.0:
                 self._enter_game()
         elif self._phase == "game":
             self._update_game(dt_sec)
@@ -321,19 +327,20 @@ class TrainingExecuteScreen:
 
     def _finish_stage(self) -> None:
         session = self._session
-        if session is None:
+        if session is None and self._phase != "done":
             return
 
         if self._attn_samples:
             self._baseline = sum(self._attn_samples) / len(self._attn_samples)
 
-        session.ingredients.empty()
-        session.catch_effects.empty()
-        session.miss_effects.empty()
-        session.particles.empty()
+        if session is not None and session.training_remaining() <= 0:
+            session.running = False
 
-        self._clearing_timer = 0.0
-        self._phase = "clearing"
+        if self._current_stage_index >= len(self._stage_durations) - 1:
+            self._phase = "done"
+            return
+
+        self._start_next_stage()
 
     def _start_next_stage(self) -> None:
         old_session = self._session

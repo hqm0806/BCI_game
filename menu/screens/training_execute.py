@@ -391,6 +391,7 @@ class TrainingExecuteScreen:
         keys = pygame.key.get_pressed()
         session._update_bci_data()
         session._update_cup(keys, dt_sec)
+        session._update_formal_speed()
 
         if self._memory_phase == "memorize":
             self._memory_timer += dt_sec
@@ -412,16 +413,25 @@ class TrainingExecuteScreen:
             self._finish_stage()
 
     def _update_memory_playing(self, dt_sec: float) -> None:
+        session = self._session
+        memory_speed = session.ingredient_manager._current_speed if session else 3.0
+        if memory_speed <= 0:
+            memory_speed = 3.0
+
         if not self._all_spawned:
             self._spawn_timer -= dt_sec
             while self._spawn_timer <= 0 and self._spawn_index < len(self._spawn_list):
                 ing_type = self._spawn_list[self._spawn_index]
-                ing = Ingredient(ing_type, speed=3.0)
+                ing = Ingredient(ing_type, speed=memory_speed)
                 self._memory_ingredients.add(ing)
                 self._spawn_index += 1
-                self._spawn_timer += _MEMORY_SPAWN_INTERVAL
+                bci_active = session is not None and session._bci_available
+                self._spawn_timer += 1.0 if bci_active else 1.3
             if self._spawn_index >= len(self._spawn_list):
                 self._all_spawned = True
+
+        for ing in self._memory_ingredients:
+            ing.speed = memory_speed
 
         self._memory_ingredients.update()
         self._memory_particles.update(dt_sec)

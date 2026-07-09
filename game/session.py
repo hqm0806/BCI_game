@@ -895,7 +895,7 @@ class GameSession:
         values = [
             f"LV.{self._player_level}",
             self.mode_name,
-            "∞" if is_infinite else f"{self.cup_manager.cup_number}/{self.cup_manager.total_cups}",
+            "∞" if is_infinite else (str(self.cup_manager.cup_number) if self._training_duration > 0 else f"{self.cup_manager.cup_number}/{self.cup_manager.total_cups}"),
             str(self.score_manager.total_money),
         ]
         texts = [

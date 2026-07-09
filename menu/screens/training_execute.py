@@ -116,6 +116,7 @@ class TrainingExecuteScreen:
 
         self._accumulated_cups = 0
         self._accumulated_money = 0
+        self._accumulated_money_before_stage = 0
         self._accumulated_secret_count = 0
         self._accumulated_failed_cups = 0
         self._all_focus_samples: list[float] = []
@@ -219,6 +220,7 @@ class TrainingExecuteScreen:
             audio=self._audio,
             training_duration=duration,
         )
+        self._session.cup_manager.cup_number = self._accumulated_cups
 
         if stage_idx == 2:
             self._pick_memory_recipe()
@@ -288,11 +290,13 @@ class TrainingExecuteScreen:
 
     def _enter_game(self) -> None:
         self._init_game()
+        self._accumulated_money_before_stage = self._accumulated_money
         if self._current_stage_index == 2:
             self._pick_memory_recipe()
             self._enter_memory_phase("memorize")
         self._session.score_manager.total_money = self._accumulated_money
         self._session.score_manager.cup_count = self._accumulated_cups
+        self._session.cup_manager.cup_number = self._accumulated_cups
         self._session.start_training()
         self._phase = "game"
 
@@ -571,8 +575,11 @@ class TrainingExecuteScreen:
             if session is not None:
                 sm = session.score_manager
                 cm = session.cup_manager
-                self._accumulated_cups += sm.cup_count
-                self._accumulated_money += sm.total_money
+                if self._current_stage_index == 2:
+                    self._accumulated_cups += self._round_successes
+                else:
+                    self._accumulated_cups += sum(1 for m in cm.cup_money_history if m > 0)
+                self._accumulated_money += sm.total_money - self._accumulated_money_before_stage
                 self._accumulated_secret_count += sm.secret_recipe_count
                 self._accumulated_failed_cups += sum(1 for m in cm.cup_money_history if m == 0)
                 if session.focus_samples:
@@ -647,8 +654,11 @@ class TrainingExecuteScreen:
         if old_session is not None:
             sm = old_session.score_manager
             cm = old_session.cup_manager
-            self._accumulated_cups += sm.cup_count
-            self._accumulated_money += sm.total_money
+            if self._current_stage_index == 2:
+                self._accumulated_cups += self._round_successes
+            else:
+                self._accumulated_cups += sum(1 for m in cm.cup_money_history if m > 0)
+                self._accumulated_money += sm.total_money - self._accumulated_money_before_stage
             self._accumulated_secret_count += sm.secret_recipe_count
             self._accumulated_failed_cups += sum(1 for m in cm.cup_money_history if m == 0)
             if old_session.focus_samples:
@@ -688,6 +698,7 @@ class TrainingExecuteScreen:
         self._session.bci_mode = True
         self._session.score_manager.total_money = self._accumulated_money
         self._session.score_manager.cup_count = self._accumulated_cups
+        self._session.cup_manager.cup_number = self._accumulated_cups
 
         self._phase = "intro"
         self._phase_timer = 0.0

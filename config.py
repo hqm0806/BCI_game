@@ -360,10 +360,10 @@ ARTIFACT_PENALTY_DURATION = 5.0  # 惩罚冻结时长（秒），自动恢复
 
 
 def get_attention_coefficient(normalized_attn: float) -> float:
-    if normalized_attn >= 80:
+    if normalized_attn > 50:
         return 1.0
-    elif normalized_attn >= 40:
-        return 0.5 + 0.5 * (normalized_attn - 40) / 40
+    elif normalized_attn >= 20:
+        return 0.5 + 0.5 * (normalized_attn - 20) / 30
     else:
         return 0.5
 

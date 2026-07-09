@@ -114,6 +114,9 @@ class TrainingExecuteScreen:
         self._memory_ingredients = pygame.sprite.Group()
         self._memory_particles = pygame.sprite.Group()
 
+        self._accumulated_cups = 0
+        self._accumulated_money = 0
+
         self._panel_w, self._panel_h = 820, 560
         self._panel_x = (SCREEN_WIDTH - self._panel_w) // 2
         self._panel_y = (SCREEN_HEIGHT - self._panel_h) // 2
@@ -285,6 +288,8 @@ class TrainingExecuteScreen:
         if self._current_stage_index == 2:
             self._pick_memory_recipe()
             self._enter_memory_phase("memorize")
+        self._session.score_manager.total_money = self._accumulated_money
+        self._session.score_manager.cup_count = self._accumulated_cups
         self._session.start_training()
         self._phase = "game"
 
@@ -482,6 +487,8 @@ class TrainingExecuteScreen:
             self._consecutive_success += 1
             self._consecutive_failures = 0
             self._round_successes += 1
+            if self._session is not None:
+                self._session.score_manager.add_cup_money(self._memory_level, had_secret=False)
             if self._consecutive_success >= _MEMORY_UPGRADE_THRESHOLD:
                 self._memory_level = min(5, self._memory_level + 1)
                 self._consecutive_success = 0
@@ -558,6 +565,9 @@ class TrainingExecuteScreen:
             session.running = False
 
         if self._current_stage_index >= len(self._stage_durations) - 1:
+            if session is not None:
+                self._accumulated_cups += session.score_manager.cup_count
+                self._accumulated_money += session.score_manager.total_money
             self._phase = "done"
             return
 
@@ -566,6 +576,8 @@ class TrainingExecuteScreen:
     def _start_next_stage(self) -> None:
         old_session = self._session
         if old_session is not None:
+            self._accumulated_cups += old_session.score_manager.cup_count
+            self._accumulated_money += old_session.score_manager.total_money
             old_session._end_game()
 
         self._current_stage_index += 1
@@ -598,6 +610,8 @@ class TrainingExecuteScreen:
             norm_upper=norm_upper,
         )
         self._session.bci_mode = True
+        self._session.score_manager.total_money = self._accumulated_money
+        self._session.score_manager.cup_count = self._accumulated_cups
 
         self._phase = "intro"
         self._phase_timer = 0.0

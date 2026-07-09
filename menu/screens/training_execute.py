@@ -10,6 +10,11 @@ from config import SCREEN_HEIGHT, SCREEN_WIDTH, SETTINGS_PANEL_IMG
 from menu.components import MenuItem
 
 
+class _PlainButton(MenuItem):
+    def trigger_click(self) -> None:
+        self.click_t = 1.0
+
+
 class TrainingExecuteScreen:
     """训练执行页面"""
 
@@ -45,7 +50,7 @@ class TrainingExecuteScreen:
         cx = SCREEN_WIDTH // 2
         btn_y = SCREEN_HEIGHT // 2 + 220
 
-        self.back_btn = MenuItem(
+        self.back_btn = _PlainButton(
             "返回",
             cx - 150,
             btn_y,
@@ -57,7 +62,7 @@ class TrainingExecuteScreen:
             radius=15,
             width=120,
         )
-        self.training_btn = MenuItem(
+        self.training_btn = _PlainButton(
             "进入训练",
             cx + 150,
             btn_y,

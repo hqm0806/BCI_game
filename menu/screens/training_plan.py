@@ -18,6 +18,11 @@ _LABEL_RIGHT = _CTRL_LEFT - 20
 _DEFAULTS = {"stage1": 3, "stage2": 7, "stage3": 5, "rounds": 16}
 
 
+class _PlainButton(MenuItem):
+    def trigger_click(self) -> None:
+        self.click_t = 1.0
+
+
 def _get_plan_path(username: str) -> str:
     return os.path.join("profiles", f"{username}_training.json")
 
@@ -304,7 +309,7 @@ class TrainingPlanScreen:
 
         btn_y = cy + 220
 
-        self.back_btn = MenuItem(
+        self.back_btn = _PlainButton(
             "返回",
             cx - 180,
             btn_y,
@@ -317,7 +322,7 @@ class TrainingPlanScreen:
             width=120,
         )
 
-        self.plan_btn = MenuItem(
+        self.plan_btn = _PlainButton(
             "进入计划" if self._locked else "生成计划",
             cx + 10,
             btn_y,
@@ -330,7 +335,7 @@ class TrainingPlanScreen:
             width=160,
         )
 
-        self.reset_btn = MenuItem(
+        self.reset_btn = _PlainButton(
             "重置",
             cx + 190,
             btn_y,
@@ -384,8 +389,8 @@ class TrainingPlanScreen:
     def _update_plan_btn(self) -> None:
         if self._locked:
             self.plan_btn.text = "进入计划"
-            self.plan_btn.bg_color = (100, 100, 100)
-            self.plan_btn.hover_color = (130, 130, 130)
+            self.plan_btn.bg_color = (160, 40, 40)
+            self.plan_btn.hover_color = (200, 60, 60)
             self.plan_btn.text_color = (255, 255, 255)
         else:
             self.plan_btn.text = "生成计划"
@@ -432,6 +437,7 @@ class TrainingPlanScreen:
             self._draw()
             pygame.display.flip()
 
+        self._do_save()
         return self.result
 
     def _update(self, dt: float) -> None:

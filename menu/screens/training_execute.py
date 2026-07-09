@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import random
+import time
 
 import pygame
 
@@ -121,6 +122,7 @@ class TrainingExecuteScreen:
         self._accumulated_failed_cups = 0
         self._all_focus_samples: list[float] = []
         self._stage_focus_samples: list[list[float]] = []
+        self._training_start_time = 0.0
 
         self._panel_w, self._panel_h = 820, 560
         self._panel_x = (SCREEN_WIDTH - self._panel_w) // 2
@@ -291,6 +293,8 @@ class TrainingExecuteScreen:
     def _enter_game(self) -> None:
         self._init_game()
         self._accumulated_money_before_stage = self._accumulated_money
+        if self._current_stage_index == 0 and self._training_start_time == 0.0:
+            self._training_start_time = time.time()
         if self._current_stage_index == 2:
             self._pick_memory_recipe()
             self._enter_memory_phase("memorize")
@@ -602,7 +606,7 @@ class TrainingExecuteScreen:
         while len(stage_avgs) < 3:
             stage_avgs.append(0.0)
 
-        duration = sum(self._stage_durations) * 60.0
+        duration = time.time() - self._training_start_time if self._training_start_time > 0 else sum(self._stage_durations) * 60.0
 
         bg_snapshot = self.screen.copy()
         summary = TrainingSummaryScreen(

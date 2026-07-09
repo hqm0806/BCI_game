@@ -56,6 +56,7 @@ class IngredientManager:
 
     def reset_spawn_timer(self) -> None:
         self.last_spawn_time = time.time()
+        self._skip_pixel_check = True
 
     def set_required_probability(self, prob: float) -> None:
         self._required_prob = max(0.0, min(1.0, prob))
@@ -108,9 +109,12 @@ class IngredientManager:
         ingredients_group: pygame.sprite.Group | None = None,
     ) -> Ingredient | None:
         if self._pixel_spacing > 0 and ingredients_group:
-            for ing in ingredients_group:
-                if ing.rect.y < SCREEN_HEIGHT * 0.35 and (ing.rect.y - ing._spawn_y) < self._pixel_spacing:
-                    return None
+            if getattr(self, '_skip_pixel_check', False):
+                self._skip_pixel_check = False
+            else:
+                for ing in ingredients_group:
+                    if ing.rect.y < SCREEN_HEIGHT * 0.35 and (ing.rect.y - ing._spawn_y) < self._pixel_spacing:
+                        return None
         if self.should_spawn():
             allowed = self._free_outlets(ingredients_group) if ingredients_group else None
             if allowed is None or allowed:

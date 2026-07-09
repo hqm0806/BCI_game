@@ -22,7 +22,7 @@ from menu.components import MenuItem
 
 
 _MEMORY_LEVEL = 2
-_MEMORY_SPAWN_INTERVAL = 0.8
+_MEMORY_SPAWN_INTERVAL = 1.0
 _MEMORY_INITIAL_DELAY = 0.3
 _MEMORIZE_DURATION = 2.0
 _MEMORY_RESULT_DURATION = 1.0
@@ -416,7 +416,7 @@ class TrainingExecuteScreen:
             self._spawn_timer -= dt_sec
             while self._spawn_timer <= 0 and self._spawn_index < len(self._spawn_list):
                 ing_type = self._spawn_list[self._spawn_index]
-                ing = Ingredient(ing_type, speed=4.0)
+                ing = Ingredient(ing_type, speed=3.0)
                 self._memory_ingredients.add(ing)
                 self._spawn_index += 1
                 self._spawn_timer += _MEMORY_SPAWN_INTERVAL
@@ -807,9 +807,6 @@ class TrainingExecuteScreen:
         if bar_w > 0:
             pygame.draw.rect(self.screen, (255, 180, 100), (bar_x, bar_y, bar_w, 8), border_radius=4)
 
-        timer_text = self.font.render(f"记忆时间 {remain:.1f}s", True, (200, 200, 200))
-        self.screen.blit(timer_text, (SCREEN_WIDTH // 2 - timer_text.get_width() // 2, bar_y - 30))
-
     def _draw_memory_hud(self) -> None:
         n = len(self._recipe_ingredients)
         total_w = n * 12 + (n - 1) * 8
@@ -828,14 +825,6 @@ class TrainingExecuteScreen:
             else:
                 color = (80, 80, 80)
             pygame.draw.circle(self.screen, color, (cx, cy), 6)
-
-        level_text = f"Lv.{self._memory_level - 1}"
-        lv_surf = self.font.render(level_text, True, (200, 200, 200))
-        self.screen.blit(lv_surf, (20, 130))
-
-        stats_text = f"成功 {self._round_successes}  失败 {self._round_failures}"
-        stats_surf = self.font.render(stats_text, True, (200, 200, 200))
-        self.screen.blit(stats_surf, (20, 160))
 
     def _draw_memory_result_popup(self) -> None:
         popup_w, popup_h = 500, 120

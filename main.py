@@ -38,7 +38,7 @@ class SplashState(State):
         return GameState.LOGIN
 
     def handle_event(self, event: GameEvent) -> GameState | None:
-        return None 
+        return None    
 
     def update(self) -> None:
         pass

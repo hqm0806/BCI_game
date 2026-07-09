@@ -64,6 +64,7 @@ class TrainingExecuteScreen:
         profile=None,
         control_mode: str = "bci",
         skip_connection: bool = False,
+        bci_reader=None,
     ) -> None:
         self.screen = screen
         self.font = font
@@ -78,6 +79,7 @@ class TrainingExecuteScreen:
         self.result = None
         self._external_control_mode = control_mode
         self._skip_connection = skip_connection
+        self._external_bci_reader = bci_reader
 
         self._stage_durations = [stage1_minutes, stage2_minutes, stage3_minutes]
         self._stage_names = ["原萃阶段", "特调阶段", "忆调阶段"]
@@ -303,6 +305,11 @@ class TrainingExecuteScreen:
         self._session.score_manager.total_money = self._accumulated_money
         self._session.score_manager.cup_count = self._accumulated_cups
         self._session.cup_manager.cup_number = self._accumulated_cups
+        if self._external_bci_reader:
+            self._session.bci_reader = self._external_bci_reader
+            self._session.bci_available = True
+            self._session.use_yaw_control = True
+            self._session.cup.yaw_control = True
         if self._current_stage_index != 2:
             self._session.ingredient_manager.set_pixel_spacing(250)
         self._session.start_training()
@@ -391,6 +398,10 @@ class TrainingExecuteScreen:
             self._update_connecting(dt_sec)
         elif self._phase == "intro":
             self._phase_timer += dt_sec
+            if self._session is not None:
+                keys = pygame.key.get_pressed()
+                self._session._update_bci_data()
+                self._session._update_cup(keys, dt_sec)
             if self._phase_timer >= 3.0:
                 self._enter_game()
         elif self._phase == "game":
@@ -744,7 +755,7 @@ class TrainingExecuteScreen:
             self._draw_idle_bg()
             self._draw_connection_dialog()
         elif self._phase == "intro":
-            if self._skip_connection:
+            if self._session is not None:
                 self._draw_game_bg()
             else:
                 self._draw_idle_bg()

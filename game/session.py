@@ -169,6 +169,9 @@ class GameSession:
             else:
                 self.mode_name = "特调模式"
 
+        if self._training_duration > 0:
+            self.mode_name = "训练模式"
+
     def _load_fonts(self) -> None:
         self.font = load_chinese_font(36)
         self.hint_font = load_chinese_font(20)

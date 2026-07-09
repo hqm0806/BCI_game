@@ -404,6 +404,9 @@ class TrainingPlanScreen:
         exec_screen = TrainingExecuteScreen(
             self.screen, self.font, self.title_font,
             audio=self._audio, bg=bg_snapshot, rounds=self.round_input.value,
+            stage1_minutes=self.stage1_slider.value,
+            stage2_minutes=self.stage2_slider.value,
+            stage3_minutes=self.stage3_slider.value,
         )
         exec_screen.run()
 

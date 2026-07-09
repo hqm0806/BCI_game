@@ -25,7 +25,7 @@ class IngredientManager:
         self._spawn_random_offset = 0.0
         self._new_spawn_random_offset()
         self.set_tier(tier)
-        self._required_prob = 0.5
+        self._required_prob = 0.2
         self._ice_probability = 0.0
 
     def _new_spawn_random_offset(self) -> None:
@@ -64,17 +64,30 @@ class IngredientManager:
         required_types: list[str] | None = None,
         allowed_outlets: list[int] | None = None,
     ) -> Ingredient:
-        types = required_types if required_types else self._available
-        available_types = [t for t in types if t != self.last_type]
-        if not available_types:
-            available_types = list(types)
-
-        ing_type = random.choice(available_types)
-        self.last_type = ing_type
-
-        is_required = False
-        if ing_type in self._required:
+        if required_types:
+            types = required_types
+            available_types = [t for t in types if t != self.last_type]
+            if not available_types:
+                available_types = list(types)
+            ing_type = random.choice(available_types)
+            is_required = ing_type in self._required
+        else:
             is_required = random.random() < self._required_prob
+
+            if is_required:
+                pick_from = [t for t in self._required if t != self.last_type]
+                if not pick_from:
+                    pick_from = list(self._required)
+                ing_type = random.choice(pick_from)
+            else:
+                optional = [t for t in self._available if t != self.last_type and t not in self._required]
+                if not optional:
+                    optional = [t for t in self._available if t != self.last_type]
+                if not optional:
+                    optional = list(self._available)
+                ing_type = random.choice(optional)
+
+        self.last_type = ing_type
 
         if self._ice_probability > 0 and random.random() < self._ice_probability:
             ing_type = "冰块"

@@ -27,6 +27,7 @@ class PlayerProfile:
     cumulative_revenue: int = 0
     total_games: int = 0
     games_history: list[dict] = field(default_factory=list)
+    training_history: list[dict] = field(default_factory=list)
     _username: str = ""
 
     @staticmethod
@@ -41,6 +42,7 @@ class PlayerProfile:
                     cumulative_revenue=data.get("cumulative_revenue", 0),
                     total_games=data.get("total_games", 0),
                     games_history=data.get("games_history", []),
+                    training_history=data.get("training_history", []),
                     _username=username,
                 )
                 logger.info("加载账号 [%s]: 等级%s, 累计收益%s", username, profile.level, profile.cumulative_revenue)
@@ -59,7 +61,8 @@ class PlayerProfile:
             "level": self.level,
             "cumulative_revenue": self.cumulative_revenue,
             "total_games": self.total_games,
-            "games_history": self.games_history[-20:],
+            "games_history": self.games_history[-30:],
+            "training_history": self.training_history[-30:],
         }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -101,6 +104,57 @@ class PlayerProfile:
             return self.level
         return 0
 
+    def add_training_result(
+        self,
+        total_money: int,
+        total_cups: int,
+        secret_count: int,
+        failed_cup_count: int,
+        memory_successes: int,
+        memory_failures: int,
+        avg_attention: float,
+        stage1_avg: float,
+        stage2_avg: float,
+        stage3_avg: float,
+        all_focus_samples: list | None = None,
+        stage1_focus: list | None = None,
+        stage2_focus: list | None = None,
+        stage3_focus: list | None = None,
+        duration: float = 0.0,
+        stage1_min: int = 0,
+        stage2_min: int = 0,
+        stage3_min: int = 0,
+        rounds: int = 0,
+    ) -> None:
+        timestamp = time.strftime("%Y-%m-%d %H:%M")
+        entry = {
+            "mode": "training",
+            "total_money": total_money,
+            "total_cups": total_cups,
+            "secret_count": secret_count,
+            "failed_cup_count": failed_cup_count,
+            "memory_successes": memory_successes,
+            "memory_failures": memory_failures,
+            "avg_attention": round(avg_attention, 1),
+            "stage1_avg": round(stage1_avg, 1),
+            "stage2_avg": round(stage2_avg, 1),
+            "stage3_avg": round(stage3_avg, 1),
+            "duration": round(duration, 1),
+            "stage1_min": stage1_min,
+            "stage2_min": stage2_min,
+            "stage3_min": stage3_min,
+            "rounds": rounds,
+            "date": timestamp,
+        }
+        if all_focus_samples:
+            step = max(1, len(all_focus_samples) // 100)
+            entry["focus_samples"] = all_focus_samples[::step]
+        for key, samples in [("stage1_focus", stage1_focus), ("stage2_focus", stage2_focus), ("stage3_focus", stage3_focus)]:
+            if samples:
+                step = max(1, len(samples) // 50)
+                entry[key] = samples[::step]
+        self.training_history.append(entry)
+
     def remove_game(self, index: int) -> None:
         if 0 <= index < len(self.games_history):
             del self.games_history[index]
@@ -112,7 +166,7 @@ class PlayerProfile:
 
     def _recalculate(self) -> None:
         self.total_games = len(self.games_history)
-        self.cumulative_revenue = sum(g.get("revenue", 0) for g in self.games_history)
+        self.cumulative_revenue = sum(g.get("revenue", g.get("total_money", 0)) for g in self.games_history)
         self._check_level_up()
 
     def _check_level_up(self) -> None:

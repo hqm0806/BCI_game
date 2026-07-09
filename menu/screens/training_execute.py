@@ -116,6 +116,10 @@ class TrainingExecuteScreen:
 
         self._accumulated_cups = 0
         self._accumulated_money = 0
+        self._accumulated_secret_count = 0
+        self._accumulated_failed_cups = 0
+        self._all_focus_samples: list[float] = []
+        self._stage_focus_samples: list[list[float]] = []
 
         self._panel_w, self._panel_h = 820, 560
         self._panel_x = (SCREEN_WIDTH - self._panel_w) // 2
@@ -565,18 +569,91 @@ class TrainingExecuteScreen:
 
         if self._current_stage_index >= len(self._stage_durations) - 1:
             if session is not None:
-                self._accumulated_cups += session.score_manager.cup_count
-                self._accumulated_money += session.score_manager.total_money
+                sm = session.score_manager
+                cm = session.cup_manager
+                self._accumulated_cups += sm.cup_count
+                self._accumulated_money += sm.total_money
+                self._accumulated_secret_count += sm.secret_recipe_count
+                self._accumulated_failed_cups += sum(1 for m in cm.cup_money_history if m == 0)
+                if session.focus_samples:
+                    self._all_focus_samples.extend(session.focus_samples)
+                    self._stage_focus_samples.append(list(session.focus_samples))
+                self._show_training_summary()
             self._phase = "done"
             return
 
         self._start_next_stage()
 
+    def _show_training_summary(self) -> None:
+        from menu.training_summary import TrainingSummaryScreen
+
+        avg_focus = sum(self._all_focus_samples) / len(self._all_focus_samples) if self._all_focus_samples else 0.0
+        stage_avgs = []
+        for samples in self._stage_focus_samples:
+            stage_avgs.append(sum(samples) / len(samples) if samples else 0.0)
+        while len(stage_avgs) < 3:
+            stage_avgs.append(0.0)
+
+        duration = sum(self._stage_durations) * 60.0
+
+        bg_snapshot = self.screen.copy()
+        summary = TrainingSummaryScreen(
+            self.screen,
+            total_money=self._accumulated_money,
+            total_cups=self._accumulated_cups,
+            secret_count=self._accumulated_secret_count,
+            failed_cup_count=self._accumulated_failed_cups,
+            memory_successes=self._round_successes,
+            memory_failures=self._round_failures,
+            avg_focus=avg_focus,
+            stage1_avg=stage_avgs[0],
+            stage2_avg=stage_avgs[1],
+            stage3_avg=stage_avgs[2],
+            all_focus_samples=self._all_focus_samples,
+            stage1_focus=self._stage_focus_samples[0] if len(self._stage_focus_samples) > 0 else [],
+            stage2_focus=self._stage_focus_samples[1] if len(self._stage_focus_samples) > 1 else [],
+            stage3_focus=self._stage_focus_samples[2] if len(self._stage_focus_samples) > 2 else [],
+            player_level=self._profile.level if self._profile else 1,
+            cumulative_revenue=self._profile.cumulative_revenue if self._profile else 0,
+            bg=bg_snapshot,
+        )
+        result = summary.run()
+        if result == "save" and self._profile:
+            self._profile.add_training_result(
+                total_money=self._accumulated_money,
+                total_cups=self._accumulated_cups,
+                secret_count=self._accumulated_secret_count,
+                failed_cup_count=self._accumulated_failed_cups,
+                memory_successes=self._round_successes,
+                memory_failures=self._round_failures,
+                avg_attention=avg_focus,
+                stage1_avg=stage_avgs[0],
+                stage2_avg=stage_avgs[1],
+                stage3_avg=stage_avgs[2],
+                all_focus_samples=self._all_focus_samples,
+                stage1_focus=self._stage_focus_samples[0] if len(self._stage_focus_samples) > 0 else None,
+                stage2_focus=self._stage_focus_samples[1] if len(self._stage_focus_samples) > 1 else None,
+                stage3_focus=self._stage_focus_samples[2] if len(self._stage_focus_samples) > 2 else None,
+                duration=duration,
+                stage1_min=self._stage_durations[0],
+                stage2_min=self._stage_durations[1],
+                stage3_min=self._stage_durations[2],
+                rounds=self._rounds,
+            )
+            self._profile.save()
+
     def _start_next_stage(self) -> None:
         old_session = self._session
         if old_session is not None:
-            self._accumulated_cups += old_session.score_manager.cup_count
-            self._accumulated_money += old_session.score_manager.total_money
+            sm = old_session.score_manager
+            cm = old_session.cup_manager
+            self._accumulated_cups += sm.cup_count
+            self._accumulated_money += sm.total_money
+            self._accumulated_secret_count += sm.secret_recipe_count
+            self._accumulated_failed_cups += sum(1 for m in cm.cup_money_history if m == 0)
+            if old_session.focus_samples:
+                self._all_focus_samples.extend(old_session.focus_samples)
+                self._stage_focus_samples.append(list(old_session.focus_samples))
             old_session._end_game()
 
         self._current_stage_index += 1

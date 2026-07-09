@@ -16,12 +16,13 @@ from menu.summary import _draw_centered as draw_centered
 class HistoryScreen:
     """历史记录列表 + 查看详情"""
 
-    _MODE_LABELS = {"all": "全部", "bci": "BCI", "memory": "忆调", "infinite": "原萃", "regular": "特调"}
+    _MODE_LABELS = {"all": "全部", "bci": "BCI", "memory": "忆调", "infinite": "原萃", "regular": "特调", "training": "训练"}
 
     def __init__(self, screen: pygame.Surface, games: list[dict], profile=None) -> None:
         self.screen = screen
         self.clock = pygame.time.Clock()
-        self.games = list(reversed(games))
+        training = profile.training_history if profile else []
+        self.games = list(reversed(games)) + list(reversed(training))
         self._profile = profile
         self.title_font = load_chinese_font(48)
         self.font = load_chinese_font(28)
@@ -52,7 +53,7 @@ class HistoryScreen:
         clear_btn_rect = pygame.Rect(LEFT_W - 130, 50, 120, 30)
         filter_btns: list[tuple[pygame.Rect, str]] = []
         btn_x = 40
-        for key in ["all", "bci", "memory", "infinite", "regular"]:
+        for key in ["all", "bci", "memory", "infinite", "regular", "training"]:
             r = pygame.Rect(btn_x, 88, 56, 24)
             filter_btns.append((r, key))
             btn_x += 60
@@ -153,16 +154,20 @@ class HistoryScreen:
                 date = self.hint_font.render(g.get("date", "未知"), True, (255, 255, 255))
                 self.screen.blit(date, (row_rect.x + 10, row_rect.y + 6))
 
-                mode_name = {"regular": "特调", "bci": "BCI", "memory": "忆调", "infinite": "原萃"}.get(
+                mode_name = {"regular": "特调", "bci": "BCI", "memory": "忆调", "infinite": "原萃", "training": "训练"}.get(
                     g.get("mode", ""), ""
                 )
                 mins = int(g.get("duration", 0)) // 60
                 secs = int(g.get("duration", 0)) % 60
-                info = self.hint_font.render(
-                    f"{mode_name} | 收益:{g.get('revenue', 0)} | {mins}分{secs}秒 | 专注:{g.get('avg_attention', 0):.0f}",
-                    True,
-                    (180, 180, 200),
-                )
+                if g.get("mode") == "training":
+                    revenue = g.get("total_money", 0)
+                    cups = g.get("total_cups", 0)
+                    mem_s = g.get("memory_successes", 0)
+                    mem_f = g.get("memory_failures", 0)
+                    info_text = f"训练 | 收益:{revenue} | 杯:{cups} | 记忆:{mem_s}/{mem_f} | {mins}分{secs}秒"
+                else:
+                    info_text = f"{mode_name} | 收益:{g.get('revenue', 0)} | {mins}分{secs}秒 | 专注:{g.get('avg_attention', 0):.0f}"
+                info = self.hint_font.render(info_text, True, (180, 180, 200))
                 self.screen.blit(info, (row_rect.x + 10, row_rect.y + 40))
 
             if self.games:
@@ -201,6 +206,7 @@ class HistoryScreen:
             pygame.display.flip()
 
     def _show_detail(self, game: dict) -> None:
+        is_training = game.get("mode") == "training"
         while True:
             self.clock.tick(60)
             for event in pygame.event.get():
@@ -222,40 +228,62 @@ class HistoryScreen:
             draw_centered(self.screen, self.font, date, y, (200, 200, 200))
             y += 40
 
-            mode_name = {"regular": "特调模式", "bci": "BCI模式", "memory": "忆调模式", "infinite": "原萃模式"}.get(
+            mode_name = {"regular": "特调模式", "bci": "BCI模式", "memory": "忆调模式", "infinite": "原萃模式", "training": "训练模式"}.get(
                 game.get("mode", ""), ""
             )
             draw_centered(self.screen, self.font, mode_name, y, (180, 180, 220))
             y += 40
 
-            draw_centered(self.screen, self.font, f"总收益: {game.get('revenue', 0)}", y, (100, 255, 100))
-            y += 35
-            draw_centered(
-                self.screen,
-                self.hint_font,
-                f"完成杯数: {game.get('cups', 0)} | 秘方: {game.get('secrets', 0)} 次",
-                y,
-                (180, 180, 200),
-            )
-            y += 35
-            mins = int(game.get("duration", 0)) // 60
-            secs = int(game.get("duration", 0)) % 60
-            draw_centered(self.screen, self.hint_font, f"游戏时长: {mins}分{secs}秒", y, (180, 180, 200))
-            y += 35
-            draw_centered(
-                self.screen, self.hint_font, f"平均专注力: {game.get('avg_attention', 0):.1f}", y, (150, 255, 150)
-            )
-            y += 20
+            if is_training:
+                draw_centered(self.screen, self.font, f"总收益: {game.get('total_money', 0)}", y, (100, 255, 100))
+                y += 35
+                draw_centered(self.screen, self.hint_font,
+                    f"总杯数: {game.get('total_cups', 0)} | 秘方: {game.get('secret_count', 0)} | 制作失败: {game.get('failed_cup_count', 0)}", y, (180, 180, 200))
+                y += 35
+                draw_centered(self.screen, self.hint_font,
+                    f"记忆成功: {game.get('memory_successes', 0)} | 记忆失败: {game.get('memory_failures', 0)}", y, (180, 180, 200))
+                y += 35
+                draw_centered(self.screen, self.hint_font,
+                    f"平均专注: {game.get('avg_attention', 0):.1f} | 原萃: {game.get('stage1_avg', 0):.1f} | 特调: {game.get('stage2_avg', 0):.1f} | 忆调: {game.get('stage3_avg', 0):.1f}", y, (150, 255, 150))
+                y += 35
+                mins = int(game.get("duration", 0)) // 60
+                secs = int(game.get("duration", 0)) % 60
+                draw_centered(self.screen, self.hint_font, f"游戏时长: {mins}分{secs}秒", y, (180, 180, 200))
+                y += 20
 
-            samples = game.get("focus_samples", [])
-            if samples:
-                graph_w = 1100
-                graph_h = 150
-                graph_x = (SCREEN_WIDTH - graph_w) // 2
-                graph_y = y
-                total_sec = game.get("duration", len(samples) / 60.0)
-                self._draw_waveform(graph_x, graph_y, graph_w, graph_h, total_sec, samples)
-                y = graph_y + graph_h + 20
+                for label, key in [("总专注力", "focus_samples"), ("原萃", "stage1_focus"), ("特调", "stage2_focus"), ("忆调", "stage3_focus")]:
+                    samples = game.get(key, [])
+                    if samples:
+                        draw_centered(self.screen, self.small_font, label, y, (150, 255, 150))
+                        y += 20
+                        graph_w = 1100
+                        graph_h = 80
+                        graph_x = (SCREEN_WIDTH - graph_w) // 2
+                        graph_y = y
+                        self._draw_waveform(graph_x, graph_y, graph_w, graph_h, len(samples) / 60.0, samples)
+                        y = graph_y + graph_h + 10
+            else:
+                draw_centered(self.screen, self.font, f"总收益: {game.get('revenue', 0)}", y, (100, 255, 100))
+                y += 35
+                draw_centered(self.screen, self.hint_font,
+                    f"完成杯数: {game.get('cups', 0)} | 秘方: {game.get('secrets', 0)} 次", y, (180, 180, 200))
+                y += 35
+                mins = int(game.get("duration", 0)) // 60
+                secs = int(game.get("duration", 0)) % 60
+                draw_centered(self.screen, self.hint_font, f"游戏时长: {mins}分{secs}秒", y, (180, 180, 200))
+                y += 35
+                draw_centered(self.screen, self.hint_font, f"平均专注力: {game.get('avg_attention', 0):.1f}", y, (150, 255, 150))
+                y += 20
+
+                samples = game.get("focus_samples", [])
+                if samples:
+                    graph_w = 1100
+                    graph_h = 150
+                    graph_x = (SCREEN_WIDTH - graph_w) // 2
+                    graph_y = y
+                    total_sec = game.get("duration", len(samples) / 60.0)
+                    self._draw_waveform(graph_x, graph_y, graph_w, graph_h, total_sec, samples)
+                    y = graph_y + graph_h + 20
 
             hint = self.hint_font.render("按任意键返回", True, (120, 120, 140))
             self.screen.blit(hint, (SCREEN_WIDTH // 2 - hint.get_width() // 2, SCREEN_HEIGHT - 40))

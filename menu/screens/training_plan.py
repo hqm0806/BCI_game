@@ -235,11 +235,11 @@ class TrainingPlanScreen:
         cx = SCREEN_WIDTH // 2
         cy = SCREEN_HEIGHT // 2
 
-        self.stage1_slider = StageSlider(screen, font, cx, cy - 80, "原萃阶段", default_value=_last_values.get("stage1", 3))
-        self.stage2_slider = StageSlider(screen, font, cx, cy - 30, "特调阶段", default_value=_last_values.get("stage2", 7))
-        self.stage3_slider = StageSlider(screen, font, cx, cy + 20, "忆调阶段", default_value=_last_values.get("stage3", 5))
+        self.stage1_slider = StageSlider(screen, font, cx, cy - 110, "原萃阶段", default_value=_last_values.get("stage1", 3))
+        self.stage2_slider = StageSlider(screen, font, cx, cy - 60, "特调阶段", default_value=_last_values.get("stage2", 7))
+        self.stage3_slider = StageSlider(screen, font, cx, cy - 10, "忆调阶段", default_value=_last_values.get("stage3", 5))
 
-        self.round_input = NumberInputBox(screen, font, cx, cy + 70, "轮次", default_value=_last_values.get("rounds", 16))
+        self.round_input = NumberInputBox(screen, font, cx, cy + 40, "轮次", default_value=_last_values.get("rounds", 16))
 
         btn_y = cy + 220
         self.back_btn = MenuItem(
@@ -308,9 +308,6 @@ class TrainingPlanScreen:
             pygame.draw.rect(panel_surf, (30, 28, 20, 230), (0, 0, self._panel_w, self._panel_h), border_radius=16)
             pygame.draw.rect(panel_surf, (200, 160, 100, 180), (0, 0, self._panel_w, self._panel_h), 3, border_radius=16)
         self.screen.blit(panel_surf, (self._panel_x, self._panel_y))
-
-        title = self.title_font.render("训练计划", True, (30, 30, 30))
-        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, self._panel_y + 135))
 
         self.stage1_slider.draw()
         self.stage2_slider.draw()

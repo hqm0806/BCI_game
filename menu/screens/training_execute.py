@@ -3,17 +3,42 @@
 from __future__ import annotations
 
 import os
+import random
 
 import pygame
 
 from bci.data_reader import BCIDataReader
 from config import (
+    INGREDIENT_IMGS,
+    OUTLET_POSITIONS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SETTINGS_PANEL_IMG,
 )
+from data.memory_recipes import MEMORY_RECIPES
 from game.font_utils import load_chinese_font
+from game.sprites import Ingredient
 from menu.components import MenuItem
+
+
+_MEMORY_LEVEL = 2
+_MEMORY_SPAWN_INTERVAL = 0.8
+_MEMORY_INITIAL_DELAY = 0.3
+_MEMORIZE_DURATION = 2.0
+_MEMORY_RESULT_DURATION = 1.0
+_MEMORY_REST_DURATION = 2.0
+_MEMORY_UPGRADE_THRESHOLD = 3
+_MEMORY_DOWNGRADE_THRESHOLD = 2
+
+
+def _random_distractor(exclude: set[str]) -> str:
+    pool = [
+        "珍珠", "椰果", "牛奶", "红茶", "绿茶", "芋圆", "脆啵啵",
+        "芒果", "椰奶", "草莓", "芋泥", "燕麦奶", "咖啡",
+        "米酿", "咸芝士奶盖", "茉莉花茶",
+    ]
+    available = [t for t in pool if t not in exclude]
+    return random.choice(available) if available else random.choice(pool)
 
 
 class _PlainButton(MenuItem):
@@ -63,10 +88,31 @@ class TrainingExecuteScreen:
         self._intro_texts = [
             ["决定您在下一阶段的", "基线值和游戏难度"],
             ["根据个性化调节了", "本阶段的游戏难度"],
+            ["记住屏幕的小料并顺序接住", "注意避开干扰食材"],
         ]
         self._attn_samples: list[float] = []
         self._baseline: float = 40.0
         self._clearing_timer: float = 0.0
+
+        self._memory_phase = ""
+        self._memory_timer = 0.0
+        self._memory_level = _MEMORY_LEVEL
+        self._consecutive_success = 0
+        self._consecutive_failures = 0
+        self._recipe_ingredients: list[str] = []
+        self._recipe_name = ""
+        self._target_index = 0
+        self._caught_wrong = False
+        self._missed_recipe = False
+        self._spawn_list: list[str] = []
+        self._spawn_index = 0
+        self._all_spawned = False
+        self._spawn_timer = _MEMORY_INITIAL_DELAY
+        self._round_successes = 0
+        self._round_failures = 0
+        self._memory_result_text = ""
+        self._memory_ingredients = pygame.sprite.Group()
+        self._memory_particles = pygame.sprite.Group()
 
         self._panel_w, self._panel_h = 820, 560
         self._panel_x = (SCREEN_WIDTH - self._panel_w) // 2
@@ -152,15 +198,72 @@ class TrainingExecuteScreen:
         stage_idx = self._current_stage_index
         duration = self._stage_durations[stage_idx] * 60
 
+        if stage_idx == 2:
+            game_mode = "regular"
+        else:
+            game_mode = "infinite"
+
         self._session = GameSession(
             self.screen,
             self.clock,
-            game_mode="infinite",
+            game_mode=game_mode,
             profile=self._profile,
             control_mode=self._external_control_mode,
             audio=self._audio,
             training_duration=duration,
         )
+
+        if stage_idx == 2:
+            self._pick_memory_recipe()
+            self._enter_memory_phase("memorize")
+
+    def _pick_memory_recipe(self) -> None:
+        recipes = MEMORY_RECIPES.get(self._memory_level, MEMORY_RECIPES[_MEMORY_LEVEL])
+        recipe = random.choice(recipes)
+        self._recipe_name = recipe["name"]
+        self._recipe_ingredients = list(recipe["ingredients"])
+        self._target_index = 0
+        self._caught_wrong = False
+        self._missed_recipe = False
+        self._memory_result_text = ""
+
+    def _build_spawn_list(self) -> None:
+        n = len(self._recipe_ingredients)
+        recipe_pattern = self._recipe_ingredients * 2
+        distractor_pool = set()
+        for _ in range(2 * n):
+            distractor_pool.add(_random_distractor(set(self._recipe_ingredients)))
+        distractors = list(distractor_pool)
+        while len(distractors) < 2 * n:
+            distractors.append(_random_distractor(set(self._recipe_ingredients)))
+        random.shuffle(distractors)
+        distractors = distractors[:2 * n]
+
+        total = 4 * n
+        slots = list(range(total))
+        random.shuffle(slots)
+        recipe_slots = sorted(slots[:2 * n])
+        dist_slots = list(slots[2 * n:])
+
+        self._spawn_list = [""] * total
+        for i, pos in enumerate(recipe_slots):
+            self._spawn_list[pos] = recipe_pattern[i]
+        for pos in dist_slots:
+            self._spawn_list[pos] = distractors.pop()
+
+        self._spawn_index = 0
+        self._all_spawned = False
+        self._spawn_timer = _MEMORY_INITIAL_DELAY
+
+    def _enter_memory_phase(self, phase: str) -> None:
+        self._memory_phase = phase
+        self._memory_timer = 0.0
+        if phase == "memorize":
+            self._pick_memory_recipe()
+        elif phase == "playing":
+            self._build_spawn_list()
+            self._memory_ingredients.empty()
+            self._memory_particles.empty()
 
     def _start_training(self) -> None:
         self._init_connection()
@@ -179,6 +282,9 @@ class TrainingExecuteScreen:
 
     def _enter_game(self) -> None:
         self._init_game()
+        if self._current_stage_index == 2:
+            self._pick_memory_recipe()
+            self._enter_memory_phase("memorize")
         self._session.start_training()
         self._phase = "game"
 
@@ -277,6 +383,107 @@ class TrainingExecuteScreen:
             self.back_btn.update(dt_sec)
             self.training_btn.update(dt_sec)
 
+    def _update_memory_game(self, dt_sec: float) -> None:
+        session = self._session
+        if session is None:
+            return
+
+        keys = pygame.key.get_pressed()
+        session._update_bci_data()
+        session._update_cup(keys, dt_sec)
+
+        if self._memory_phase == "memorize":
+            self._memory_timer += dt_sec
+            if self._memory_timer >= _MEMORIZE_DURATION:
+                self._enter_memory_phase("playing")
+        elif self._memory_phase == "playing":
+            self._update_memory_playing(dt_sec)
+        elif self._memory_phase == "result":
+            self._memory_timer += dt_sec
+            if self._memory_timer >= _MEMORY_RESULT_DURATION:
+                self._enter_memory_phase("rest")
+        elif self._memory_phase == "rest":
+            self._memory_timer += dt_sec
+            if self._memory_timer >= _MEMORY_REST_DURATION:
+                self._enter_memory_phase("memorize")
+
+        if self._get_remaining_seconds() <= 0:
+            session.running = False
+            self._finish_stage()
+
+    def _update_memory_playing(self, dt_sec: float) -> None:
+        if not self._all_spawned:
+            self._spawn_timer -= dt_sec
+            while self._spawn_timer <= 0 and self._spawn_index < len(self._spawn_list):
+                ing_type = self._spawn_list[self._spawn_index]
+                ing = Ingredient(ing_type, speed=4.0)
+                self._memory_ingredients.add(ing)
+                self._spawn_index += 1
+                self._spawn_timer += _MEMORY_SPAWN_INTERVAL
+            if self._spawn_index >= len(self._spawn_list):
+                self._all_spawned = True
+
+        self._memory_ingredients.update()
+        self._memory_particles.update(dt_sec)
+        self._check_memory_catches()
+
+        for ing in list(self._memory_ingredients):
+            if ing.rect.top > SCREEN_HEIGHT:
+                if ing.type in self._recipe_ingredients:
+                    self._missed_recipe = True
+                ing.kill()
+
+        if self._all_spawned and len(self._memory_ingredients) == 0:
+            self._judge_round()
+            self._enter_memory_phase("result")
+
+    def _check_memory_catches(self) -> None:
+        session = self._session
+        if session is None:
+            return
+        hits = pygame.sprite.spritecollide(session.cup, self._memory_ingredients, False)
+        for ing in hits:
+            if self._target_index < len(self._recipe_ingredients):
+                expected = self._recipe_ingredients[self._target_index]
+            else:
+                expected = None
+
+            if expected is not None and ing.type == expected:
+                self._target_index += 1
+                ing.kill()
+                for _ in range(8):
+                    from game.sprites import Particle
+                    p = Particle(int(ing.rect.centerx), int(ing.rect.centery), (255, 200, 50))
+                    self._memory_particles.add(p)
+            else:
+                self._caught_wrong = True
+                ing.kill()
+                for _ in range(4):
+                    from game.sprites import Particle
+                    p = Particle(int(ing.rect.centerx), int(ing.rect.centery), (255, 80, 80))
+                    p.vx *= 0.4
+                    p.vy *= 0.4
+                    self._memory_particles.add(p)
+
+    def _judge_round(self) -> None:
+        caught_all = self._target_index >= len(self._recipe_ingredients)
+        if caught_all and not self._caught_wrong and not self._missed_recipe:
+            self._memory_result_text = "记忆正确"
+            self._consecutive_success += 1
+            self._consecutive_failures = 0
+            self._round_successes += 1
+            if self._consecutive_success >= _MEMORY_UPGRADE_THRESHOLD:
+                self._memory_level = min(5, self._memory_level + 1)
+                self._consecutive_success = 0
+        else:
+            self._memory_result_text = "记忆失败"
+            self._consecutive_success = 0
+            self._consecutive_failures += 1
+            self._round_failures += 1
+            if self._consecutive_failures >= _MEMORY_DOWNGRADE_THRESHOLD:
+                self._memory_level = max(2, self._memory_level - 1)
+                self._consecutive_failures = 0
+
     def _update_connecting(self, dt_sec: float) -> None:
         self._conn_dialog_timer += dt_sec
         if self._conn_dialog_state in ("connecting", "reconnecting"):
@@ -292,6 +499,10 @@ class TrainingExecuteScreen:
                 self._conn_dialog_state = "failed"
 
     def _update_game(self, dt_sec: float) -> None:
+        if self._current_stage_index == 2:
+            self._update_memory_game(dt_sec)
+            return
+
         session = self._session
         if session is None:
             return
@@ -392,7 +603,10 @@ class TrainingExecuteScreen:
                 self._draw_idle_bg()
             self._draw_intro()
         elif self._phase in ("game", "done", "clearing"):
-            self._draw_game()
+            if self._current_stage_index == 2:
+                self._draw_memory()
+            else:
+                self._draw_game()
         else:
             self._draw_idle_bg()
 
@@ -510,6 +724,142 @@ class TrainingExecuteScreen:
             tx = SCREEN_WIDTH // 2 - done_text.get_width() // 2
             ty = SCREEN_HEIGHT // 2 - done_text.get_height() // 2
             self.screen.blit(done_text, (tx, ty))
+
+    def _draw_memory(self) -> None:
+        if self._session is not None:
+            s = self._session
+            if s.has_background and s.background:
+                self.screen.blit(s.background, (0, 0))
+                from config import BACKGROUND_OVERLAY_ALPHA, OVERLAY_CLEAR_REGIONS
+                overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+                overlay.fill((0, 0, 10, BACKGROUND_OVERLAY_ALPHA))
+                for rx, ry, rw, rh in OVERLAY_CLEAR_REGIONS:
+                    overlay.fill((0, 0, 0, 0), pygame.Rect(rx, ry, rw, rh))
+                self.screen.blit(overlay, (0, 0))
+            else:
+                self.screen.fill((255, 255, 255))
+            s.all_sprites.draw(self.screen)
+            s._render_formal_hud()
+
+        if self._memory_phase == "memorize":
+            self._draw_memory_memorize()
+        elif self._memory_phase == "playing":
+            self._memory_particles.draw(self.screen)
+            self._memory_ingredients.draw(self.screen)
+            self._draw_memory_hud()
+        elif self._memory_phase == "result":
+            self._draw_memory_result_popup()
+        elif self._memory_phase == "rest":
+            self._draw_memory_rest()
+
+        remaining = int(self._get_remaining_seconds())
+        mm = remaining // 60
+        ss = remaining % 60
+        time_str = f"{mm:02d}:{ss:02d}"
+        label = self._stage_names[2]
+        hud_font = load_chinese_font(28)
+        stage_surf = hud_font.render(label, True, (40, 40, 40))
+        time_surf = hud_font.render(time_str, True, (40, 40, 40))
+        self.screen.blit(stage_surf, (SCREEN_WIDTH - stage_surf.get_width() - 12, SCREEN_HEIGHT - 62))
+        self.screen.blit(time_surf, (SCREEN_WIDTH - time_surf.get_width() - 12, SCREEN_HEIGHT - 34))
+
+        if self._phase == "done":
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 160))
+            self.screen.blit(overlay, (0, 0))
+            done_text = self.title_font.render("阶段完成", True, (255, 255, 255))
+            tx = SCREEN_WIDTH // 2 - done_text.get_width() // 2
+            ty = SCREEN_HEIGHT // 2 - done_text.get_height() // 2
+            self.screen.blit(done_text, (tx, ty))
+
+    def _draw_memory_memorize(self) -> None:
+        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 180))
+        self.screen.blit(shade, (0, 0))
+
+        ing_size = 90
+        gap = 15
+        n = len(self._recipe_ingredients)
+        total_w = n * ing_size + (n - 1) * gap
+        start_x = SCREEN_WIDTH // 2 - total_w // 2
+        ing_y = SCREEN_HEIGHT // 2 - 80
+        for i, ing_type in enumerate(self._recipe_ingredients):
+            img_path = INGREDIENT_IMGS.get(ing_type, "")
+            if img_path and os.path.exists(img_path):
+                img = pygame.image.load(img_path).convert_alpha()
+                img = pygame.transform.scale(img, (ing_size, ing_size))
+            else:
+                img = pygame.Surface((ing_size, ing_size), pygame.SRCALPHA)
+                pygame.draw.circle(img, (200, 200, 200), (ing_size // 2, ing_size // 2), ing_size // 2)
+            self.screen.blit(img, (start_x + i * (ing_size + gap), ing_y))
+
+        recipe_font = load_chinese_font(48)
+        name_text = recipe_font.render(self._recipe_name, True, (255, 220, 100))
+        nx = SCREEN_WIDTH // 2 - name_text.get_width() // 2
+        ny = ing_y + ing_size + 20
+        self.screen.blit(name_text, (nx, ny))
+
+        remain = max(0, _MEMORIZE_DURATION - self._memory_timer)
+        bar_w = int(300 * remain / _MEMORIZE_DURATION)
+        bar_y = ny + name_text.get_height() + 20
+        bar_x = SCREEN_WIDTH // 2 - 150
+        pygame.draw.rect(self.screen, (60, 60, 60), (bar_x, bar_y, 300, 8), border_radius=4)
+        if bar_w > 0:
+            pygame.draw.rect(self.screen, (255, 180, 100), (bar_x, bar_y, bar_w, 8), border_radius=4)
+
+        timer_text = self.font.render(f"记忆时间 {remain:.1f}s", True, (200, 200, 200))
+        self.screen.blit(timer_text, (SCREEN_WIDTH // 2 - timer_text.get_width() // 2, bar_y - 30))
+
+    def _draw_memory_hud(self) -> None:
+        n = len(self._recipe_ingredients)
+        total_w = n * 12 + (n - 1) * 8
+        start_x = SCREEN_WIDTH // 2 - total_w // 2
+        cy = 150
+        for i in range(n):
+            cx = start_x + i * 20
+            if i < self._target_index:
+                color = (100, 255, 100)
+            elif i == self._target_index:
+                pulse = abs(self._memory_timer % 0.3 - 0.15)
+                r = int(255 - pulse * 300)
+                g = int(200 - pulse * 200)
+                b = int(100 - pulse * 100)
+                color = (max(200, r), max(50, g), max(50, b))
+            else:
+                color = (80, 80, 80)
+            pygame.draw.circle(self.screen, color, (cx, cy), 6)
+
+        level_text = f"Lv.{self._memory_level - 1}"
+        lv_surf = self.font.render(level_text, True, (200, 200, 200))
+        self.screen.blit(lv_surf, (20, 130))
+
+        stats_text = f"成功 {self._round_successes}  失败 {self._round_failures}"
+        stats_surf = self.font.render(stats_text, True, (200, 200, 200))
+        self.screen.blit(stats_surf, (20, 160))
+
+    def _draw_memory_result_popup(self) -> None:
+        popup_w, popup_h = 500, 120
+        popup_x = (SCREEN_WIDTH - popup_w) // 2
+        popup_y = (SCREEN_HEIGHT - popup_h) // 2
+        popup = pygame.Surface((popup_w, popup_h), pygame.SRCALPHA)
+        pygame.draw.rect(popup, (30, 25, 20, 220), (0, 0, popup_w, popup_h), border_radius=12)
+        pygame.draw.rect(popup, (255, 180, 100, 100), (0, 0, popup_w, popup_h), 3, border_radius=12)
+
+        is_success = self._memory_result_text == "记忆正确"
+        result_color = (100, 255, 100) if is_success else (255, 120, 100)
+        result_text = self.title_font.render(self._memory_result_text, True, result_color)
+        rx = (popup_w - result_text.get_width()) // 2
+        ry = (popup_h - result_text.get_height()) // 2 - 10
+        popup.blit(result_text, (rx, ry))
+        self.screen.blit(popup, (popup_x, popup_y))
+
+    def _draw_memory_rest(self) -> None:
+        remain = max(0, _MEMORY_REST_DURATION - self._memory_timer)
+        rest_text = self.font.render(f"下一杯即将开始... {remain:.0f}s", True, (200, 200, 200))
+        self.screen.blit(
+            rest_text,
+            (SCREEN_WIDTH // 2 - rest_text.get_width() // 2, SCREEN_HEIGHT // 2 + 80),
+        )
 
     def _draw_connection_dialog(self) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)

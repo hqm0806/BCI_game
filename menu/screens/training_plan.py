@@ -20,7 +20,7 @@ _DEFAULTS = {"stage1": 3, "stage2": 7, "stage3": 5, "rounds": 16}
 
 class _PlainButton(MenuItem):
     def trigger_click(self) -> None:
-        self.click_t = 1.0
+        pass
 
 
 def _get_plan_path(username: str) -> str:
@@ -327,9 +327,9 @@ class TrainingPlanScreen:
             cx + 10,
             btn_y,
             title_font,
-            (60, 160, 100) if not self._locked else (100, 100, 100),
-            (80, 200, 130) if not self._locked else (130, 130, 130),
-            (40, 120, 70) if not self._locked else (70, 70, 70),
+            (160, 40, 40) if self._locked else (60, 160, 100),
+            (200, 60, 60) if self._locked else (80, 200, 130),
+            (255, 255, 255) if self._locked else (40, 120, 70),
             padding=(20, 15),
             radius=15,
             width=160,
@@ -396,7 +396,7 @@ class TrainingPlanScreen:
             self.plan_btn.text = "生成计划"
             self.plan_btn.bg_color = (60, 160, 100)
             self.plan_btn.hover_color = (80, 200, 130)
-            self.plan_btn.text_color = (255, 255, 255)
+            self.plan_btn.text_color = (40, 120, 70)
         self.plan_btn._text_surf = self.title_font.render(self.plan_btn.text, True, self.plan_btn.text_color)
 
     def _open_execute(self) -> None:

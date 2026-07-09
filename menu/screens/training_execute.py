@@ -12,7 +12,7 @@ from menu.components import MenuItem
 
 class _PlainButton(MenuItem):
     def trigger_click(self) -> None:
-        self.click_t = 1.0
+        pass
 
 
 class TrainingExecuteScreen:

@@ -108,6 +108,98 @@ class StageSlider:
         pygame.draw.circle(self.screen, (100, 140, 200), (hx, self.track_y), self.handle_radius, 2)
 
 
+class NumberInputBox:
+    """整数输入框（1-100）"""
+
+    def __init__(
+        self,
+        screen: pygame.Surface,
+        font: pygame.font.Font,
+        cx: int,
+        cy: int,
+        label: str,
+        default_value: int = 16,
+    ) -> None:
+        self.screen = screen
+        self.font = font
+        self._min = 1
+        self._max = 100
+        self._value = max(self._min, min(self._max, default_value))
+        self._text = str(self._value)
+        self._active = False
+        self._blink_t = 0.0
+
+        self.box_w = 80
+        self.box_h = 36
+        self.box_x = _CTRL_LEFT
+        self.box_y = cy - self.box_h // 2
+        self.rect = pygame.Rect(self.box_x, self.box_y, self.box_w, self.box_h)
+
+        self._label_surf = font.render(label, True, (40, 40, 40))
+        self.label_x = _LABEL_RIGHT - self._label_surf.get_width()
+
+    @property
+    def value(self) -> int:
+        return self._value
+
+    def _apply_text(self) -> None:
+        try:
+            v = int(self._text)
+        except ValueError:
+            v = self._min
+        self._value = max(self._min, min(self._max, v))
+        self._text = str(self._value)
+
+    def handle_event(self, event: pygame.event.Event) -> bool:
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            was_active = self._active
+            self._active = self.rect.collidepoint(event.pos)
+            if was_active and not self._active:
+                self._apply_text()
+            return self._active
+        elif event.type == pygame.KEYDOWN and self._active:
+            if event.key == pygame.K_RETURN:
+                self._active = False
+                self._apply_text()
+            elif event.key == pygame.K_BACKSPACE:
+                self._text = self._text[:-1]
+            elif event.unicode.isdigit() and len(self._text) < 3:
+                self._text += event.unicode
+            return True
+        return False
+
+    def update(self, dt: float) -> None:
+        self._blink_t += dt * 4
+
+    def draw(self) -> None:
+        ly = self.box_y + self.box_h // 2 - self._label_surf.get_height() // 2
+        self.screen.blit(self._label_surf, (self.label_x, ly))
+
+        border_color = (0, 150, 200) if self._active else (100, 100, 100)
+        pygame.draw.rect(self.screen, border_color, self.rect, 2, border_radius=8)
+
+        bg_color = (0, 150, 200, 30) if self._active else (40, 40, 50, 50)
+        bg_surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(bg_surf, bg_color, (0, 0, *self.rect.size), border_radius=8)
+        self.screen.blit(bg_surf, self.rect.topleft)
+
+        display_text = self._text if self._active else str(self._value)
+        text_surf = self.font.render(display_text, True, (40, 40, 40))
+        tx = self.rect.centerx - text_surf.get_width() // 2
+        ty = self.rect.centery - text_surf.get_height() // 2
+        self.screen.blit(text_surf, (tx, ty))
+
+        if self._active and int(self._blink_t) % 2 == 0:
+            cursor_x = text_surf.get_width() + tx + 2
+            pygame.draw.line(
+                self.screen,
+                (40, 40, 40),
+                (cursor_x, self.rect.y + 8),
+                (cursor_x, self.rect.y + self.box_h - 8),
+                2,
+            )
+
+
 class TrainingPlanScreen:
     """训练计划页面"""
 
@@ -147,6 +239,8 @@ class TrainingPlanScreen:
         self.stage2_slider = StageSlider(screen, font, cx, cy - 30, "特调阶段", default_value=_last_values.get("stage2", 7))
         self.stage3_slider = StageSlider(screen, font, cx, cy + 20, "忆调阶段", default_value=_last_values.get("stage3", 5))
 
+        self.round_input = NumberInputBox(screen, font, cx, cy + 70, "轮次", default_value=_last_values.get("rounds", 16))
+
         btn_y = cy + 220
         self.back_btn = MenuItem(
             "返回",
@@ -173,6 +267,7 @@ class TrainingPlanScreen:
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
                         self.result = "back"
+                    self.round_input.handle_event(event)
                 else:
                     if self.back_btn.handle_event(event):
                         self.running = False
@@ -180,6 +275,7 @@ class TrainingPlanScreen:
                     self.stage1_slider.handle_event(event)
                     self.stage2_slider.handle_event(event)
                     self.stage3_slider.handle_event(event)
+                    self.round_input.handle_event(event)
 
             self._update(dt)
             self._draw()
@@ -188,10 +284,12 @@ class TrainingPlanScreen:
         _last_values["stage1"] = self.stage1_slider.value
         _last_values["stage2"] = self.stage2_slider.value
         _last_values["stage3"] = self.stage3_slider.value
+        _last_values["rounds"] = self.round_input.value
         return self.result
 
     def _update(self, dt: float) -> None:
         self.back_btn.update(dt)
+        self.round_input.update(dt)
 
     def _draw(self) -> None:
         if self._bg:
@@ -217,5 +315,6 @@ class TrainingPlanScreen:
         self.stage1_slider.draw()
         self.stage2_slider.draw()
         self.stage3_slider.draw()
+        self.round_input.draw()
 
         self.back_btn.draw(self.screen)

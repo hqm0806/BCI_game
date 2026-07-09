@@ -24,6 +24,7 @@ from menu.history import HistoryScreen
 from menu.mode_selector import ModeSelector
 from menu.particles import FloatingItem, SteamParticle
 from menu.screens.game_settings import GameSettingsScreen
+from menu.screens.training_plan import TrainingPlanScreen
 
 
 class MainMenu:
@@ -143,6 +144,23 @@ class MainMenu:
             width=btn_w,
             padding=btn_padding,
             image_path=os.path.join(IMAGES_DIR, "buttons", "退出.png"),
+        )
+
+        train_w = 185
+        train_x = int(col2_x + btn_w / 2 + 75 + train_w / 2)
+        train_y = int((row1_y + row2_y) / 2)
+        self.train_btn = GlowButton(
+            "训练计划",
+            train_x,
+            train_y,
+            title_font,
+            title_font,
+            glow_color=(255, 180, 100),
+            bg_color=(50, 25, 12),
+            hover_color=(85, 40, 20),
+            text_color=(255, 255, 255),
+            width=train_w,
+            padding=(30, 68),
         )
 
         self.btn_cx = (col1_x + col2_x) // 2  # 标题居中于四个按钮上方
@@ -315,6 +333,12 @@ class MainMenu:
                         self.result = "quit"
                         if self._audio:
                             self._audio.play_sfx("音效/按键2.mp3", volume=0.5)
+                    if self.train_btn.handle_event(event):
+                        self.train_btn.trigger_click()
+                        self.result = "training"
+                        click_frames[0] = 15
+                        if self._audio:
+                            self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
 
             if self._conn_dialog_active:
                 self._conn_dialog_timer += dt
@@ -345,6 +369,11 @@ class MainMenu:
                         settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font, audio=self._audio, bg=bg_snapshot)
                         settings_screen.run()
                         self.result = None
+                    elif self.result == "training":
+                        bg_snapshot = self.screen.copy()
+                        training_screen = TrainingPlanScreen(self.screen, self.font, self.title_font, audio=self._audio, bg=bg_snapshot)
+                        training_screen.run()
+                        self.result = None
                     else:
                         self.running = False
 
@@ -356,6 +385,7 @@ class MainMenu:
         self.mode_selector.update(dt)
         self.settings_btn.update(dt)
         self.exit_btn.update(dt)
+        self.train_btn.update(dt)
 
         for item in self.floating_items:
             item.update()
@@ -527,6 +557,7 @@ class MainMenu:
         self.mode_selector.draw(self.screen)
         self.settings_btn.draw(self.screen)
         self.exit_btn.draw(self.screen)
+        self.train_btn.draw(self.screen)
 
         if self._conn_dialog_active:
             self._draw_connection_dialog()

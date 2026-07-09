@@ -301,6 +301,7 @@ class Ingredient(pygame.sprite.Sprite):
         target_y = oy - size // 2
         self.rect.centerx = ox
         self.rect.y = target_y - 30  # 从出料口上方30px开始
+        self._spawn_y = self.rect.y
 
         self.speed: float = speed if speed >= 0 else INGREDIENT_SPEED
         self._float_t = random.uniform(0, 6.28)

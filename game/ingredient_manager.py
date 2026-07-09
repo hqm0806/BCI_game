@@ -23,10 +23,14 @@ class IngredientManager:
         self.last_type: str | None = None
         self._current_speed: float = -1.0
         self._spawn_random_offset = 0.0
+        self._pixel_spacing: float = 0.0
         self._new_spawn_random_offset()
         self.set_tier(tier)
         self._required_prob = 0.2
         self._ice_probability = 0.0
+
+    def set_pixel_spacing(self, px: float) -> None:
+        self._pixel_spacing = px
 
     def _new_spawn_random_offset(self) -> None:
         self._spawn_random_offset = random.uniform(-0.3, 0.3)
@@ -103,6 +107,10 @@ class IngredientManager:
         required_types: list[str] | None = None,
         ingredients_group: pygame.sprite.Group | None = None,
     ) -> Ingredient | None:
+        if self._pixel_spacing > 0 and ingredients_group:
+            for ing in ingredients_group:
+                if ing.rect.y < SCREEN_HEIGHT * 0.35 and (ing.rect.y - ing._spawn_y) < self._pixel_spacing:
+                    return None
         if self.should_spawn():
             allowed = self._free_outlets(ingredients_group) if ingredients_group else None
             if allowed is None or allowed:

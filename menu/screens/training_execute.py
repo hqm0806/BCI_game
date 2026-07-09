@@ -303,6 +303,8 @@ class TrainingExecuteScreen:
         self._session.score_manager.total_money = self._accumulated_money
         self._session.score_manager.cup_count = self._accumulated_cups
         self._session.cup_manager.cup_number = self._accumulated_cups
+        if self._current_stage_index != 2:
+            self._session.ingredient_manager.set_pixel_spacing(250)
         self._session.start_training()
         self._phase = "game"
 
@@ -437,14 +439,19 @@ class TrainingExecuteScreen:
             memory_speed = 3.0
 
         if not self._all_spawned:
-            self._spawn_timer -= dt_sec
-            while self._spawn_timer <= 0 and self._spawn_index < len(self._spawn_list):
-                ing_type = self._spawn_list[self._spawn_index]
-                ing = Ingredient(ing_type, speed=memory_speed)
-                self._memory_ingredients.add(ing)
-                self._spawn_index += 1
-                bci_active = session is not None and session.bci_available
-                self._spawn_timer += 1.0 if bci_active else 1.3
+            can_spawn = True
+            if len(self._memory_ingredients) > 0:
+                nearest = min(self._memory_ingredients, key=lambda i: i.rect.y - i._spawn_y)
+                if (nearest.rect.y - nearest._spawn_y) < 250:
+                    can_spawn = False
+            if can_spawn:
+                self._spawn_timer -= dt_sec
+                if self._spawn_timer <= 0 and self._spawn_index < len(self._spawn_list):
+                    ing_type = self._spawn_list[self._spawn_index]
+                    ing = Ingredient(ing_type, speed=memory_speed)
+                    self._memory_ingredients.add(ing)
+                    self._spawn_index += 1
+                    self._spawn_timer = _MEMORY_INITIAL_DELAY
             if self._spawn_index >= len(self._spawn_list):
                 self._all_spawned = True
 

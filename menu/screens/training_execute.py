@@ -272,11 +272,10 @@ class TrainingExecuteScreen:
         self._init_connection()
 
     def _enter_intro(self) -> None:
-        bci_ok = False
+        self._init_game()
         if self._conn_bci_reader and self._conn_bci_reader.connected:
-            bci_ok = True
             self._session.bci_available = True
-            self._session._bci_reader = self._conn_bci_reader
+            self._session.bci_reader = self._conn_bci_reader
             self._session.use_yaw_control = True
             self._session.cup.yaw_control = True
             self._conn_bci_reader = None

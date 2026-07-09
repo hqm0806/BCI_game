@@ -275,7 +275,7 @@ class TrainingExecuteScreen:
         bci_ok = False
         if self._conn_bci_reader and self._conn_bci_reader.connected:
             bci_ok = True
-            self._session._bci_available = True
+            self._session.bci_available = True
             self._session._bci_reader = self._conn_bci_reader
             self._session.use_yaw_control = True
             self._session.cup.yaw_control = True
@@ -430,7 +430,7 @@ class TrainingExecuteScreen:
                 ing = Ingredient(ing_type, speed=memory_speed)
                 self._memory_ingredients.add(ing)
                 self._spawn_index += 1
-                bci_active = session is not None and session._bci_available
+                bci_active = session is not None and session.bci_available
                 self._spawn_timer += 1.0 if bci_active else 1.3
             if self._spawn_index >= len(self._spawn_list):
                 self._all_spawned = True

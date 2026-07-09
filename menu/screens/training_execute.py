@@ -110,6 +110,9 @@ class TrainingExecuteScreen:
 
         self._session = None
 
+        if self._skip_connection:
+            self._init_game()
+
     def _init_connection(self) -> None:
         self._conn_dialog_active = True
         self._conn_dialog_state = "connecting"
@@ -150,7 +153,6 @@ class TrainingExecuteScreen:
             audio=self._audio,
             training_duration=duration,
         )
-        self._session.start_training()
 
     def _start_training(self) -> None:
         self._init_connection()
@@ -169,6 +171,7 @@ class TrainingExecuteScreen:
 
     def _enter_game(self) -> None:
         self._init_game()
+        self._session.start_training()
         self._phase = "game"
 
     def _get_remaining_seconds(self) -> float:
@@ -306,7 +309,10 @@ class TrainingExecuteScreen:
             self._draw_idle_bg()
             self._draw_connection_dialog()
         elif self._phase == "intro":
-            self._draw_idle_bg()
+            if self._skip_connection:
+                self._draw_game_bg()
+            else:
+                self._draw_idle_bg()
             self._draw_intro()
         elif self._phase in ("game", "done"):
             self._draw_game()
@@ -341,34 +347,82 @@ class TrainingExecuteScreen:
         self.training_btn.draw(self.screen)
 
     def _draw_intro(self) -> None:
-        box_w, box_h = 700, 340
-        box_x = (SCREEN_WIDTH - box_w) // 2
-        box_y = (SCREEN_HEIGHT - box_h) // 2
-
-        box_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
-        pygame.draw.rect(box_surf, (30, 25, 20, 220), (0, 0, box_w, box_h), border_radius=20)
-        pygame.draw.rect(box_surf, (255, 180, 100, 100), (0, 0, box_w, box_h), 3, border_radius=20)
+        dark = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        dark.fill((0, 0, 0, 160))
+        self.screen.blit(dark, (0, 0))
 
         stage_idx = self._current_stage_index
-        title_text = self._big_font.render(self._stage_names[stage_idx], True, (255, 200, 100))
-        tx = (box_w - title_text.get_width()) // 2
-        box_surf.blit(title_text, (tx, 55))
+        title_text = self._big_font.render(self._stage_names[stage_idx], True, (255, 255, 255))
+        tx = SCREEN_WIDTH // 2 - title_text.get_width() // 2
+        ty = SCREEN_HEIGHT // 2 - 80
+        self.screen.blit(title_text, (tx, ty))
 
         lines = [
             "决定您在下一阶段的",
             "基线值和游戏难度",
         ]
         for i, line in enumerate(lines):
-            line_surf = self.title_font.render(line, True, (255, 255, 255))
-            lx = (box_w - line_surf.get_width()) // 2
-            box_surf.blit(line_surf, (lx, 160 + i * 50))
+            line_surf = self.title_font.render(line, True, (220, 220, 220))
+            lx = SCREEN_WIDTH // 2 - line_surf.get_width() // 2
+            ly = ty + title_text.get_height() + 20 + i * 45
+            self.screen.blit(line_surf, (lx, ly))
 
-        self.screen.blit(box_surf, (box_x, box_y))
+    def _draw_game_bg(self) -> None:
+        if self._session is None:
+            return
+        s = self._session
+        if s.has_background and s.background:
+            self.screen.blit(s.background, (0, 0))
+            from config import BACKGROUND_OVERLAY_ALPHA, OVERLAY_CLEAR_REGIONS
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 10, BACKGROUND_OVERLAY_ALPHA))
+            for rx, ry, rw, rh in OVERLAY_CLEAR_REGIONS:
+                overlay.fill((0, 0, 0, 0), pygame.Rect(rx, ry, rw, rh))
+            self.screen.blit(overlay, (0, 0))
+        else:
+            self.screen.fill((255, 255, 255))
+        s.all_sprites.draw(self.screen)
+        s.particles.draw(self.screen)
+        s.ingredients.draw(self.screen)
+        s.catch_effects.draw(self.screen)
+        s.miss_effects.draw(self.screen)
+        s._render_formal_hud()
 
     def _draw_game(self) -> None:
         if self._session is not None:
-            self._session._render()
-        self._draw_stage_hud()
+            s = self._session
+            if s.has_background and s.background:
+                self.screen.blit(s.background, (0, 0))
+                from config import BACKGROUND_OVERLAY_ALPHA, OVERLAY_CLEAR_REGIONS
+                overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+                overlay.fill((0, 0, 10, BACKGROUND_OVERLAY_ALPHA))
+                for rx, ry, rw, rh in OVERLAY_CLEAR_REGIONS:
+                    overlay.fill((0, 0, 0, 0), pygame.Rect(rx, ry, rw, rh))
+                self.screen.blit(overlay, (0, 0))
+            else:
+                self.screen.fill((255, 255, 255))
+            s.all_sprites.draw(self.screen)
+            s.particles.draw(self.screen)
+            s.ingredients.draw(self.screen)
+            s.catch_effects.draw(self.screen)
+            s.miss_effects.draw(self.screen)
+            s._render_formal_hud()
+            if s._secret_popup_timer > 0:
+                s._draw_secret_popup()
+
+        remaining = int(self._get_remaining_seconds())
+        mm = remaining // 60
+        ss = remaining % 60
+        time_str = f"{mm:02d}:{ss:02d}"
+        stage_idx = self._current_stage_index
+        label = self._stage_names[stage_idx]
+
+        hud_font = load_chinese_font(28)
+        stage_surf = hud_font.render(label, True, (40, 40, 40))
+        time_surf = hud_font.render(time_str, True, (40, 40, 40))
+        self.screen.blit(stage_surf, (SCREEN_WIDTH - stage_surf.get_width() - 12, SCREEN_HEIGHT - 62))
+        self.screen.blit(time_surf, (SCREEN_WIDTH - time_surf.get_width() - 12, SCREEN_HEIGHT - 34))
+
         if self._phase == "done":
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 160))
@@ -377,39 +431,6 @@ class TrainingExecuteScreen:
             tx = SCREEN_WIDTH // 2 - done_text.get_width() // 2
             ty = SCREEN_HEIGHT // 2 - done_text.get_height() // 2
             self.screen.blit(done_text, (tx, ty))
-
-    def _draw_stage_hud(self) -> None:
-        remaining = int(self._get_remaining_seconds())
-        mm = remaining // 60
-        ss = remaining % 60
-        time_str = f"{mm:02d}:{ss:02d}"
-
-        stage_idx = self._current_stage_index
-        label = self._stage_names[stage_idx]
-
-        hud_font = load_chinese_font(28)
-        stage_surf = hud_font.render(label, True, (255, 255, 255))
-        time_surf = hud_font.render(time_str, True, (255, 255, 255))
-
-        padding_x = 24
-        padding_y = 14
-        line_h = stage_surf.get_height() + time_surf.get_height() + 8
-        hud_w = max(stage_surf.get_width(), time_surf.get_width()) + padding_x * 2
-        hud_h = line_h + padding_y * 2
-        hud_x = SCREEN_WIDTH - hud_w - 30
-        hud_y = SCREEN_HEIGHT - hud_h - 30
-
-        hud_bg = pygame.Surface((hud_w, hud_h), pygame.SRCALPHA)
-        pygame.draw.rect(hud_bg, (0, 0, 0, 160), (0, 0, hud_w, hud_h), border_radius=12)
-        self.screen.blit(hud_bg, (hud_x, hud_y))
-
-        stx = hud_x + (hud_w - stage_surf.get_width()) // 2
-        sty = hud_y + padding_y
-        self.screen.blit(stage_surf, (stx, sty))
-
-        ttx = hud_x + (hud_w - time_surf.get_width()) // 2
-        tty = sty + stage_surf.get_height() + 8
-        self.screen.blit(time_surf, (ttx, tty))
 
     def _draw_connection_dialog(self) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)

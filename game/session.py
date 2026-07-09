@@ -926,6 +926,7 @@ class GameSession:
             free_combine=self.free_combine,
             bci_connected=self.bci_available,
             skip_top_info=self._info_bar is not None,
+            training_mode=(self._training_duration > 0),
         )
 
         if self.bci_mode:

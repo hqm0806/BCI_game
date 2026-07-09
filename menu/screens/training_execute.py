@@ -3,23 +3,16 @@
 from __future__ import annotations
 
 import os
-import time
 
 import pygame
 
 from bci.data_reader import BCIDataReader
 from config import (
-    BACKGROUND_IMG,
-    BACKGROUND_OVERLAY_ALPHA,
-    CUP_SPEED,
-    OVERLAY_CLEAR_REGIONS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SETTINGS_PANEL_IMG,
 )
 from game.font_utils import load_chinese_font
-from game.ingredient_manager import IngredientManager
-from game.sprites import Cup, Ingredient, Particle
 from menu.components import MenuItem
 
 
@@ -42,6 +35,9 @@ class TrainingExecuteScreen:
         stage1_minutes: int = 3,
         stage2_minutes: int = 7,
         stage3_minutes: int = 5,
+        profile=None,
+        control_mode: str = "bci",
+        skip_connection: bool = False,
     ) -> None:
         self.screen = screen
         self.font = font
@@ -49,16 +45,19 @@ class TrainingExecuteScreen:
         self._audio = audio
         self._bg = bg
         self._rounds = rounds
+        self._profile = profile
         self._big_font = load_chinese_font(72)
         self.clock = pygame.time.Clock()
         self.running = True
         self.result = None
+        self._external_control_mode = control_mode
+        self._skip_connection = skip_connection
 
         self._stage_durations = [stage1_minutes, stage2_minutes, stage3_minutes]
         self._stage_names = ["原萃阶段", "特调阶段", "忆调阶段"]
         self._current_stage_index = 0
 
-        self._phase: str = "idle"
+        self._phase: str = "intro" if skip_connection else "idle"
         self._phase_timer: float = 0.0
 
         self._panel_w, self._panel_h = 820, 560
@@ -109,21 +108,7 @@ class TrainingExecuteScreen:
         self._rect_direct = pygame.Rect(0, 0, 0, 0)
         self._rect_cancel = pygame.Rect(0, 0, 0, 0)
 
-        self._bci_available = False
-        self._bci_reader = None
-        self._attention = 50.0
-        self._platform_focus_x = float(SCREEN_WIDTH // 2)
-        self._use_yaw = False
-        self.control_mode = "keyboard"
-
-        self._game_initialized = False
-        self._game_bg = None
-        self._cup = None
-        self._ingredients = pygame.sprite.Group()
-        self._particles = pygame.sprite.Group()
-        self._ingredient_manager = None
-        self._game_start_time = 0.0
-        self._stage_duration = 0.0
+        self._session = None
 
     def _init_connection(self) -> None:
         self._conn_dialog_active = True
@@ -142,42 +127,43 @@ class TrainingExecuteScreen:
         try:
             result = self._conn_bci_reader.read_with_timeout()
             if result and result[0] is not None:
-                self._attention = result[0]
-                self._platform_focus_x = result[1]
                 return True
         except Exception:
             pass
         return False
 
     def _init_game(self) -> None:
-        if self._game_initialized:
+        if self._session is not None:
             return
-        self._game_initialized = True
 
-        if os.path.exists(BACKGROUND_IMG):
-            img = pygame.image.load(BACKGROUND_IMG).convert()
-            self._game_bg = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        else:
-            self._game_bg = None
-
-        self._cup = Cup()
-        self._ingredient_manager = IngredientManager(tier=1)
-        self._ingredient_manager.set_current_speed(3.0)
-        self._ingredient_manager.set_spawn_interval(1.0)
-        self._ingredient_manager.reset_spawn_timer()
-
-        self._ingredients.empty()
-        self._particles.empty()
+        from game.session import GameSession
 
         stage_idx = self._current_stage_index
-        self._stage_duration = self._stage_durations[stage_idx] * 60
-        self._game_start_time = time.time()
+        duration = self._stage_durations[stage_idx] * 60
+
+        self._session = GameSession(
+            self.screen,
+            self.clock,
+            game_mode="infinite",
+            profile=self._profile,
+            control_mode=self._external_control_mode,
+            audio=self._audio,
+            training_duration=duration,
+        )
+        self._session.start_training()
 
     def _start_training(self) -> None:
         self._init_connection()
 
     def _enter_intro(self) -> None:
-        self._bci_available = self._bci_reader is not None and self._bci_reader.connected
+        bci_ok = False
+        if self._conn_bci_reader and self._conn_bci_reader.connected:
+            bci_ok = True
+            self._session._bci_available = True
+            self._session._bci_reader = self._conn_bci_reader
+            self._session.use_yaw_control = True
+            self._session.cup.yaw_control = True
+            self._conn_bci_reader = None
         self._phase = "intro"
         self._phase_timer = 0.0
 
@@ -186,8 +172,9 @@ class TrainingExecuteScreen:
         self._phase = "game"
 
     def _get_remaining_seconds(self) -> float:
-        elapsed = time.time() - self._game_start_time
-        return max(0.0, self._stage_duration - elapsed)
+        if self._session is None:
+            return 0.0
+        return self._session.training_remaining()
 
     def run(self) -> str | None:
         while self.running:
@@ -223,12 +210,10 @@ class TrainingExecuteScreen:
         return self.result
 
     def _cleanup(self) -> None:
-        if self._bci_reader:
-            try:
-                self._bci_reader.disconnect()
-            except Exception:
-                pass
-        if self._conn_bci_reader and self._conn_bci_reader is not self._bci_reader:
+        if self._session is not None:
+            self._session._end_game()
+            self._session = None
+        if self._conn_bci_reader:
             try:
                 self._conn_bci_reader.disconnect()
             except Exception:
@@ -239,8 +224,6 @@ class TrainingExecuteScreen:
             can_click = self._conn_dialog_state not in ("connecting", "reconnecting")
             if self._rect_direct.collidepoint(event.pos):
                 self._conn_dialog_active = False
-                self._bci_reader = None
-                self.control_mode = "keyboard"
                 self._enter_intro()
             elif self._rect_cancel.collidepoint(event.pos):
                 self._conn_dialog_active = False
@@ -279,10 +262,6 @@ class TrainingExecuteScreen:
             if self._conn_bci_reader and self._conn_bci_reader.connected:
                 if self._try_bci_read():
                     self._conn_dialog_active = False
-                    self._bci_reader = self._conn_bci_reader
-                    self._conn_bci_reader = None
-                    self.control_mode = "bci"
-                    self._use_yaw = True
                     self._enter_intro()
                     return
             elif self._conn_bci_reader and self._conn_dialog_timer - self._conn_last_connect_attempt >= 1.0:
@@ -292,62 +271,35 @@ class TrainingExecuteScreen:
                 self._conn_dialog_state = "failed"
 
     def _update_game(self, dt_sec: float) -> None:
-        self._update_bci_data()
+        session = self._session
+        if session is None:
+            return
 
         keys = pygame.key.get_pressed()
-        self._cup.update(keys=keys, dt=dt_sec)
-        kb_pressed = keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
-        if not kb_pressed and self._use_yaw and self._bci_available:
-            fx = int(self._platform_focus_x)
-            self._cup.rect.centerx = max(40, min(SCREEN_WIDTH - 40, fx))
 
-        ingredient = self._ingredient_manager.update(
-            required_types=None, ingredients_group=self._ingredients
-        )
-        if ingredient:
-            self._ingredients.add(ingredient)
+        session._update_bci_data()
+        session._update_cup(keys, dt_sec)
+        session._update_pause_state(dt_sec)
+        session._check_artifact(dt_sec)
+        session._update_artifact_freeze(dt_sec)
 
-        self._ingredients.update()
-        self._particles.update(dt_sec)
+        if not session._game_frozen:
+            session._update_attention_variance()
+            session._update_formal_speed()
+            session._check_secret_recipe(dt_sec)
+            session._check_cup_end()
 
-        threshold_y = self._cup.rect.top + self._cup.rect.height * 0.8
-        hits = pygame.sprite.spritecollide(self._cup, self._ingredients, False)
-        for ing in hits:
-            if ing.rect.centery >= threshold_y:
-                self._cup.trigger_bounce()
-                color = (255, 215, 0)
-                for _ in range(8):
-                    p = Particle(int(ing.rect.centerx), int(ing.rect.centery), color)
-                    self._particles.add(p)
-                ing.kill()
-            else:
-                ing.kill()
+        if not session.running:
+            self._phase = "done"
+            return
 
-        for ing in list(self._ingredients):
-            if ing.rect.top > SCREEN_HEIGHT:
-                for _ in range(4):
-                    p = Particle(int(ing.rect.centerx), SCREEN_HEIGHT - 10, (180, 80, 80))
-                    p.vx *= 0.4
-                    p.vy *= 0.4
-                    p.decay *= 1.5
-                    self._particles.add(p)
-                ing.kill()
+        if not session._game_frozen:
+            session._update_game_objects(dt_sec)
+            session._handle_collisions()
 
         if self._get_remaining_seconds() <= 0:
+            session.running = False
             self._phase = "done"
-
-    def _update_bci_data(self) -> None:
-        if self._bci_reader and self._bci_reader.connected:
-            try:
-                result = self._bci_reader.read_with_timeout()
-                self._bci_available = self._bci_reader.connected
-                if self._bci_available and result[0] is not None:
-                    self._attention = result[0]
-                    self._platform_focus_x = result[1]
-            except Exception:
-                self._bci_available = False
-        else:
-            self._bci_available = False
 
     def _draw(self) -> None:
         if self._conn_dialog_active:
@@ -356,17 +308,8 @@ class TrainingExecuteScreen:
         elif self._phase == "intro":
             self._draw_idle_bg()
             self._draw_intro()
-        elif self._phase == "game":
+        elif self._phase in ("game", "done"):
             self._draw_game()
-        elif self._phase == "done":
-            self._draw_game()
-            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 160))
-            self.screen.blit(overlay, (0, 0))
-            done_text = self.title_font.render("阶段完成", True, (255, 255, 255))
-            tx = SCREEN_WIDTH // 2 - done_text.get_width() // 2
-            ty = SCREEN_HEIGHT // 2 - done_text.get_height() // 2
-            self.screen.blit(done_text, (tx, ty))
         else:
             self._draw_idle_bg()
 
@@ -423,23 +366,17 @@ class TrainingExecuteScreen:
         self.screen.blit(box_surf, (box_x, box_y))
 
     def _draw_game(self) -> None:
-        if self._game_bg:
-            self.screen.blit(self._game_bg, (0, 0))
-            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 10, BACKGROUND_OVERLAY_ALPHA))
-            for rx, ry, rw, rh in OVERLAY_CLEAR_REGIONS:
-                overlay.fill((0, 0, 0, 0), pygame.Rect(rx, ry, rw, rh))
-            self.screen.blit(overlay, (0, 0))
-        else:
-            self.screen.fill((255, 255, 255))
-
-        self._particles.draw(self.screen)
-        self._ingredients.draw(self.screen)
-
-        if self._cup:
-            self.screen.blit(self._cup.image, self._cup.rect)
-
+        if self._session is not None:
+            self._session._render()
         self._draw_stage_hud()
+        if self._phase == "done":
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 160))
+            self.screen.blit(overlay, (0, 0))
+            done_text = self.title_font.render("阶段完成", True, (255, 255, 255))
+            tx = SCREEN_WIDTH // 2 - done_text.get_width() // 2
+            ty = SCREEN_HEIGHT // 2 - done_text.get_height() // 2
+            self.screen.blit(done_text, (tx, ty))
 
     def _draw_stage_hud(self) -> None:
         remaining = int(self._get_remaining_seconds())

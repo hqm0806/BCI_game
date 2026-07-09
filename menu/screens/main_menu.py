@@ -25,6 +25,8 @@ from menu.mode_selector import ModeSelector
 from menu.particles import FloatingItem, SteamParticle
 from menu.screens.game_settings import GameSettingsScreen
 from menu.screens.training_plan import TrainingPlanScreen
+from menu.screens.training_plan import _load_plan, _DEFAULTS
+from menu.screens.training_execute import TrainingExecuteScreen
 
 
 class MainMenu:
@@ -217,7 +219,9 @@ class MainMenu:
         return False
 
     def _start_game(self, control_key: str, click_frames: list) -> None:
-        if control_key == "bci_normal":
+        if control_key == "training":
+            self._show_connection_dialog("training", "infinite")
+        elif control_key == "bci_normal":
             self._show_connection_dialog("start", "bci")
         elif control_key == "memory":
             self._show_connection_dialog("start_memory", "bci")
@@ -335,7 +339,7 @@ class MainMenu:
                             self._audio.play_sfx("音效/按键2.mp3", volume=0.5)
                     if self.train_btn.handle_event(event):
                         self.train_btn.trigger_click()
-                        self.result = "training"
+                        self.result = "training_plan"
                         click_frames[0] = 15
                         if self._audio:
                             self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
@@ -369,10 +373,27 @@ class MainMenu:
                         settings_screen = GameSettingsScreen(self.screen, self.font, self.title_font, audio=self._audio, bg=bg_snapshot)
                         settings_screen.run()
                         self.result = None
-                    elif self.result == "training":
+                    elif self.result == "training_plan":
                         bg_snapshot = self.screen.copy()
                         training_screen = TrainingPlanScreen(self.screen, self.font, self.title_font, audio=self._audio, bg=bg_snapshot, profile=self._profile)
                         training_screen.run()
+                        self.result = None
+                    elif self.result == "training":
+                        bg_snapshot = self.screen.copy()
+                        username = self._profile._username if self._profile else ""
+                        plan = _load_plan(username) if username else {}
+                        exec_screen = TrainingExecuteScreen(
+                            self.screen, self.font, self.title_font,
+                            audio=self._audio, bg=bg_snapshot,
+                            rounds=plan.get("rounds", _DEFAULTS["rounds"]),
+                            stage1_minutes=plan.get("stage1", _DEFAULTS["stage1"]),
+                            stage2_minutes=plan.get("stage2", _DEFAULTS["stage2"]),
+                            stage3_minutes=plan.get("stage3", _DEFAULTS["stage3"]),
+                            profile=self._profile,
+                            control_mode=self._control_mode,
+                            skip_connection=True,
+                        )
+                        exec_screen.run()
                         self.result = None
                     else:
                         self.running = False

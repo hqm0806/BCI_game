@@ -128,6 +128,7 @@ class GameSession:
         profile=None,
         control_mode: str = "bci",
         audio=None,
+        training_duration: float = 0,
     ) -> None:
         self.screen = screen
         self.clock = clock
@@ -136,6 +137,8 @@ class GameSession:
         self._profile = profile
         self._upgrade_level = 0
         self._audio = audio
+        self._training_duration = training_duration
+        self._training_start_time = 0.0
 
         self._load_mode_config()
         self._load_fonts()
@@ -304,6 +307,15 @@ class GameSession:
         self.normalization_lower = 30.0
         self.normalization_upper = 70.0
         self.cup_manager.start_new_cup()
+
+    def start_training(self) -> None:
+        self._training_start_time = time_module.time()
+
+    def training_remaining(self) -> float:
+        if self._training_duration <= 0:
+            return -1.0
+        elapsed = time_module.time() - self._training_start_time
+        return max(0.0, self._training_duration - elapsed)
 
     def _print_mode_rules(self) -> None:
         logger.info("=" * 50)
@@ -497,6 +509,9 @@ class GameSession:
                 self._update_formal_speed()
                 self._check_secret_recipe(dt_sec)
                 self._check_cup_end()
+
+            if self._training_duration > 0 and self.training_remaining() <= 0:
+                self.running = False
 
             if not self.running:
                 break
@@ -760,7 +775,7 @@ class GameSession:
             self.score_manager.reset_cup_ingredients()
             self.focus_above_seconds = 0.0
 
-            if not self._infinite:
+            if not self._infinite and not self._training_duration:
                 if self.cup_manager.all_cups_done():
                     self.show_summary = True
                     self.running = False
@@ -1017,6 +1032,10 @@ class GameSession:
             self.screen.blit(rotated, (rx, ry))
 
     def _end_game(self) -> str:
+        if self._training_duration > 0:
+            if self.bci_available:
+                self.bci_reader.disconnect()
+            return ""
         if self._audio:
             self._audio.play_sfx("音效/游戏结束.wav", volume=0.6)
         if self.show_summary:

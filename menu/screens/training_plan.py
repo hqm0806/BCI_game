@@ -407,6 +407,7 @@ class TrainingPlanScreen:
             stage1_minutes=self.stage1_slider.value,
             stage2_minutes=self.stage2_slider.value,
             stage3_minutes=self.stage3_slider.value,
+            profile=self._profile,
         )
         exec_screen.run()
 

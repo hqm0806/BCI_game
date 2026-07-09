@@ -182,7 +182,6 @@ class MainMenu:
         self._conn_callback_result = ""
         self._conn_callback_mode = "bci"
         self._conn_bci_reader = None
-        self._bci_reader = None
         self._conn_rect_direct = pygame.Rect(0, 0, 0, 0)
         self._conn_rect_cancel = pygame.Rect(0, 0, 0, 0)
         self._conn_rect_retry = pygame.Rect(0, 0, 0, 0)
@@ -349,9 +348,8 @@ class MainMenu:
                 self._conn_dialog_timer += dt
                 if self._conn_dialog_state in ("connecting", "reconnecting"):
                     if self._conn_bci_reader and self._conn_bci_reader.connected:
-                        if self._try_bci_read():
+                        if self._try_bci_read() and self._conn_dialog_timer >= 0.5:
                             self._conn_dialog_active = False
-                            self._bci_reader = self._conn_bci_reader
                             self._conn_bci_reader = None
                             self.result = self._conn_callback_result
                             self.current_mode = self._conn_callback_mode
@@ -394,10 +392,8 @@ class MainMenu:
                             profile=self._profile,
                             control_mode=self._control_mode,
                             skip_connection=True,
-                            bci_reader=self._bci_reader,
                         )
                         exec_screen.run()
-                        self._bci_reader = None
                         self.result = None
                     else:
                         self.running = False

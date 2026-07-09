@@ -371,7 +371,7 @@ class MainMenu:
                         self.result = None
                     elif self.result == "training":
                         bg_snapshot = self.screen.copy()
-                        training_screen = TrainingPlanScreen(self.screen, self.font, self.title_font, audio=self._audio, bg=bg_snapshot)
+                        training_screen = TrainingPlanScreen(self.screen, self.font, self.title_font, audio=self._audio, bg=bg_snapshot, profile=self._profile)
                         training_screen.run()
                         self.result = None
                     else:

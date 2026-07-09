@@ -83,7 +83,7 @@ class TrainingExecuteScreen:
         self._stage_names = ["原萃阶段", "特调阶段", "忆调阶段"]
         self._current_stage_index = 0
 
-        self._phase: str = "intro" if skip_connection else "idle"
+        self._phase: str = "splash" if skip_connection else "idle"
         self._phase_timer: float = 0.0
 
         self._intro_texts = [
@@ -281,6 +281,13 @@ class TrainingExecuteScreen:
     def _start_training(self) -> None:
         self._init_connection()
 
+    def _start_splash(self) -> None:
+        if self._audio:
+            self._audio.stop_bgm()
+            self._audio.play_bgm("晨光木盒.mp3", volume=0.5)
+        from menu.splash import SplashScreen
+        SplashScreen(self.screen, load_chinese_font(110)).run()
+
     def _enter_intro(self) -> None:
         self._init_game()
         if self._conn_bci_reader and self._conn_bci_reader.connected:
@@ -289,7 +296,7 @@ class TrainingExecuteScreen:
             self._session.use_yaw_control = True
             self._session.cup.yaw_control = True
             self._conn_bci_reader = None
-        self._phase = "intro"
+        self._phase = "splash"
         self._phase_timer = 0.0
 
     def _enter_game(self) -> None:
@@ -356,6 +363,9 @@ class TrainingExecuteScreen:
         if self._session is not None:
             self._session._end_game()
             self._session = None
+        if self._audio:
+            self._audio.stop_bgm()
+            self._audio.play_bgm("玻璃糖果园.mp3", volume=0.5)
         if self._conn_bci_reader:
             try:
                 self._conn_bci_reader.disconnect()
@@ -389,6 +399,10 @@ class TrainingExecuteScreen:
     def _update(self, dt_sec: float) -> None:
         if self._conn_dialog_active:
             self._update_connecting(dt_sec)
+        elif self._phase == "splash":
+            self._start_splash()
+            self._phase = "intro"
+            self._phase_timer = 0.0
         elif self._phase == "intro":
             self._phase_timer += dt_sec
             if self._session is not None:
@@ -610,6 +624,9 @@ class TrainingExecuteScreen:
 
     def _show_training_summary(self) -> None:
         from menu.training_summary import TrainingSummaryScreen
+
+        if self._audio:
+            self._audio.stop_bgm()
 
         avg_focus = sum(self._all_focus_samples) / len(self._all_focus_samples) if self._all_focus_samples else 0.0
         stage_avgs = []

@@ -41,6 +41,9 @@ class TrainingSummaryScreen:
         stage3_focus: list | None = None,
         player_level: int = 1,
         cumulative_revenue: int = 0,
+        baseline: float = 0.0,
+        norm_lower: float = 0.0,
+        norm_upper: float = 0.0,
         bg: pygame.Surface | None = None,
     ) -> None:
         self.screen = screen
@@ -61,6 +64,9 @@ class TrainingSummaryScreen:
         self.stage3_focus = stage3_focus or []
         self.player_level = player_level
         self.cumulative_revenue = cumulative_revenue
+        self.baseline = baseline
+        self.norm_lower = norm_lower
+        self.norm_upper = norm_upper
 
         self.title_font = load_chinese_font(36)
         self.font = load_chinese_font(24)
@@ -163,6 +169,12 @@ class TrainingSummaryScreen:
             fs_surf = self.small_font.render(fs, True, (60, 60, 60))
             self.screen.blit(fs_surf, (left_x, y))
             y += 24
+
+        bl = self.small_font.render(
+            f"基线: {self.baseline:.0f}  归一化: [{self.norm_lower:.0f}, {self.norm_upper:.0f}]",
+            True, (60, 60, 60))
+        self.screen.blit(bl, (left_x, y))
+        y += 22
 
         y += 4
         waves = [

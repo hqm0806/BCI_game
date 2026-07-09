@@ -123,6 +123,8 @@ class TrainingExecuteScreen:
         self._all_focus_samples: list[float] = []
         self._stage_focus_samples: list[list[float]] = []
         self._training_start_time = 0.0
+        self._current_norm_lower = 0.0
+        self._current_norm_upper = 0.0
 
         self._panel_w, self._panel_h = 820, 560
         self._panel_x = (SCREEN_WIDTH - self._panel_w) // 2
@@ -627,6 +629,9 @@ class TrainingExecuteScreen:
             stage3_focus=self._stage_focus_samples[2] if len(self._stage_focus_samples) > 2 else [],
             player_level=self._profile.level if self._profile else 1,
             cumulative_revenue=self._profile.cumulative_revenue if self._profile else 0,
+            baseline=self._baseline,
+            norm_lower=self._current_norm_lower,
+            norm_upper=self._current_norm_upper,
             bg=bg_snapshot,
         )
         result = summary.run()
@@ -695,6 +700,9 @@ class TrainingExecuteScreen:
             last_30_focus = old_session.focus_samples[-n_last:]
             if last_30_focus:
                 norm_upper = max(last_30_focus)
+
+        self._current_norm_lower = norm_lower
+        self._current_norm_upper = norm_upper
 
         self._session = GameSession(
             self.screen,
@@ -786,6 +794,17 @@ class TrainingExecuteScreen:
             lx = SCREEN_WIDTH // 2 - line_surf.get_width() // 2
             ly = ty + title_text.get_height() + 20 + i * 45
             self.screen.blit(line_surf, (lx, ly))
+
+        if stage_idx == 1:
+            y_base = ty + title_text.get_height() + 20 + len(lines) * 45 + 20
+            bline = self.font.render(f"基线: {self._baseline:.0f}", True, (200, 200, 200))
+            bx = SCREEN_WIDTH // 2 - bline.get_width() // 2
+            self.screen.blit(bline, (bx, y_base))
+            norm = self.font.render(
+                f"归一化: [{self._current_norm_lower:.0f}, {self._current_norm_upper:.0f}]",
+                True, (200, 200, 200))
+            nx = SCREEN_WIDTH // 2 - norm.get_width() // 2
+            self.screen.blit(norm, (nx, y_base + 30))
 
     def _draw_game_bg(self) -> None:
         if self._session is None:

@@ -94,7 +94,7 @@ class MenuState(State):
         self._context["control_mode"] = control_mode
 
         if result == "quit":
-            return GameState.QUIT
+            return GameState.LOGIN
         if result == "settings":
             return GameState.SETTINGS
         if result == "start_memory":

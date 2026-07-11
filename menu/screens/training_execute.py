@@ -693,6 +693,10 @@ class TrainingExecuteScreen:
             baseline=self._baseline,
             norm_lower=self._current_norm_lower,
             norm_upper=self._current_norm_upper,
+            duration=duration,
+            stage1_min=self._stage_durations[0],
+            stage2_min=self._stage_durations[1],
+            stage3_min=self._stage_durations[2],
             bg=bg_snapshot,
         )
         result = summary.run()

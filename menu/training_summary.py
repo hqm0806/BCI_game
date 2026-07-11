@@ -44,6 +44,10 @@ class TrainingSummaryScreen:
         baseline: float = 0.0,
         norm_lower: float = 0.0,
         norm_upper: float = 0.0,
+        duration: float = 0.0,
+        stage1_min: int = 0,
+        stage2_min: int = 0,
+        stage3_min: int = 0,
         bg: pygame.Surface | None = None,
     ) -> None:
         self.screen = screen
@@ -67,6 +71,10 @@ class TrainingSummaryScreen:
         self.baseline = baseline
         self.norm_lower = norm_lower
         self.norm_upper = norm_upper
+        self.duration = duration
+        self.stage1_min = stage1_min
+        self.stage2_min = stage2_min
+        self.stage3_min = stage3_min
 
         self.title_font = load_chinese_font(36)
         self.font = load_chinese_font(24)
@@ -177,21 +185,35 @@ class TrainingSummaryScreen:
         y += 22
 
         y += 4
-        waves = [
-            ("总专注力", self.all_focus_samples),
-            ("原萃", self.stage1_focus),
-            ("特调", self.stage2_focus),
-            ("忆调", self.stage3_focus),
-        ]
-        wave_w = self._panel_w - 120
-        wave_h = 55
-        for label, samples in waves:
-            if not samples:
-                continue
-            label_surf = self.small_font.render(label, True, (80, 80, 80))
-            self.screen.blit(label_surf, (left_x, y))
-            self._draw_mini_wave(px + 60 + 60, y + 2, wave_w - 60, wave_h, samples)
-            y += wave_h + 10
+        samples = self.all_focus_samples
+        if samples:
+            wave_w = self._panel_w - 120
+            wave_h = 130
+            wave_x = px + 60
+            wave_y = y
+            self._draw_waveform(wave_x, wave_y, wave_w, wave_h, samples)
+
+            s1 = self.stage1_min
+            s2 = self.stage2_min
+            s3 = self.stage3_min
+            total_min = s1 + s2 + s3
+            if total_min > 0:
+                x1 = wave_x + int(s1 / total_min * wave_w)
+                x2 = wave_x + int((s1 + s2) / total_min * wave_w)
+                self._draw_dashed_line(x1, wave_y, wave_h)
+                self._draw_dashed_line(x2, wave_y, wave_h)
+
+                region_labels = [
+                    ("原萃阶段", wave_x, x1),
+                    ("特调阶段", x1, x2),
+                    ("忆调阶段", x2, wave_x + wave_w),
+                ]
+                for label_text, lx, rx in region_labels:
+                    cx = (lx + rx) // 2
+                    label_surf = self.small_font.render(label_text, True, (255, 200, 100))
+                    self.screen.blit(label_surf, (cx - label_surf.get_width() // 2, wave_y + 4))
+
+            y = wave_y + wave_h + 10
 
         save_color = (60, 160, 100)
         pygame.draw.rect(self.screen, save_color, self._save_rect, border_radius=12)
@@ -209,19 +231,27 @@ class TrainingSummaryScreen:
             self._quit_rect.centery - quit_text.get_height() // 2,
         ))
 
-    def _draw_mini_wave(self, x: int, y: int, w: int, h: int, samples: list) -> None:
+    def _draw_waveform(self, x: int, y: int, w: int, h: int, samples: list) -> None:
         pygame.draw.rect(self.screen, (30, 30, 50), (x, y, w, h), border_radius=4)
         if len(samples) < 2:
             return
-        step = max(1, len(samples) // min(150, len(samples)))
-        bucketed = []
+        num_pts = min(150, len(samples))
+        step = max(1, len(samples) // num_pts)
+        points = []
         for i in range(0, len(samples), step):
             chunk = samples[i:i + step]
-            bucketed.append(sum(chunk) / len(chunk))
-        points = []
-        for i, val in enumerate(bucketed):
-            px = x + int(i / max(1, len(bucketed) - 1) * w)
-            py = y + int((1.0 - val / 100.0) * h)
+            avg = sum(chunk) / len(chunk)
+            px = x + int(i / max(1, len(samples)) * w)
+            py = y + int((1.0 - avg / 100.0) * h)
             points.append((px, max(y, min(y + h, py))))
         if len(points) >= 2:
             pygame.draw.lines(self.screen, (180, 130, 60), False, points, 2)
+
+    def _draw_dashed_line(self, x: int, y: int, h: int) -> None:
+        dash_h = 6
+        gap_h = 5
+        cy = y
+        while cy < y + h:
+            end = min(cy + dash_h, y + h)
+            pygame.draw.line(self.screen, (255, 180, 60), (x, cy), (x, end), 2)
+            cy = end + gap_h

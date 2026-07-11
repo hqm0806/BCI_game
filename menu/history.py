@@ -251,17 +251,36 @@ class HistoryScreen:
                 draw_centered(self.screen, self.hint_font, f"游戏时长: {mins}分{secs}秒", y, (180, 180, 200))
                 y += 20
 
-                for label, key in [("总专注力", "focus_samples"), ("原萃", "stage1_focus"), ("特调", "stage2_focus"), ("忆调", "stage3_focus")]:
-                    samples = game.get(key, [])
-                    if samples:
-                        draw_centered(self.screen, self.small_font, label, y, (150, 255, 150))
-                        y += 20
-                        graph_w = 1100
-                        graph_h = 80
-                        graph_x = (SCREEN_WIDTH - graph_w) // 2
-                        graph_y = y
-                        self._draw_waveform(graph_x, graph_y, graph_w, graph_h, len(samples) / 60.0, samples)
-                        y = graph_y + graph_h + 10
+                samples = game.get("focus_samples", [])
+                if samples:
+                    graph_w = 1100
+                    graph_h = 270
+                    graph_x = (SCREEN_WIDTH - graph_w) // 2
+                    graph_y = y
+                    duration = game.get("duration", len(samples) / 60.0)
+                    self._draw_waveform(graph_x, graph_y, graph_w, graph_h, duration, samples)
+
+                    s1_min = game.get("stage1_min", 3)
+                    s2_min = game.get("stage2_min", 7)
+                    s3_min = game.get("stage3_min", 5)
+                    total_min = s1_min + s2_min + s3_min
+                    if total_min > 0 and duration > 0:
+                        x1 = graph_x + int(s1_min / total_min * graph_w)
+                        x2 = graph_x + int((s1_min + s2_min) / total_min * graph_w)
+                        self._draw_dashed_line(x1, graph_y, graph_h)
+                        self._draw_dashed_line(x2, graph_y, graph_h)
+
+                        region_labels = [
+                            ("原萃阶段", graph_x, x1),
+                            ("特调阶段", x1, x2),
+                            ("忆调阶段", x2, graph_x + graph_w),
+                        ]
+                        for label_text, lx, rx in region_labels:
+                            cx = (lx + rx) // 2
+                            label_surf = self.small_font.render(label_text, True, (255, 200, 100))
+                            self.screen.blit(label_surf, (cx - label_surf.get_width() // 2, graph_y + 6))
+
+                    y = graph_y + graph_h + 10
             else:
                 draw_centered(self.screen, self.font, f"总收益: {game.get('revenue', 0)}", y, (100, 255, 100))
                 y += 35
@@ -320,6 +339,15 @@ class HistoryScreen:
 
         title = self.small_font.render("专注力曲线", True, (160, 160, 160))
         self.screen.blit(title, (x + 4, y - 16))
+
+    def _draw_dashed_line(self, x: int, y: int, h: int) -> None:
+        dash_h = 8
+        gap_h = 6
+        cy = y
+        while cy < y + h:
+            end = min(cy + dash_h, y + h)
+            pygame.draw.line(self.screen, (255, 180, 60), (x, cy), (x, end), 2)
+            cy = end + gap_h
 
     def _draw_trend_curve(self, right_x: int, right_w: int) -> None:
         regular_games = [g for g in self.games if g.get("mode") in ("regular", "bci")]

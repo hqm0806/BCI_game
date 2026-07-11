@@ -170,6 +170,27 @@ class MainMenu:
         self.title_y = 400  # 疯狂奶茶杯的y坐标
         self.title_phase = 0.0
 
+        train_panel_w = train_w
+        train_panel_h = 132
+        train_panel_x = train_x + train_w // 2 + 20 + train_panel_w // 2
+        train_panel_y = train_y
+        self._train_panel_rect = pygame.Rect(
+            train_panel_x - train_panel_w // 2,
+            train_panel_y - train_panel_h // 2,
+            train_panel_w, train_panel_h,
+        )
+        self._train_progress_completed = 0
+        self._train_progress_total = 0
+        self._train_progress_visible = False
+
+        username = self._profile._username if self._profile else ""
+        if username:
+            plan = _load_plan(username)
+            if plan.get("generated", False):
+                self._train_progress_completed = plan.get("completed_rounds", 0)
+                self._train_progress_total = plan.get("rounds", 0)
+                self._train_progress_visible = True
+
         self._dialog_active = False
         self._dialog_text = ""
         self._dialog_confirm_rect = pygame.Rect(0, 0, 160, 50)
@@ -403,8 +424,15 @@ class MainMenu:
                             profile=self._profile,
                             control_mode=self._control_mode,
                             skip_connection=True,
+                            completed_rounds=plan.get("completed_rounds", 0),
                         )
                         exec_screen.run()
+                        username = self._profile._username if self._profile else ""
+                        if username:
+                            plan = _load_plan(username)
+                            self._train_progress_completed = plan.get("completed_rounds", 0)
+                            self._train_progress_total = plan.get("rounds", 0)
+                            self._train_progress_visible = plan.get("generated", False)
                         self.result = None
                     else:
                         self.running = False
@@ -430,6 +458,21 @@ class MainMenu:
         self.steam_particles = [p for p in self.steam_particles if p.update()]
 
         self.title_phase += dt * 2
+
+    def _draw_train_progress(self) -> None:
+        r = self._train_panel_rect
+        bg = pygame.Surface((r.width, r.height), pygame.SRCALPHA)
+        pygame.draw.rect(bg, (30, 20, 10, 200), (0, 0, r.width, r.height), border_radius=16)
+        pygame.draw.rect(bg, (200, 140, 60, 160), (0, 0, r.width, r.height), 3, border_radius=16)
+
+        title = self.font.render("进度", True, (255, 220, 150))
+        bg.blit(title, ((r.width - title.get_width()) // 2, 18))
+
+        progress_text = f"{self._train_progress_completed}/{self._train_progress_total}"
+        prog = self.title_font.render(progress_text, True, (255, 255, 255))
+        bg.blit(prog, ((r.width - prog.get_width()) // 2, 55))
+
+        self.screen.blit(bg, r.topleft)
 
     def _draw_dialog(self) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
@@ -590,6 +633,9 @@ class MainMenu:
         self.settings_btn.draw(self.screen)
         self.exit_btn.draw(self.screen)
         self.train_btn.draw(self.screen)
+
+        if self._train_progress_visible:
+            self._draw_train_progress()
 
         if self._conn_dialog_active:
             self._draw_connection_dialog()

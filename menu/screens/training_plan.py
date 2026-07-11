@@ -286,6 +286,7 @@ class TrainingPlanScreen:
         self._username = profile._username if profile else ""
         plan = _load_plan(self._username) if self._username else {}
         self._locked = plan.get("generated", False)
+        self._completed_rounds = plan.get("completed_rounds", 0)
 
         self._panel_w, self._panel_h = 820, 560
         self._panel_x = (SCREEN_WIDTH - self._panel_w) // 2
@@ -367,6 +368,7 @@ class TrainingPlanScreen:
             "stage2": self.stage2_slider.value,
             "stage3": self.stage3_slider.value,
             "rounds": self.round_input.value,
+            "completed_rounds": self._completed_rounds,
             "generated": self._locked,
         }
 
@@ -386,6 +388,7 @@ class TrainingPlanScreen:
         self.stage2_slider.value = _DEFAULTS["stage2"]
         self.stage3_slider.value = _DEFAULTS["stage3"]
         self.round_input.value = _DEFAULTS["rounds"]
+        self._completed_rounds = 0
         self._apply_lock_state()
         self._update_plan_btn()
         self._do_save()
@@ -412,6 +415,7 @@ class TrainingPlanScreen:
             stage2_minutes=self.stage2_slider.value,
             stage3_minutes=self.stage3_slider.value,
             profile=self._profile,
+            completed_rounds=self._completed_rounds,
         )
         exec_screen.run()
 

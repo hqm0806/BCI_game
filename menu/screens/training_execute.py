@@ -64,6 +64,7 @@ class TrainingExecuteScreen:
         profile=None,
         control_mode: str = "bci",
         skip_connection: bool = False,
+        completed_rounds: int = 0,
     ) -> None:
         self.screen = screen
         self.font = font
@@ -71,6 +72,7 @@ class TrainingExecuteScreen:
         self._audio = audio
         self._bg = bg
         self._rounds = rounds
+        self._completed_rounds = completed_rounds
         self._profile = profile
         self._big_font = load_chinese_font(72)
         self.clock = pygame.time.Clock()
@@ -724,6 +726,13 @@ class TrainingExecuteScreen:
             )
             self._profile.save()
 
+            if duration > 15 * 60 and self._profile and self._profile._username:
+                from menu.screens.training_plan import _load_plan, _save_plan
+                plan = _load_plan(self._profile._username)
+                completed = plan.get("completed_rounds", 0)
+                plan["completed_rounds"] = min(completed + 1, plan.get("rounds", self._rounds))
+                _save_plan(self._profile._username, plan)
+
     def _start_next_stage(self) -> None:
         old_session = self._session
         old_bci_reader = None
@@ -836,7 +845,7 @@ class TrainingExecuteScreen:
             pygame.draw.rect(panel_surf, (200, 160, 100, 180), (0, 0, self._panel_w, self._panel_h), 3, border_radius=16)
         self.screen.blit(panel_surf, (self._panel_x, self._panel_y))
 
-        progress_text = f"轮次 0/{self._rounds}"
+        progress_text = f"轮次 {self._completed_rounds}/{self._rounds}"
         progress_surf = self._big_font.render(progress_text, True, (30, 30, 30))
         tx = SCREEN_WIDTH // 2 - progress_surf.get_width() // 2
         ty = SCREEN_HEIGHT // 2 - progress_surf.get_height() // 2 - 30

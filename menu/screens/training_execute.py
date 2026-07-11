@@ -176,6 +176,11 @@ class TrainingExecuteScreen:
 
         self._session = None
 
+        self._esc_dialog_active: bool = False
+        self._esc_dialog_selected: int = 0
+        self._pending_settings: bool = False
+        self._skip_frame: bool = False
+
         if self._skip_connection:
             self._init_game()
 
@@ -330,10 +335,21 @@ class TrainingExecuteScreen:
                 elif self._conn_dialog_active:
                     self._handle_connection_event(event)
                 elif self._phase in ("game", "clearing", "intro", "done"):
-                    if event.type == pygame.KEYDOWN:
+                    if self._esc_dialog_active:
+                        if event.type == pygame.KEYDOWN:
+                            if event.key == pygame.K_ESCAPE:
+                                self._esc_dialog_active = False
+                            elif event.key in (pygame.K_LEFT, pygame.K_UP):
+                                self._esc_dialog_selected = (self._esc_dialog_selected - 1) % 3
+                            elif event.key in (pygame.K_RIGHT, pygame.K_DOWN, pygame.K_TAB):
+                                self._esc_dialog_selected = (self._esc_dialog_selected + 1) % 3
+                            elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                                self._commit_esc_dialog()
+                        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                            self._handle_esc_dialog_click(event.pos)
+                    elif event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_ESCAPE:
-                            self.running = False
-                            self.result = "back"
+                            self._show_esc_dialog()
                         elif event.key == pygame.K_o:
                             if self._phase == "intro":
                                 self._enter_game()
@@ -402,6 +418,19 @@ class TrainingExecuteScreen:
             self._conn_dialog_timer = 0.0
 
     def _update(self, dt_sec: float) -> None:
+        if self._esc_dialog_active:
+            if getattr(self, "_skip_frame", False):
+                self._skip_frame = False
+            return
+        if self._pending_settings:
+            self._pending_settings = False
+            from menu.screens.game_settings import GameSettingsScreen
+            settings_font = load_chinese_font(32)
+            settings_title = load_chinese_font(60)
+            bg_snapshot = self.screen.copy()
+            settings = GameSettingsScreen(self.screen, settings_font, settings_title, audio=self._audio, bg=bg_snapshot)
+            settings.run()
+            return
         if self._conn_dialog_active:
             self._update_connecting(dt_sec)
         elif self._phase == "splash":
@@ -782,6 +811,9 @@ class TrainingExecuteScreen:
         else:
             self._draw_idle_bg()
 
+        if self._esc_dialog_active:
+            self._draw_esc_dialog()
+
     def _draw_idle_bg(self) -> None:
         if self._bg:
             self.screen.blit(self._bg, (0, 0))
@@ -1031,6 +1063,119 @@ class TrainingExecuteScreen:
         self.screen.blit(
             rest_text,
             (SCREEN_WIDTH // 2 - rest_text.get_width() // 2, SCREEN_HEIGHT // 2 + 80),
+        )
+
+    def _show_esc_dialog(self) -> None:
+        self._esc_dialog_active = True
+        self._esc_dialog_selected = 0
+        self._skip_frame = True
+
+    def _commit_esc_dialog(self) -> None:
+        if self._esc_dialog_selected == 0:
+            self._esc_dialog_active = False
+        elif self._esc_dialog_selected == 1:
+            self._exit_to_summary()
+        else:
+            self._esc_dialog_active = False
+            self._pending_settings = True
+
+    def _handle_esc_dialog_click(self, pos: tuple[int, int]) -> None:
+        if hasattr(self, "_esc_continue_rect") and self._esc_continue_rect.collidepoint(pos):
+            self._esc_dialog_active = False
+        elif hasattr(self, "_esc_exit_rect") and self._esc_exit_rect.collidepoint(pos):
+            self._exit_to_summary()
+        elif hasattr(self, "_esc_settings_rect") and self._esc_settings_rect.collidepoint(pos):
+            self._esc_dialog_active = False
+            self._pending_settings = True
+
+    def _exit_to_summary(self) -> None:
+        self._esc_dialog_active = False
+        session = self._session
+        if session is not None:
+            sm = session.score_manager
+            cm = session.cup_manager
+            if self._current_stage_index == 2:
+                self._accumulated_cups += self._round_successes
+            else:
+                self._accumulated_cups += sum(1 for m in cm.cup_money_history if m > 0)
+            self._accumulated_money += sm.total_money - self._accumulated_money_before_stage
+            self._accumulated_secret_count += sm.secret_recipe_count
+            self._accumulated_failed_cups += sum(1 for m in cm.cup_money_history if m == 0)
+            if session.focus_samples:
+                self._all_focus_samples.extend(session.focus_samples)
+                self._stage_focus_samples.append(list(session.focus_samples))
+        self._show_training_summary()
+        self.running = False
+        self.result = "back"
+
+    def _draw_esc_dialog(self) -> None:
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 160))
+        self.screen.blit(overlay, (0, 0))
+
+        box_w, box_h = 380, 260
+        box_x = (SCREEN_WIDTH - box_w) // 2
+        box_y = (SCREEN_HEIGHT - box_h) // 2
+        box_rect = pygame.Rect(box_x, box_y, box_w, box_h)
+        pygame.draw.rect(self.screen, (30, 28, 20), box_rect, border_radius=16)
+        pygame.draw.rect(self.screen, (200, 160, 100), box_rect, 3, border_radius=16)
+
+        title = self.title_font.render("暂停", True, (255, 255, 255))
+        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, box_y + 25))
+
+        btn_w, btn_h = 150, 48
+        btn_y = box_y + 90
+        gap = 20
+        left_x = SCREEN_WIDTH // 2 - btn_w - gap // 2
+        right_x = SCREEN_WIDTH // 2 + gap // 2
+
+        continue_selected = self._esc_dialog_selected == 0
+        exit_selected = self._esc_dialog_selected == 1
+        settings_selected = self._esc_dialog_selected == 2
+
+        selected_border = (255, 255, 255)
+        normal_border = (100, 100, 100)
+
+        self._esc_continue_rect = pygame.Rect(left_x, btn_y, btn_w, btn_h)
+        continue_border = selected_border if continue_selected else normal_border
+        pygame.draw.rect(self.screen, (80, 180, 80), self._esc_continue_rect, border_radius=10)
+        pygame.draw.rect(self.screen, continue_border, self._esc_continue_rect, 3, border_radius=10)
+        continue_text = self.font.render("继续训练", True, (255, 255, 255))
+        self.screen.blit(
+            continue_text,
+            (
+                self._esc_continue_rect.centerx - continue_text.get_width() // 2,
+                self._esc_continue_rect.centery - continue_text.get_height() // 2,
+            ),
+        )
+
+        self._esc_exit_rect = pygame.Rect(right_x, btn_y, btn_w, btn_h)
+        exit_border = selected_border if exit_selected else normal_border
+        pygame.draw.rect(self.screen, (200, 60, 60), self._esc_exit_rect, border_radius=10)
+        pygame.draw.rect(self.screen, exit_border, self._esc_exit_rect, 3, border_radius=10)
+        exit_text = self.font.render("退出训练", True, (255, 255, 255))
+        self.screen.blit(
+            exit_text,
+            (
+                self._esc_exit_rect.centerx - exit_text.get_width() // 2,
+                self._esc_exit_rect.centery - exit_text.get_height() // 2,
+            ),
+        )
+
+        settings_btn_w = 200
+        settings_btn_y = btn_y + btn_h + 16
+        settings_btn_x = SCREEN_WIDTH // 2 - settings_btn_w // 2
+        self._esc_settings_rect = pygame.Rect(settings_btn_x, settings_btn_y, settings_btn_w, btn_h)
+        settings_border = selected_border if settings_selected else normal_border
+        pygame.draw.rect(self.screen, (220, 160, 60), self._esc_settings_rect, border_radius=10)
+        pygame.draw.rect(self.screen, settings_border, self._esc_settings_rect, 3, border_radius=10)
+        settings_text = self.font.render("游戏设置", True, (255, 255, 255))
+        self.screen.blit(
+            settings_text,
+            (
+                self._esc_settings_rect.centerx - settings_text.get_width() // 2,
+                self._esc_settings_rect.centery - settings_text.get_height() // 2,
+            ),
         )
 
     def _draw_connection_dialog(self) -> None:

@@ -207,6 +207,12 @@ class MainMenu:
         except Exception:
             self._conn_bci_reader = None
 
+    def _show_confirmation_dialog(self, text: str) -> None:
+        self._dialog_active = True
+        self._dialog_text = text
+        self._dialog_pending_result = None
+        self._dialog_pending_mode = ""
+
     def _try_bci_read(self) -> bool:
         if self._conn_bci_reader is None:
             return False
@@ -220,6 +226,11 @@ class MainMenu:
 
     def _start_game(self, control_key: str, click_frames: list) -> None:
         if control_key == "training":
+            username = self._profile._username if self._profile else ""
+            plan = _load_plan(username) if username else {}
+            if not plan.get("generated", False):
+                self._show_confirmation_dialog("请先生成训练计划")
+                return
             self._show_connection_dialog("training", "infinite")
         elif control_key == "bci_normal":
             self._show_connection_dialog("start", "bci")

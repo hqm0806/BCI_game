@@ -468,8 +468,13 @@ class MainMenu:
         title = self.font.render("进度", True, (255, 220, 150))
         bg.blit(title, ((r.width - title.get_width()) // 2, 18))
 
-        progress_text = f"{self._train_progress_completed}/{self._train_progress_total}"
-        prog = self.title_font.render(progress_text, True, (255, 255, 255))
+        if self._train_progress_visible:
+            progress_text = f"{self._train_progress_completed}/{self._train_progress_total}"
+            prog_color = (255, 255, 255)
+        else:
+            progress_text = "无进度"
+            prog_color = (120, 120, 140)
+        prog = self.title_font.render(progress_text, True, prog_color)
         bg.blit(prog, ((r.width - prog.get_width()) // 2, 55))
 
         self.screen.blit(bg, r.topleft)
@@ -633,9 +638,7 @@ class MainMenu:
         self.settings_btn.draw(self.screen)
         self.exit_btn.draw(self.screen)
         self.train_btn.draw(self.screen)
-
-        if self._train_progress_visible:
-            self._draw_train_progress()
+        self._draw_train_progress()
 
         if self._conn_dialog_active:
             self._draw_connection_dialog()

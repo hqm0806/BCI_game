@@ -12,7 +12,7 @@ from menu.components import MenuItem
 from menu.screens.training_execute import TrainingExecuteScreen
 
 _CTRL_WIDTH = 260
-_CTRL_LEFT = SCREEN_WIDTH // 2 - _CTRL_WIDTH // 2 - 100
+_CTRL_LEFT = SCREEN_WIDTH // 2 - _CTRL_WIDTH // 2
 _LABEL_RIGHT = _CTRL_LEFT - 20
 
 _DEFAULTS = {"stage1": 3, "stage2": 7, "stage3": 5, "rounds": 16}

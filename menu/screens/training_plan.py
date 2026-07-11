@@ -350,6 +350,10 @@ class TrainingPlanScreen:
 
         self._apply_lock_state()
 
+        self._confirm_dialog_active = False
+        self._confirm_confirm_rect = pygame.Rect(0, 0, 0, 0)
+        self._confirm_cancel_rect = pygame.Rect(0, 0, 0, 0)
+
     def _apply_lock_state(self) -> None:
         enabled = not self._locked
         self.stage1_slider.set_enabled(enabled)
@@ -416,6 +420,20 @@ class TrainingPlanScreen:
         while self.running:
             dt = self.clock.tick(60) / 1000.0
             for event in pygame.event.get():
+                if self._confirm_dialog_active:
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        if self._confirm_confirm_rect.collidepoint(event.pos):
+                            self._do_reset()
+                            self._confirm_dialog_active = False
+                        elif self._confirm_cancel_rect.collidepoint(event.pos):
+                            self._confirm_dialog_active = False
+                    elif event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_RETURN:
+                            self._do_reset()
+                            self._confirm_dialog_active = False
+                        elif event.key == pygame.K_ESCAPE:
+                            self._confirm_dialog_active = False
+                    continue
                 if event.type == pygame.QUIT:
                     self.running = False
                     self.result = "quit"
@@ -434,7 +452,10 @@ class TrainingPlanScreen:
                         else:
                             self._do_generate()
                     if self.reset_btn.handle_event(event):
-                        self._do_reset()
+                        if self._locked:
+                            self._confirm_dialog_active = True
+                        else:
+                            self._do_reset()
                     self.stage1_slider.handle_event(event)
                     self.stage2_slider.handle_event(event)
                     self.stage3_slider.handle_event(event)
@@ -479,3 +500,55 @@ class TrainingPlanScreen:
         self.back_btn.draw(self.screen)
         self.plan_btn.draw(self.screen)
         self.reset_btn.draw(self.screen)
+
+        if self._confirm_dialog_active:
+            self._draw_confirm_dialog()
+
+    def _draw_confirm_dialog(self) -> None:
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 140))
+        self.screen.blit(overlay, (0, 0))
+
+        box_w = 420
+        box_h = 180
+        box_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+        pygame.draw.rect(box_surf, (40, 30, 25, 230), (0, 0, box_w, box_h), border_radius=16)
+        pygame.draw.rect(box_surf, (255, 200, 100, 180), (0, 0, box_w, box_h), 3, border_radius=16)
+
+        text = self.title_font.render("确认重置训练计划？", True, (255, 255, 255))
+        tx = (box_w - text.get_width()) // 2
+        ty = 30
+        box_surf.blit(text, (tx, ty))
+
+        btn_w = 140
+        btn_h = 44
+        btn_y = 95
+        gap = 40
+        total_w = btn_w * 2 + gap
+        btn_start_x = (box_w - total_w) // 2
+
+        confirm_x = btn_start_x
+        cancel_x = btn_start_x + btn_w + gap
+
+        pygame.draw.rect(box_surf, (100, 180, 100), (confirm_x, btn_y, btn_w, btn_h), border_radius=10)
+        pygame.draw.rect(box_surf, (255, 255, 255, 80), (confirm_x, btn_y, btn_w, btn_h), 2, border_radius=10)
+        confirm_text = self.font.render("确认", True, (255, 255, 255))
+        box_surf.blit(confirm_text, (
+            confirm_x + (btn_w - confirm_text.get_width()) // 2,
+            btn_y + (btn_h - confirm_text.get_height()) // 2,
+        ))
+
+        pygame.draw.rect(box_surf, (200, 60, 60), (cancel_x, btn_y, btn_w, btn_h), border_radius=10)
+        pygame.draw.rect(box_surf, (255, 255, 255, 80), (cancel_x, btn_y, btn_w, btn_h), 2, border_radius=10)
+        cancel_text = self.font.render("取消", True, (255, 255, 255))
+        box_surf.blit(cancel_text, (
+            cancel_x + (btn_w - cancel_text.get_width()) // 2,
+            btn_y + (btn_h - cancel_text.get_height()) // 2,
+        ))
+
+        bx = SCREEN_WIDTH // 2 - box_w // 2
+        by = SCREEN_HEIGHT // 2 - box_h // 2
+        self.screen.blit(box_surf, (bx, by))
+
+        self._confirm_confirm_rect = pygame.Rect(bx + confirm_x, by + btn_y, btn_w, btn_h)
+        self._confirm_cancel_rect = pygame.Rect(bx + cancel_x, by + btn_y, btn_w, btn_h)

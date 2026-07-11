@@ -160,6 +160,11 @@ class PlayerProfile:
             del self.games_history[index]
             self._recalculate()
 
+    def remove_training(self, index: int) -> None:
+        if 0 <= index < len(self.training_history):
+            del self.training_history[index]
+            self._recalculate()
+
     def clear_history(self) -> None:
         self.games_history.clear()
         self._recalculate()

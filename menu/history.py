@@ -427,17 +427,25 @@ class HistoryScreen:
                 except ValueError:
                     real_idx = -1
                 if real_idx >= 0:
-                    original_len = len(self._profile.games_history)
-                    reversed_idx = original_len - 1 - real_idx
-                    if 0 <= reversed_idx < original_len:
-                        self._profile.remove_game(reversed_idx)
+                    game_len = len(self._profile.games_history)
+                    if real_idx < game_len:
+                        reversed_idx = game_len - 1 - real_idx
+                        if 0 <= reversed_idx < game_len:
+                            self._profile.remove_game(reversed_idx)
+                    else:
+                        training_idx = real_idx - game_len
+                        train_len = len(self._profile.training_history)
+                        reversed_idx = train_len - 1 - training_idx
+                        if 0 <= reversed_idx < train_len:
+                            self._profile.remove_training(reversed_idx)
             self._refresh_games()
         self._profile.save()
         self._scroll = 0
 
     def _refresh_games(self) -> None:
         if self._profile:
-            self.games = list(reversed(self._profile.games_history))
+            training = self._profile.training_history
+            self.games = list(reversed(self._profile.games_history)) + list(reversed(training))
 
     def _draw_dialog(self) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)

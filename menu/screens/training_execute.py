@@ -339,6 +339,11 @@ class TrainingExecuteScreen:
                                 self._enter_game()
                             else:
                                 self._finish_stage()
+                        elif event.key == pygame.K_SPACE:
+                            if self._session is not None:
+                                yaw = not self._session.use_yaw_control
+                                self._session.use_yaw_control = yaw
+                                self._session.cup.yaw_control = yaw
                 elif self._phase == "idle":
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                         self.running = False

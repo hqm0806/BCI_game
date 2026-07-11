@@ -79,6 +79,8 @@ class LoginScreen:
                     return None
                 if event.type == pygame.KEYDOWN:
                     self._handle_key(event)
+                elif event.type == pygame.TEXTINPUT:
+                    self._handle_textinput(event)
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     self._handle_click(event.pos)
 
@@ -106,15 +108,14 @@ class LoginScreen:
             elif self._active_field == "password" and self._password:
                 self._password = self._password[:-1]
             self._message = ""
-            return
 
-        if event.unicode and event.unicode.isprintable() and len(event.unicode) == 1:
-            ch = event.unicode
+    def _handle_textinput(self, event: pygame.event.Event) -> None:
+        for ch in event.text:
             if self._active_field == "username" and len(self._username) < 16:
                 self._username += ch
             elif self._active_field == "password" and len(self._password) < 16:
                 self._password += ch
-            self._message = ""
+        self._message = ""
 
     def _handle_click(self, pos: tuple[int, int]) -> None:
         if self._btn_login.collidepoint(pos):

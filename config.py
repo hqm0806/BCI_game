@@ -136,6 +136,7 @@ SHOW_FOCUS_BALL = True  # 是否显示专注力球
 # ============================================================
 SUMMARY_PANEL_IMG = os.path.join(IMAGES_DIR, "other", "结算面板.png")
 SETTINGS_PANEL_IMG = os.path.join(IMAGES_DIR, "other", "设置面板.png")
+TRAINING_PANEL_IMG = os.path.join(IMAGES_DIR, "other", "训练计划面板.png")
 SUMMARY_PANEL_SIZE = (1024, 658)
 SUMMARY_PANEL_POS = (128, 31)  # centered on 1280x720
 SUMMARY_BTN_W = 200

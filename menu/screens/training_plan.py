@@ -7,7 +7,7 @@ import os
 
 import pygame
 
-from config import SCREEN_HEIGHT, SCREEN_WIDTH, SETTINGS_PANEL_IMG
+from config import SCREEN_HEIGHT, SCREEN_WIDTH, TRAINING_PANEL_IMG
 from menu.components import MenuItem
 from menu.screens.training_execute import TrainingExecuteScreen
 
@@ -292,9 +292,9 @@ class TrainingPlanScreen:
         self._panel_y = (SCREEN_HEIGHT - self._panel_h) // 2
 
         self._panel_img = None
-        if os.path.exists(SETTINGS_PANEL_IMG):
+        if os.path.exists(TRAINING_PANEL_IMG):
             try:
-                img = pygame.image.load(SETTINGS_PANEL_IMG).convert_alpha()
+                img = pygame.image.load(TRAINING_PANEL_IMG).convert_alpha()
                 self._panel_img = pygame.transform.smoothscale(img, (self._panel_w, self._panel_h))
             except Exception:
                 pass

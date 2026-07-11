@@ -14,7 +14,7 @@ from config import (
     OUTLET_POSITIONS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
-    SETTINGS_PANEL_IMG,
+    TRAINING_PANEL_IMG,
 )
 from data.memory_recipes import MEMORY_RECIPES
 from game.font_utils import load_chinese_font
@@ -131,9 +131,9 @@ class TrainingExecuteScreen:
         self._panel_y = (SCREEN_HEIGHT - self._panel_h) // 2
 
         self._panel_img = None
-        if os.path.exists(SETTINGS_PANEL_IMG):
+        if os.path.exists(TRAINING_PANEL_IMG):
             try:
-                img = pygame.image.load(SETTINGS_PANEL_IMG).convert_alpha()
+                img = pygame.image.load(TRAINING_PANEL_IMG).convert_alpha()
                 self._panel_img = pygame.transform.smoothscale(img, (self._panel_w, self._panel_h))
             except Exception:
                 pass

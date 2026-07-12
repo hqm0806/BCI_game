@@ -27,6 +27,7 @@ from menu.screens.game_settings import GameSettingsScreen
 from menu.screens.training_plan import TrainingPlanScreen
 from menu.screens.training_plan import _load_plan, _DEFAULTS
 from menu.screens.training_execute import TrainingExecuteScreen
+from menu.screens.gameplay_intro import GameplayIntroScreen
 
 
 class MainMenu:
@@ -164,6 +165,11 @@ class MainMenu:
             width=train_w,
             padding=(30, 68),
         )
+
+        self._gameplay_label = self.font.render("玩法介绍", True, (20, 20, 30))
+        label_w = self._gameplay_label.get_width() + 12
+        label_h = self._gameplay_label.get_height() + 8
+        self._gameplay_rect = pygame.Rect(SCREEN_WIDTH - label_w - 12, 12, label_w, label_h)
 
         self.btn_cx = (col1_x + col2_x) // 2  # 标题居中于四个按钮上方
 
@@ -375,6 +381,12 @@ class MainMenu:
                         click_frames[0] = 15
                         if self._audio:
                             self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        if self._gameplay_rect.collidepoint(event.pos):
+                            self.result = "gameplay_intro"
+                            click_frames[0] = 15
+                            if self._audio:
+                                self._audio.play_sfx("音效/按键1.mp3", volume=0.5)
 
             if self._conn_dialog_active:
                 self._conn_dialog_timer += dt
@@ -409,6 +421,11 @@ class MainMenu:
                         bg_snapshot = self.screen.copy()
                         training_screen = TrainingPlanScreen(self.screen, self.font, self.title_font, audio=self._audio, bg=bg_snapshot, profile=self._profile)
                         training_screen.run()
+                        self.result = None
+                    elif self.result == "gameplay_intro":
+                        bg_snapshot = self.screen.copy()
+                        intro = GameplayIntroScreen(self.screen, bg=bg_snapshot)
+                        intro.run()
                         self.result = None
                     elif self.result == "training":
                         bg_snapshot = self.screen.copy()
@@ -639,6 +656,12 @@ class MainMenu:
         self.exit_btn.draw(self.screen)
         self.train_btn.draw(self.screen)
         self._draw_train_progress()
+
+        mx, my = pygame.mouse.get_pos()
+        hover = self._gameplay_rect.collidepoint(mx, my)
+        color = (60, 60, 80) if hover else (20, 20, 30)
+        self._gameplay_label = self.font.render("玩法介绍", True, color)
+        self.screen.blit(self._gameplay_label, (self._gameplay_rect.x + 6, self._gameplay_rect.y + 4))
 
         if self._conn_dialog_active:
             self._draw_connection_dialog()

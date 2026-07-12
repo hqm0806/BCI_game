@@ -232,6 +232,9 @@ class TrainingExecuteScreen:
             audio=self._audio,
             training_duration=duration,
             ingredient_points=TRAINING_INGREDIENT_POINTS,
+            secret_threshold=None if stage_idx == 2 else 50,
+            secret_sustain=None if stage_idx == 2 else 3,
+            secret_disabled=(stage_idx == 2),
         )
         self._session.cup_manager.cup_number = self._accumulated_cups
 
@@ -780,6 +783,11 @@ class TrainingExecuteScreen:
         self._current_norm_lower = norm_lower
         self._current_norm_upper = norm_upper
 
+        if stage_idx == 1:
+            secret_kwargs = dict(secret_threshold=self._baseline + 10, secret_sustain=5)
+        else:
+            secret_kwargs = dict(secret_disabled=True)
+
         self._session = GameSession(
             self.screen,
             self.clock,
@@ -792,6 +800,7 @@ class TrainingExecuteScreen:
             norm_lower=norm_lower,
             norm_upper=norm_upper,
             ingredient_points=TRAINING_INGREDIENT_POINTS,
+            **secret_kwargs,
         )
         self._session.bci_mode = True
         self._session.score_manager.total_money = self._accumulated_money

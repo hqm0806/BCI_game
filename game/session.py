@@ -133,6 +133,9 @@ class GameSession:
         norm_lower: float = 30.0,
         norm_upper: float = 70.0,
         ingredient_points: dict | None = None,
+        secret_threshold: float | None = None,
+        secret_sustain: float = 8.0,
+        secret_disabled: bool = False,
     ) -> None:
         self.screen = screen
         self.clock = clock
@@ -147,6 +150,9 @@ class GameSession:
         self._norm_lower = norm_lower
         self._norm_upper = norm_upper
         self._ingredient_points = ingredient_points
+        self._secret_threshold = secret_threshold
+        self._secret_sustain = secret_sustain
+        self._secret_disabled = secret_disabled
 
         self._load_mode_config()
         self._load_fonts()
@@ -718,12 +724,26 @@ class GameSession:
         if self._secret_popup_timer > 0:
             self._secret_popup_timer -= dt_sec
             return
+        if self._secret_disabled:
+            return
         if self.cup_manager.secret_recipe_spawned:
             return
         if self.cup_manager.cup_ended:
             return
 
-        if self.bci_mode and self.bci_available:
+        if self._secret_threshold is not None:
+            attn = self.attention if self.attention is not None else 50.0
+            if attn > self._secret_threshold:
+                self.focus_above_seconds += dt_sec
+            else:
+                self.focus_above_seconds = 0.0
+            if self.focus_above_seconds >= self._secret_sustain and self.cup_manager.trigger_secret_recipe():
+                self._secret_popup_timer = 4.0
+                self.focus_above_seconds = 0.0
+                if self._audio:
+                    self._audio.play_sfx("音效/触发秘方.wav", volume=0.7)
+                logger.info("秘方触发！专注力高于阈值 %.0f 持续 %.0f 秒", self._secret_threshold, self._secret_sustain)
+        elif self.bci_mode and self.bci_available:
             threshold = self._cup_baseline + 10
             attn = self.attention if self.attention is not None else 50.0
             if attn > threshold:

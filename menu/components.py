@@ -163,6 +163,7 @@ class Badge:
         level_text: str = "",
         font: pygame.font.Font | None = None,
         text_color: tuple[int, int, int] = (255, 215, 0),
+        outline_color: tuple[int, int, int] | None = None,
     ) -> None:
         self.images = images
         self.x = x
@@ -171,6 +172,7 @@ class Badge:
         self.level_text = level_text
         self.level_font = font
         self.text_color = text_color
+        self.outline_color = outline_color
         self.level = 0
         self.badge_surf = None
         self.hovered = False
@@ -221,11 +223,18 @@ class Badge:
             pygame.draw.rect(screen, (255, 215, 0), rect, border_radius=8)
 
         if self.level_text and self.level_font:
-            txt = self.level_font.render(self.level_text, True, self.text_color)
             badge_w = self.badge_surf.get_width() if self.badge_surf else self.size[0]
-            tx = self.x + badge_w // 2 - txt.get_width() // 2
+            tx = self.x + badge_w // 2
             ty = self.y + (self.badge_surf.get_height() if self.badge_surf else self.size[1]) + 4
-            screen.blit(txt, (tx, ty))
+            if self.outline_color:
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        if dx == 0 and dy == 0:
+                            continue
+                        out = self.level_font.render(self.level_text, True, self.outline_color)
+                        screen.blit(out, (tx - out.get_width() // 2 + dx, ty + dy))
+            txt = self.level_font.render(self.level_text, True, self.text_color)
+            screen.blit(txt, (tx - txt.get_width() // 2, ty))
 
         for p in self.hover_particles:
             p.draw(screen)

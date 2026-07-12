@@ -55,14 +55,17 @@ class MainMenu:
         self._profile = profile
 
         self.bg = self._load_bg()
+        level_font = load_chinese_font(28)
+        level_font.set_bold(True)
         self.badge = Badge(
             BADGE_IMGS,
             40,
             10,
             size=(100, 100),
             level_text=f"Lv.{player_level}",
-            font=load_chinese_font(28),
+            font=level_font,
             text_color=(30, 30, 30),
+            outline_color=(120, 10, 10),
         )
         self.badge.set_level(player_level - 1)
         self.floating_items = [

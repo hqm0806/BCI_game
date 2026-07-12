@@ -211,9 +211,13 @@ class GameplayIntroScreen:
                         if i == 1 and j == len(extra_parts) - 1 and self._recipe_icon:
                             icon_x = left_margin + surf3.get_width() + 8
                             icon_y = y
-                            wobble_x = int(math.sin(self._wobble_time * 4.0) * 3)
+                            wobble_x = int(math.sin(self._wobble_time * 4.0) * 1.5)
                             wobble_y = int(math.cos(self._wobble_time * 3.5) * 2)
-                            self.screen.blit(self._recipe_icon, (icon_x + wobble_x, icon_y + wobble_y))
+                            wobble_angle = math.sin(self._wobble_time * 3.0) * 3
+                            rotated = pygame.transform.rotozoom(self._recipe_icon, wobble_angle, 1.0)
+                            rx = icon_x + wobble_x - (rotated.get_width() - self._recipe_icon.get_width()) // 2
+                            ry = icon_y + wobble_y - (rotated.get_height() - self._recipe_icon.get_height()) // 2
+                            self.screen.blit(rotated, (rx, ry))
                         y += font.get_height() + 12
             else:
                 y += font.get_height() + 12

@@ -20,17 +20,20 @@ _PAGE_TITLES = ["游戏规则", "食材说明", "四种模式"]
 
 
 class _Particle:
-    __slots__ = ("life", "vx", "vy", "x", "y")
+    __slots__ = ("life", "vx", "vy", "x", "y", "image", "size")
 
     def __init__(self, x: float, y: float) -> None:
         angle = random.uniform(0, 2 * math.pi)
-        dist = random.uniform(15, 35)
+        dist = random.uniform(20, 40)
         self.x = x + math.cos(angle) * dist
         self.y = y + math.sin(angle) * dist
         speed = random.uniform(0.5, 1.5)
         self.vx = math.cos(angle) * speed
-        self.vy = math.sin(angle) * speed - 1.5
+        self.vy = math.sin(angle) * speed
         self.life = 1.0
+        self.size = random.randint(3, 8)
+        self.image = pygame.Surface((self.size, self.size), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, (255, 215, 0, 255), (self.size // 2, self.size // 2), self.size // 2)
 
     def update(self, dt: float) -> bool:
         self.life -= 2.5 * dt
@@ -39,6 +42,7 @@ class _Particle:
         self.x += self.vx * dt * 60
         self.y += self.vy * dt * 60
         self.vy += 0.15 * dt * 60
+        self.image.set_alpha(int(self.life * 255))
         return False
 
 
@@ -229,10 +233,13 @@ class GameplayIntroScreen:
 
         opt_label = self._sub_font.render("选接", True, (30, 90, 30))
         req_label = self._sub_font.render("必接", True, (160, 30, 20))
-        label_gap = 420
+        label_gap = 300
         self.screen.blit(opt_label, (cx - label_gap - opt_label.get_width() // 2, y))
         self.screen.blit(req_label, (cx + label_gap - req_label.get_width() // 2, y))
         y += opt_label.get_height() + 16
+
+        for p in self._particles:
+            self.screen.blit(p.image, (int(p.x - p.size // 2), int(p.y - p.size // 2)))
 
         opt_x = cx - label_gap - (len(self._opt_imgs) * (self._ing_img_size + self._ing_gap) - self._ing_gap) // 2
         req_x = cx + label_gap - (len(self._req_imgs) * (self._ing_img_size + self._ing_gap) - self._ing_gap) // 2
@@ -284,9 +291,8 @@ class GameplayIntroScreen:
             return
 
         for pos in self._req_positions:
-            if len(self._particles) < 80:
-                for _ in range(2):
-                    self._particles.append(_Particle(float(pos[0]), float(pos[1])))
+            for _ in range(4):
+                self._particles.append(_Particle(float(pos[0]), float(pos[1])))
 
         self._particles = [p for p in self._particles if not p.update(dt)]
 
@@ -314,18 +320,9 @@ class GameplayIntroScreen:
         if self._current_page == 0:
             self._draw_page1(cx, y + 10)
         elif self._current_page == 1:
-            self._draw_page2(cx, y)
+            self._draw_page2(cx, y + 10)
         else:
             self._draw_page3(cx, y)
-
-        for p in self._particles:
-            alpha = int(p.life * 255)
-            if alpha > 0:
-                r = int(2 + (1 - p.life) * 2)
-                color = (255, 215, 0, alpha)
-                surf = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
-                pygame.draw.circle(surf, color, (r, r), r)
-                self.screen.blit(surf, (int(p.x - r), int(p.y - r)))
 
         if self._current_page > 0:
             self._draw_arrow(self._left_arrow_rect, "<")

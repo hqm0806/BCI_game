@@ -262,16 +262,36 @@ class GameplayIntroScreen:
 
     def _draw_page3(self, cx: int, y: int) -> None:
         modes = [
-            ("原萃", "专注力直接控制", "驱动食材速度"),
-            ("特调", "自适应难度调节", "玩家个性化体验"),
-            ("忆调", "先记忆食材顺序", "再依次接住"),
-            ("训练", "原萃 + 特调 + 忆调", "三阶段组合训练"),
+            ("原萃", [
+                "原始专注力直驱控制，",
+                "无需归一化校准，",
+                "速度随专注力实时变化，",
+                "适合建立个人专注基线",
+            ]),
+            ("特调", [
+                "自适应归一化调节，",
+                "根据个人基线动态调整，",
+                "含冰块干扰与防伪检测，",
+                "45杯制个性化挑战",
+            ]),
+            ("忆调", [
+                "回合制记忆挑战，",
+                "先记忆配方食材顺序，",
+                "再排除干扰依次接住，",
+                "5级难度自适应升降",
+            ]),
+            ("训练", [
+                "三阶段组合训练，",
+                "原萃 > 特调 > 忆调串联，",
+                "各阶段时长可自定义，",
+                "全程数据追踪与分析",
+            ]),
         ]
-        col_gap = 280
-        row_gap = 180
-        base_x = cx - col_gap // 2 - 80
+        col_gap = 330
+        row_gap = 200
+        base_x = cx - col_gap // 2
 
-        for idx, (name, line1, line2) in enumerate(modes):
+        for idx, (name, lines) in enumerate(modes):
             mx = base_x + (idx % 2) * col_gap
             my = y + (idx // 2) * row_gap
 
@@ -279,7 +299,7 @@ class GameplayIntroScreen:
             self.screen.blit(name_surf, (mx - name_surf.get_width() // 2, my))
             my += name_surf.get_height() + 8
 
-            for line in (line1, line2):
+            for line in lines:
                 line_surf = self._body_font.render(line, True, (20, 20, 30))
                 self.screen.blit(line_surf, (mx - line_surf.get_width() // 2, my))
                 my += line_surf.get_height() + 4
@@ -322,7 +342,7 @@ class GameplayIntroScreen:
         elif self._current_page == 1:
             self._draw_page2(cx, y + 10)
         else:
-            self._draw_page3(cx, y)
+            self._draw_page3(cx, y + 10)
 
         if self._current_page > 0:
             self._draw_arrow(self._left_arrow_rect, "<")

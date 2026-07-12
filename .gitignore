@@ -91,3 +91,7 @@ SDK文档
 头环sdk HDataSystemSDK
 .opencode
 HDataSystemSDK202605191455
+
+# bci训练日志
+!bci训练日志/
+!bci训练日志/**

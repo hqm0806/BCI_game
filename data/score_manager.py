@@ -20,7 +20,7 @@ class ScoreManager:
         total_money: 整局总金钱
     """
 
-    def __init__(self) -> None:
+    def __init__(self, points_map: dict | None = None) -> None:
         self.score: int = 0
         self.money: int = 0
         self.total_money: int = 0
@@ -28,6 +28,7 @@ class ScoreManager:
         self.has_required: bool = False
         self.required_ingredient: str | None = None
         self.ingredient_points: dict[str, int] = {}
+        self._points = points_map or INGREDIENT_POINTS
 
         self.cup_count: int = 0
         self.secret_recipe_count: int = 0
@@ -39,7 +40,7 @@ class ScoreManager:
         self.current_cup_ingredients = []
 
     def add_ingredient(self, ingredient_type: str, is_required: bool = False) -> int:
-        points = INGREDIENT_POINTS.get(ingredient_type, 5)
+        points = self._points.get(ingredient_type, 5)
         self.score += points
         self.current_cup_ingredients.append(ingredient_type)
         self.ingredient_points[ingredient_type] = self.ingredient_points.get(ingredient_type, 0) + points

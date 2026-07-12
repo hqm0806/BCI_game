@@ -29,11 +29,13 @@ class CupManager:
         required_type: str | None = None,
         total_cups: int = 12,
         secret_recipe_interval: int = 3,
+        points_map: dict | None = None,
     ) -> None:
         self.has_required = has_required
         self.required_type = required_type
         self.total_cups = total_cups
         self.secret_recipe_interval = secret_recipe_interval
+        self._points = points_map or INGREDIENT_POINTS
 
         self.cup_number: int = 0
         self.cup_start_time: float = 0.0
@@ -64,7 +66,7 @@ class CupManager:
         self.secret_recipe_caught = False
 
     def add_catch(self, ingredient_type: str, is_required: bool = False) -> int:
-        points = INGREDIENT_POINTS.get(ingredient_type, 5)
+        points = self._points.get(ingredient_type, 5)
         self.catch_count += 1
         self.total_catches += 1
 

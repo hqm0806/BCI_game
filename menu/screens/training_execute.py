@@ -14,6 +14,7 @@ from config import (
     OUTLET_POSITIONS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    TRAINING_INGREDIENT_POINTS,
     TRAINING_PANEL_IMG,
 )
 from data.memory_recipes import MEMORY_RECIPES
@@ -230,6 +231,7 @@ class TrainingExecuteScreen:
             control_mode=self._external_control_mode,
             audio=self._audio,
             training_duration=duration,
+            ingredient_points=TRAINING_INGREDIENT_POINTS,
         )
         self._session.cup_manager.cup_number = self._accumulated_cups
 
@@ -789,6 +791,7 @@ class TrainingExecuteScreen:
             fixed_baseline=self._baseline,
             norm_lower=norm_lower,
             norm_upper=norm_upper,
+            ingredient_points=TRAINING_INGREDIENT_POINTS,
         )
         self._session.bci_mode = True
         self._session.score_manager.total_money = self._accumulated_money

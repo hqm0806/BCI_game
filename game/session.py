@@ -132,6 +132,7 @@ class GameSession:
         fixed_baseline: float | None = None,
         norm_lower: float = 30.0,
         norm_upper: float = 70.0,
+        ingredient_points: dict | None = None,
     ) -> None:
         self.screen = screen
         self.clock = clock
@@ -145,6 +146,7 @@ class GameSession:
         self._fixed_baseline = fixed_baseline
         self._norm_lower = norm_lower
         self._norm_upper = norm_upper
+        self._ingredient_points = ingredient_points
 
         self._load_mode_config()
         self._load_fonts()
@@ -194,7 +196,7 @@ class GameSession:
         self.miss_effects = pygame.sprite.Group()
         self.particles = pygame.sprite.Group()
 
-        self.score_manager = ScoreManager()
+        self.score_manager = ScoreManager(points_map=self._ingredient_points)
         start_tier = self._profile.level if self._profile else 1
         self.ingredient_manager = IngredientManager(tier=start_tier)
         self.ingredient_manager.spawn_interval = self.spawn_interval
@@ -207,6 +209,7 @@ class GameSession:
             required_type="红茶" if self.has_required else None,
             total_cups=self._mode_total_cups,
             secret_recipe_interval=self._mode_secret_interval,
+            points_map=self._ingredient_points,
         )
         self._current_tier = 1
 

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-LEVEL_THRESHOLDS = [0, 150, 400, 1000]
+LEVEL_THRESHOLDS = [0, 200, 600, 1000]
 PROFILES_DIR = "profiles"
 
 
@@ -80,7 +80,6 @@ class PlayerProfile:
         last_5min_avg_attention: float = 0.0,
     ) -> int:
         old_level = self.level
-        self.cumulative_revenue += revenue
         self.total_games += 1
         timestamp = time.strftime("%Y-%m-%d %H:%M")
         entry = {
@@ -97,7 +96,6 @@ class PlayerProfile:
             step = max(1, len(focus_samples) // 100)
             entry["focus_samples"] = focus_samples[::step]
         self.games_history.append(entry)
-        self._check_level_up()
         if self.level > old_level + 1:
             self.level = old_level + 1
         if self.level > old_level:
@@ -154,6 +152,8 @@ class PlayerProfile:
                 step = max(1, len(samples) // 50)
                 entry[key] = samples[::step]
         self.training_history.append(entry)
+        self.cumulative_revenue += total_money
+        self._check_level_up()
 
     def remove_game(self, index: int) -> None:
         if 0 <= index < len(self.games_history):
@@ -171,7 +171,7 @@ class PlayerProfile:
 
     def _recalculate(self) -> None:
         self.total_games = len(self.games_history)
-        self.cumulative_revenue = sum(g.get("revenue", g.get("total_money", 0)) for g in self.games_history)
+        self.cumulative_revenue = sum(g.get("total_money", 0) for g in self.training_history)
         self._check_level_up()
 
     def _check_level_up(self) -> None:

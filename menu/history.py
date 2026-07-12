@@ -350,7 +350,7 @@ class HistoryScreen:
             cy = end + gap_h
 
     def _draw_trend_curve(self, right_x: int, right_w: int) -> None:
-        regular_games = [g for g in self.games if g.get("mode") in ("regular", "bci")]
+        regular_games = [g for g in self.games if g.get("duration", 0) >= 600]
         regular_games.sort(key=lambda g: g.get("date", ""))
 
         graph_x = right_x + 60
@@ -370,7 +370,7 @@ class HistoryScreen:
         self.screen.blit(y_label, (graph_x - 30, graph_y - 18))
 
         if not regular_games:
-            no_data = self.font.render("暂无特调模式数据", True, (150, 150, 150))
+            no_data = self.font.render("暂无超10分钟的游戏数据", True, (150, 150, 150))
             self.screen.blit(
                 no_data,
                 (graph_x + graph_w // 2 - no_data.get_width() // 2, graph_y + graph_h // 2 - 10),

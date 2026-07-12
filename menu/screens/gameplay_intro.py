@@ -53,7 +53,7 @@ class GameplayIntroScreen:
 
         self._title_font = load_chinese_font(44)
         self._sub_font = load_chinese_font(32)
-        self._body_font = load_chinese_font(26)
+        self._body_font = load_chinese_font(30)
         self._small_font = load_chinese_font(20)
         self._btn_font = load_chinese_font(36)
 
@@ -85,7 +85,9 @@ class GameplayIntroScreen:
         self._particles: list[_Particle] = []
         self._req_positions: list[tuple[int, int]] = []
 
+        self._wobble_time = 0.0
         self._load_ingredient_images()
+        self._load_recipe_icon()
 
     def _load_ingredient_images(self) -> None:
         self._req_imgs: list[pygame.Surface] = []
@@ -111,6 +113,17 @@ class GameplayIntroScreen:
         surf = pygame.Surface((size, size), pygame.SRCALPHA)
         pygame.draw.circle(surf, (180, 180, 180), (size // 2, size // 2), size // 2)
         return surf
+
+    def _load_recipe_icon(self) -> None:
+        path = INGREDIENT_IMGS.get("秘方", "")
+        self._recipe_icon = None
+        if path and os.path.exists(path):
+            try:
+                img = pygame.image.load(path).convert_alpha()
+                icon_h = self._body_font.get_height()
+                self._recipe_icon = pygame.transform.smoothscale(img, (icon_h, icon_h))
+            except Exception:
+                pass
 
     def run(self) -> None:
         while self.running:
@@ -171,13 +184,12 @@ class GameplayIntroScreen:
 
     def _draw_page1(self, cx: int, y: int) -> None:
         rules = [
-            ("每杯奶茶制作时间 20 秒", None),
-            ("必接食材必须至少接住一次，", "否则整杯收益为 0"),
-            ("专注力越高，单杯收益越高", None),
-            ("累计收益达到一定值，", "等级提升，解锁更多食材"),
-            ("头环失灵时，", "按空格键切换为键盘操控"),
+            ("一杯奶茶制作时间为20 秒，每杯奶茶需要至少接住一个必接食材", "否则\n整杯收益为 0。"),
+            ("专注力指数越高，单杯收益越高；持续保持高专注力下","还会触发神秘\n加倍秘方。"),
+            ("累计收益达到一定值，", "将提升店面等级，解锁更多食材！！！"),
+            ("头环失灵时，","按空格键切换为键盘操控，不要移动头环位置。"),
         ]
-        left_margin = self._panel_x + 80
+        left_margin = self._panel_x + 60
         normal_color = (20, 20, 30)
         red_color = (160, 20, 20)
         font = self._body_font
@@ -187,9 +199,24 @@ class GameplayIntroScreen:
             self.screen.blit(surf, (left_margin, y))
             cx_offset = left_margin + surf.get_width()
             if red_text:
-                surf2 = font.render(red_text, True, red_color)
+                parts = red_text.split("\n")
+                surf2 = font.render(parts[0], True, red_color)
                 self.screen.blit(surf2, (cx_offset, y))
-            y += font.get_height() + 12
+                y += font.get_height() + 12
+                extra_parts = parts[1:]
+                for j, rp in enumerate(extra_parts):
+                    if rp:
+                        surf3 = font.render(rp, True, red_color)
+                        self.screen.blit(surf3, (left_margin, y))
+                        if i == 1 and j == len(extra_parts) - 1 and self._recipe_icon:
+                            icon_x = left_margin + surf3.get_width() + 8
+                            icon_y = y
+                            wobble_x = int(math.sin(self._wobble_time * 4.0) * 3)
+                            wobble_y = int(math.cos(self._wobble_time * 3.5) * 2)
+                            self.screen.blit(self._recipe_icon, (icon_x + wobble_x, icon_y + wobble_y))
+                        y += font.get_height() + 12
+            else:
+                y += font.get_height() + 12
 
     def _draw_page2(self, cx: int, y: int) -> None:
         hint1 = self._body_font.render("金色粒子标记为必接，无标记为选接", True, (20, 20, 30))
@@ -247,6 +274,7 @@ class GameplayIntroScreen:
                 my += line_surf.get_height() + 4
 
     def _update_particles(self, dt: float) -> None:
+        self._wobble_time += dt
         if self._current_page != 1:
             self._particles.clear()
             return
@@ -280,7 +308,7 @@ class GameplayIntroScreen:
         y = y_area + 20
 
         if self._current_page == 0:
-            self._draw_page1(cx, y)
+            self._draw_page1(cx, y + 10)
         elif self._current_page == 1:
             self._draw_page2(cx, y)
         else:

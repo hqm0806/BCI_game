@@ -94,5 +94,8 @@ class AudioManager:
     @staticmethod
     def init() -> None:
         """初始化 pygame.mixer"""
-        pygame.mixer.init()
+        try:
+            pygame.mixer.init()
+        except pygame.error:
+            pygame.mixer.init(frequency=44100, size=-16, channels=2)
         pygame.mixer.set_num_channels(16)

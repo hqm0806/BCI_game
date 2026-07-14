@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["font.size"] = 10.5
 
 
 def normalize_to_range(attn: float, lower: float, upper: float) -> float:
@@ -64,7 +65,7 @@ def run_speed_test():
     print(f"  单调性: {'PASS' if monotonic_ok else 'FAIL'}")
     print(f"  范围:    {'PASS' if range_ok else 'FAIL'}")
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(5.90, 2.91))
     colors = ["#2E86AB", "#A23B72", "#F18F01"]
     for (label, _, _), c in zip(baselines, colors):
         ax.plot(range(101), all_speeds[label], linewidth=2, color=c, label=label)
@@ -72,8 +73,8 @@ def run_speed_test():
     ax.axhline(y=4.5, color="gray", linestyle=":", alpha=0.5, label="上限 4.5")
     ax.set_xlabel("注意力值")
     ax.set_ylabel("食材速度 (px/frame)")
-    ax.set_title("速度映射曲线 — 不同归一化基准", fontsize=12, fontweight="bold")
-    ax.legend(fontsize=9)
+    ax.set_title("速度映射曲线 — 不同归一化基准", fontweight="bold")
+    ax.legend()
     ax.set_xlim(0, 100)
     ax.set_ylim(1.5, 5.0)
     ax.grid(True, alpha=0.3)
@@ -126,7 +127,7 @@ def run_ice_test():
     theories = [r[2] * 100 for r in results]
     errors = [r[3] for r in results]
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(5.89, 2.91))
     x = np.arange(len(labels))
     w = 0.35
     bars1 = ax.bar(x - w / 2, theories, w, label="理论值", color="#B0C4DE", edgecolor="#5A7D9A")
@@ -134,13 +135,13 @@ def run_ice_test():
 
     for bar, act, err in zip(bars2, actuals, errors):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.0,
-                f"{err:.1f}%", ha="center", va="bottom", fontsize=8, color="red")
+                f"{err:.1f}%", ha="center", va="bottom", color="red")
 
     ax.set_xticks(x)
-    ax.set_xticklabels([r[0].split("(")[0].strip() for r in results], fontsize=9)
+    ax.set_xticklabels([r[0].split("(")[0].strip() for r in results])
     ax.set_ylabel("冰块概率 (%)")
-    ax.set_title("冰块概率 — 实际 vs 理论 (n=20000)", fontsize=12, fontweight="bold")
-    ax.legend(fontsize=9)
+    ax.set_title("冰块概率 — 实际 vs 理论 (n=20000)", fontweight="bold")
+    ax.legend()
     ax.set_ylim(0, 110)
     ax.grid(True, alpha=0.3, axis="y")
 

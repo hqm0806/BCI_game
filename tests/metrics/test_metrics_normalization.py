@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["font.size"] = 10.5
 
 from .test_helpers import AttentionGenerator
 
@@ -144,21 +145,21 @@ def run():
         print(f"{label:<22} {vals[0]:>10} {vals[1]:>10} {vals[2]:>10}")
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
-    fig.suptitle("归一化误差分布 (3类用户 × 20次试验)", fontsize=13, fontweight="bold")
+    fig.suptitle("归一化误差分布 (3类用户 × 20次试验)", fontweight="bold")
 
     for ax, (pname, data) in zip(axes, all_results.items()):
         errors = data["errors"]
         ax.hist(errors, bins=60, range=(0, 5), color="#4A90D9", edgecolor="white", alpha=0.85)
         ax.axvline(x=2.0, color="red", linestyle="--", linewidth=1.2, label="2% 误差线")
-        ax.set_title(pname, fontsize=12)
+        ax.set_title(pname)
         ax.set_xlabel("归一化误差 (%)")
         ax.set_ylabel("频次")
-        ax.legend(fontsize=8)
+        ax.legend()
         mean_e = data["mean_error"]
         pct = data["pct_under_2"]
         ax.text(0.95, 0.92, f"均值={mean_e:.1f}%\n<2%={pct:.1f}%",
                 transform=ax.transAxes, ha="right", va="top",
-                fontsize=9, bbox=dict(boxstyle="round,pad=0.3", facecolor="wheat", alpha=0.7))
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="wheat", alpha=0.7))
 
     plt.tight_layout()
     out_dir = os.path.dirname(os.path.abspath(__file__))

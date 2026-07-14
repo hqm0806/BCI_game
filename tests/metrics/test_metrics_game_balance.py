@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["font.size"] = 10.5
 
 from data.player_profile import PlayerProfile, LEVEL_THRESHOLDS
 from .test_helpers import AttentionGenerator, GameSimulator, GyroGenerator
@@ -112,7 +113,7 @@ def run():
 
 
 def _plot_revenue_growth(all_results: dict[str, list[dict]]) -> None:
-    fig, ax = plt.subplots(figsize=(11, 5))
+    fig, ax = plt.subplots(figsize=(5.90, 3.31))
     colors = {"高专注平稳型(高手)": "#2E86AB", "中等波动型": "#F18F01", "低专注涣散型(新手)": "#D1495B"}
     lv_lines = [80, 250, 600]
 
@@ -125,12 +126,12 @@ def _plot_revenue_growth(all_results: dict[str, list[dict]]) -> None:
     for lv_val in lv_lines:
         ax.axhline(y=lv_val, color="gray", linestyle="--", alpha=0.4, linewidth=0.8)
         ax.text(0.5, lv_val + 8, f"Lv{lv_lines.index(lv_val)+2} ({lv_val}元)",
-                fontsize=8, color="gray", alpha=0.8)
+                color="gray", alpha=0.8)
 
     ax.set_xlabel("游戏局数")
     ax.set_ylabel("累计收益 (元)")
-    ax.set_title("累计收益增长曲线 — 三种玩家类型", fontsize=12, fontweight="bold")
-    ax.legend(fontsize=9)
+    ax.set_title("累计收益增长曲线 — 三种玩家类型", fontweight="bold")
+    ax.legend()
     ax.grid(True, alpha=0.3)
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
@@ -142,8 +143,8 @@ def _plot_revenue_growth(all_results: dict[str, list[dict]]) -> None:
 
 
 def _plot_player_comparison(all_results: dict[str, list[dict]]) -> None:
-    fig, axes = plt.subplots(2, 2, figsize=(12, 9))
-    fig.suptitle("三种玩家类型关键指标对比 (箱线图, n=10局)", fontsize=13, fontweight="bold")
+    fig, axes = plt.subplots(2, 2, figsize=(5.91, 4.40))
+    fig.suptitle("三种玩家类型关键指标对比 (箱线图, n=10局)", fontweight="bold")
 
     pnames = list(all_results.keys())
     metrics_cfg = [
@@ -171,7 +172,7 @@ def _plot_player_comparison(all_results: dict[str, list[dict]]) -> None:
         for whisker in bp["whiskers"]:
             whisker.set_color(color)
 
-        ax.set_title(title, fontsize=11)
+        ax.set_title(title)
         ax.grid(True, alpha=0.3, axis="y")
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
@@ -184,7 +185,7 @@ def _plot_player_comparison(all_results: dict[str, list[dict]]) -> None:
 
 def _plot_cup_distribution(all_results: dict[str, list[dict]]) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
-    fig.suptitle("单局36杯金额分布直方图 (各类型第1局示例)", fontsize=13, fontweight="bold")
+    fig.suptitle("单局36杯金额分布直方图 (各类型第1局示例)", fontweight="bold")
 
     colors = ["#2E86AB", "#F18F01", "#D1495B"]
 
@@ -194,13 +195,13 @@ def _plot_cup_distribution(all_results: dict[str, list[dict]]) -> None:
                 color=c, edgecolor="white", alpha=0.75)
         ax.axvline(x=np.mean(money_list), color="red", linestyle="--",
                    linewidth=1.5, label=f"均值={np.mean(money_list):.0f}元")
-        ax.set_title(pname[:8], fontsize=11)
+        ax.set_title(pname[:8])
         ax.set_xlabel("杯收益 (元)")
         ax.set_ylabel("杯数")
-        ax.legend(fontsize=8)
+        ax.legend()
         zero_pct = sum(1 for m in money_list if m == 0) / max(len(money_list), 1) * 100
         ax.text(0.95, 0.92, f"零收益: {zero_pct:.0f}%",
-                transform=ax.transAxes, ha="right", va="top", fontsize=9,
+                transform=ax.transAxes, ha="right", va="top",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="wheat", alpha=0.7))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))

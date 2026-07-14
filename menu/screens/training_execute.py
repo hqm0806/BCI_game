@@ -233,10 +233,13 @@ class TrainingExecuteScreen:
             training_duration=duration,
             ingredient_points=TRAINING_INGREDIENT_POINTS,
             secret_threshold=None if stage_idx == 2 else 50,
-            secret_sustain=None if stage_idx == 2 else 3,
+            secret_sustain=None if stage_idx == 2 else 5,
             secret_disabled=(stage_idx == 2),
         )
         self._session.cup_manager.cup_number = self._accumulated_cups
+        if stage_idx != 2:
+            self._session.has_required = True
+            self._session.cup_manager.has_required = True
 
         if stage_idx == 2:
             self._pick_memory_recipe()
@@ -784,9 +787,11 @@ class TrainingExecuteScreen:
         self._current_norm_upper = norm_upper
 
         if stage_idx == 1:
-            secret_kwargs = dict(secret_threshold=self._baseline + 10, secret_sustain=5)
+            secret_kwargs = dict(secret_threshold=self._baseline + 10, secret_sustain=8)
+            require_override = True
         else:
             secret_kwargs = dict(secret_disabled=True)
+            require_override = False
 
         self._session = GameSession(
             self.screen,
@@ -803,6 +808,9 @@ class TrainingExecuteScreen:
             **secret_kwargs,
         )
         self._session.bci_mode = True
+        if require_override:
+            self._session.has_required = True
+            self._session.cup_manager.has_required = True
         self._session.score_manager.total_money = self._accumulated_money
         self._session.score_manager.cup_count = self._accumulated_cups
         self._session.cup_manager.cup_number = self._accumulated_cups

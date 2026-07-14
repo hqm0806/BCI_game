@@ -57,6 +57,8 @@ class LoginState(State):
         if username is None or username == "quit":
             return GameState.QUIT
         self._context["username"] = username
+        if username == "admin":
+            return GameState.ADMIN
         self._context["profile"] = PlayerProfile.load_for_user(username)
         return GameState.MENU
 
@@ -102,6 +104,26 @@ class MenuState(State):
         if result == "start":
             return GameState.TRANSITION
         return None
+
+    def handle_event(self, event: GameEvent) -> GameState | None:
+        return None
+
+    def update(self) -> None:
+        pass
+
+
+class AdminState(State):
+    """管理后台状态"""
+
+    def __init__(self, screen: pygame.Surface, context: dict) -> None:
+        self.screen = screen
+        self._context = context
+
+    def enter(self) -> GameState | None:
+        from menu.admin import AdminScreen
+        admin = AdminScreen(self.screen)
+        admin.run()
+        return GameState.LOGIN
 
     def handle_event(self, event: GameEvent) -> GameState | None:
         return None
@@ -247,6 +269,7 @@ def main() -> None:
     sm.register(GameState.TRANSITION, TransitionState(screen, audio))
     sm.register(GameState.GAME, GameStateImpl(screen, clock, context))
     sm.register(GameState.GAME_MEMORY, MemoryGameState(screen, clock, context))
+    sm.register(GameState.ADMIN, AdminState(screen, context))
     sm.register(GameState.QUIT, QuitState())
 
     sm.start(GameState.SPLASH)

@@ -19,6 +19,7 @@ class GameState(Enum):
     TRANSITION = auto()
     GAME = auto()
     GAME_MEMORY = auto()
+    ADMIN = auto()
     QUIT = auto()
 
 

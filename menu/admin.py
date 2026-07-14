@@ -257,7 +257,16 @@ class AdminScreen:
         y += 50
 
         self._build_entries(p)
-        self._draw_unified_section(base_x, y)
+
+        chart_bottom = SCREEN_HEIGHT - 20
+        chart_h = 220
+        chart_top = chart_bottom - chart_h
+        max_list_y = chart_top - 24
+
+        self._draw_unified_section(base_x, y, max_list_y)
+
+        chart_w = SCREEN_WIDTH - base_x - 40
+        self._draw_overall_trend(base_x + 20, chart_top, chart_w - 20, chart_h - 30)
 
     def _build_entries(self, p: PlayerProfile) -> None:
         self._sorted_entries = []
@@ -271,7 +280,7 @@ class AdminScreen:
             self._sorted_entries.append(e)
         self._sorted_entries.sort(key=lambda x: x.get("date", ""), reverse=True)
 
-    def _draw_unified_section(self, base_x: int, y: int) -> None:
+    def _draw_unified_section(self, base_x: int, y: int, max_list_y: int) -> None:
         self._entry_rects.clear()
         label = self._body_font.render("【游戏记录】", True, _GOLD)
         self.screen.blit(label, (base_x, y))
@@ -285,7 +294,7 @@ class AdminScreen:
         y += 26
 
         for idx, entry in enumerate(self._sorted_entries):
-            if y > SCREEN_HEIGHT + 100:
+            if y > max_list_y:
                 break
             row_h = 24
             rect = pygame.Rect(base_x, y, SCREEN_WIDTH - base_x - 20, row_h)
@@ -323,6 +332,9 @@ class AdminScreen:
             y += row_h + 4
 
             if is_expanded:
+                if y > max_list_y:
+                    y += row_h + 4
+                    continue
                 fs = entry.get("focus_samples") or []
                 if fs:
                     chart_y = y
@@ -362,6 +374,52 @@ class AdminScreen:
         if not self._sorted_entries:
             hint = self._small_font.render("暂无游戏记录", True, _GRAY)
             self.screen.blit(hint, (base_x, y))
+
+    def _draw_overall_trend(self, x: int, y: int, w: int, h: int) -> None:
+        entries = [e for e in self._sorted_entries if e.get("avg_attention", 0) > 0]
+        entries.reverse()
+        if not entries:
+            hint = self._small_font.render("暂无游戏数据", True, _GRAY)
+            self.screen.blit(hint, (x + w // 2 - hint.get_width() // 2, y + h // 2))
+            return
+
+        pygame.draw.rect(self.screen, (30, 30, 50), (x, y, w, h), border_radius=6)
+
+        for i in range(0, 101, 25):
+            py = y + int((1.0 - i / 100.0) * h)
+            pygame.draw.line(self.screen, (60, 60, 80), (x, py), (x + w, py), 1)
+            lbl = self._small_font.render(str(i), True, _GRAY)
+            self.screen.blit(lbl, (x - 28, py - 7))
+
+        y_label = self._small_font.render("专注力", True, _GRAY)
+        self.screen.blit(y_label, (x - 28, y - 18))
+
+        n = len(entries)
+        points = []
+        for idx, e in enumerate(entries):
+            val = e.get("avg_attention", 0)
+            px = x + int((idx / (n - 1)) * w) if n > 1 else x + w // 2
+            py = y + int((1.0 - val / 100.0) * h)
+            py = max(y, min(y + h, py))
+            points.append((px, py))
+
+        if len(points) >= 2:
+            pygame.draw.lines(self.screen, (100, 255, 150), False, points, 2)
+
+        for px, py in points:
+            pygame.draw.circle(self.screen, (255, 200, 100), (px, py), 4)
+
+        if n <= 12:
+            for idx, e in enumerate(entries):
+                date_str = str(e.get("date", ""))[5:10]
+                lbl = self._small_font.render(date_str, True, _GRAY)
+                self.screen.blit(lbl, (points[idx][0] - lbl.get_width() // 2, y + h + 4))
+        else:
+            step = max(1, n // 10)
+            for idx in range(0, n, step):
+                date_str = str(entries[idx].get("date", ""))[5:10]
+                lbl = self._small_font.render(date_str, True, _GRAY)
+                self.screen.blit(lbl, (points[idx][0] - lbl.get_width() // 2, y + h + 4))
 
     def _draw_focus_chart(self, x: int, y: int, w: int, h: int,
                            samples: list, avg: float, label: str = "",

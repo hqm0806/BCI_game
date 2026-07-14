@@ -49,18 +49,20 @@ class AdminScreen:
 
         self._scroll_users = 0
         self._scroll_detail = 0
-        self._max_scroll_users = max(0, len(self._users) * _ROW_H - (SCREEN_HEIGHT - 80))
+        self._max_scroll_users = max(0, len(self._users) * _ROW_H - (SCREEN_HEIGHT - 110))
 
         back_w = 120
         self._back_rect = pygame.Rect(SCREEN_WIDTH - back_w - 20, 12, back_w, 40)
         self._back_hover = False
 
-        self._list_rect = pygame.Rect(0, 60, _LIST_W, SCREEN_HEIGHT - 60)
+        self._list_rect = pygame.Rect(0, 90, _LIST_W, SCREEN_HEIGHT - 90)
 
-        self._expanded_training: int | None = None
-        self._expanded_game: int | None = None
-        self._training_rects: list[pygame.Rect] = []
-        self._game_rects: list[pygame.Rect] = []
+        self._expanded_entry: int | None = None
+        self._entry_rects: list[tuple[pygame.Rect, int]] = []
+        self._sorted_entries: list[dict] = []
+        self._delete_target: str | None = None
+        self._confirm_rect = pygame.Rect(0, 0, 100, 36)
+        self._cancel_rect = pygame.Rect(0, 0, 100, 36)
 
     @staticmethod
     def _load_users() -> list[str]:
@@ -76,8 +78,7 @@ class AdminScreen:
             username = self._users[idx]
             self._profile = PlayerProfile.load_for_user(username)
             self._scroll_detail = 0
-            self._expanded_training = None
-            self._expanded_game = None
+            self._expanded_entry = None
 
     def run(self) -> None:
         while self.running:
@@ -89,7 +90,12 @@ class AdminScreen:
                     self.running = False
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
-                        self.running = False
+                        if self._delete_target:
+                            self._delete_target = None
+                        else:
+                            self.running = False
+                    if self._delete_target:
+                        break
                     if event.key == pygame.K_UP and self._selected_idx > 0:
                         self._selected_idx -= 1
                         self._load_profile(self._selected_idx)
@@ -97,24 +103,31 @@ class AdminScreen:
                         self._selected_idx += 1
                         self._load_profile(self._selected_idx)
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self._delete_target:
+                        if self._confirm_rect.collidepoint(mx, my):
+                            self._do_delete(self._delete_target)
+                        elif self._cancel_rect.collidepoint(mx, my):
+                            self._delete_target = None
+                        break
                     if self._back_rect.collidepoint(mx, my):
                         self.running = False
                     if self._list_rect.collidepoint(mx, my):
-                        clicked = (my - 60 + self._scroll_users) // _ROW_H
+                        clicked = (my - 90 + self._scroll_users) // _ROW_H
                         if 0 <= clicked < len(self._users):
                             self._selected_idx = clicked
                             self._load_profile(clicked)
-                    for r, i in self._game_rects:
+                    for r, i in self._entry_rects:
                         if r.collidepoint(mx, my):
-                            self._expanded_game = None if self._expanded_game == i else i
-                            self._expanded_training = None
+                            self._expanded_entry = None if self._expanded_entry == i else i
                             break
-                    for r, i in self._training_rects:
-                        if r.collidepoint(mx, my):
-                            self._expanded_training = None if self._expanded_training == i else i
-                            self._expanded_game = None
-                            break
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+                    if not self._delete_target and self._list_rect.collidepoint(mx, my):
+                        clicked = (my - 90 + self._scroll_users) // _ROW_H
+                        if 0 <= clicked < len(self._users):
+                            self._delete_target = self._users[clicked]
                 if event.type == pygame.MOUSEWHEEL:
+                    if self._delete_target:
+                        continue
                     if mx < _LIST_W:
                         self._scroll_users = max(0, min(self._max_scroll_users, self._scroll_users - event.y * 30))
                     else:
@@ -138,7 +151,7 @@ class AdminScreen:
                                      self._back_rect.centery - back_txt.get_height() // 2))
 
         pygame.draw.line(self.screen, (50, 50, 70), (0, 58), (SCREEN_WIDTH, 58), 2)
-        pygame.draw.line(self.screen, (50, 50, 70), (_LIST_W, 60), (_LIST_W, SCREEN_HEIGHT), 2)
+        pygame.draw.line(self.screen, (50, 50, 70), (_LIST_W, 90), (_LIST_W, SCREEN_HEIGHT), 2)
 
         self._draw_user_list()
         if self._profile:
@@ -147,12 +160,81 @@ class AdminScreen:
             hint = self._body_font.render("请选择用户", True, _GRAY)
             self.screen.blit(hint, (_LIST_W + 40, 100))
 
+        if self._delete_target:
+            self._draw_delete_dialog()
+
+    def _do_delete(self, username: str) -> None:
+        try:
+            with open(_ACCOUNTS_PATH, "r", encoding="utf-8") as f:
+                accounts = json.load(f)
+            accounts.pop(username, None)
+            with open(_ACCOUNTS_PATH, "w", encoding="utf-8") as f:
+                json.dump(accounts, f, ensure_ascii=False, indent=4)
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+
+        profiles_dir = os.path.join(os.path.dirname(__file__), "..", "profiles")
+        for suffix in ("", "_training"):
+            p = os.path.join(profiles_dir, f"{username}{suffix}.json")
+            if os.path.exists(p):
+                os.remove(p)
+
+        if username in self._users:
+            old_idx = self._users.index(username)
+            self._users.remove(username)
+            if self._users:
+                self._selected_idx = min(old_idx, len(self._users) - 1)
+                self._load_profile(self._selected_idx)
+            else:
+                self._selected_idx = 0
+                self._profile = None
+        self._max_scroll_users = max(0, len(self._users) * _ROW_H - (SCREEN_HEIGHT - 110))
+        self._scroll_users = min(self._scroll_users, self._max_scroll_users)
+        self._delete_target = None
+
+    def _draw_delete_dialog(self) -> None:
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.screen.blit(overlay, (0, 0))
+
+        dw, dh = 420, 160
+        dx = (SCREEN_WIDTH - dw) // 2
+        dy = (SCREEN_HEIGHT - dh) // 2
+        pygame.draw.rect(self.screen, (40, 40, 60), (dx, dy, dw, dh), border_radius=12)
+        pygame.draw.rect(self.screen, _GOLD, (dx, dy, dw, dh), 2, border_radius=12)
+
+        msg = self._body_font.render(f"确认删除用户 {self._delete_target}？", True, _WHITE)
+        self.screen.blit(msg, (dx + (dw - msg.get_width()) // 2, dy + 30))
+
+        btn_w, btn_h = 100, 36
+        confirm_x = dx + dw // 2 - btn_w - 20
+        cancel_x = dx + dw // 2 + 20
+        btn_y = dy + dh - btn_h - 24
+
+        self._confirm_rect = pygame.Rect(confirm_x, btn_y, btn_w, btn_h)
+        self._cancel_rect = pygame.Rect(cancel_x, btn_y, btn_w, btn_h)
+        mx, my = pygame.mouse.get_pos()
+
+        cc = (200, 50, 50) if self._confirm_rect.collidepoint(mx, my) else _RED
+        pygame.draw.rect(self.screen, cc, self._confirm_rect, border_radius=6)
+        c_txt = self._small_font.render("确认", True, _WHITE)
+        self.screen.blit(c_txt, (self._confirm_rect.centerx - c_txt.get_width() // 2,
+                                  self._confirm_rect.centery - c_txt.get_height() // 2))
+
+        nc = (80, 80, 100) if self._cancel_rect.collidepoint(mx, my) else _GRAY
+        pygame.draw.rect(self.screen, nc, self._cancel_rect, border_radius=6)
+        n_txt = self._small_font.render("取消", True, _WHITE)
+        self.screen.blit(n_txt, (self._cancel_rect.centerx - n_txt.get_width() // 2,
+                                  self._cancel_rect.centery - n_txt.get_height() // 2))
+
     def _draw_user_list(self) -> None:
+        count_txt = self._small_font.render(f"共 {len(self._users)} 人", True, _GRAY)
+        self.screen.blit(count_txt, (12, 62))
         visible_start = self._scroll_users // _ROW_H
-        visible_end = min(len(self._users), visible_start + (SCREEN_HEIGHT - 60) // _ROW_H + 1)
+        visible_end = min(len(self._users), visible_start + (SCREEN_HEIGHT - 90) // _ROW_H + 1)
 
         for i in range(visible_start, visible_end):
-            y = 60 + i * _ROW_H - self._scroll_users
+            y = 90 + i * _ROW_H - self._scroll_users
             if i == self._selected_idx:
                 pygame.draw.rect(self.screen, (40, 40, 70), (4, y, _LIST_W - 8, _ROW_H), border_radius=4)
 
@@ -174,134 +256,59 @@ class AdminScreen:
         self.screen.blit(stats, (base_x + 380, y))
         y += 50
 
-        if p.training_history:
-            y = self._draw_training_section(base_x, y, p)
-        if p.games_history:
-            self._draw_games_section(base_x, y, p)
+        self._build_entries(p)
+        self._draw_unified_section(base_x, y)
 
-    def _draw_training_section(self, base_x: int, y: int, p: PlayerProfile) -> int:
-        self._training_rects.clear()
-        label = self._body_font.render("── 训练记录 ──", True, _GOLD)
+    def _build_entries(self, p: PlayerProfile) -> None:
+        self._sorted_entries = []
+        for g in p.games_history:
+            e = dict(g)
+            e["_type"] = "game"
+            self._sorted_entries.append(e)
+        for t in p.training_history:
+            e = dict(t)
+            e["_type"] = "training"
+            self._sorted_entries.append(e)
+        self._sorted_entries.sort(key=lambda x: x.get("date", ""), reverse=True)
+
+    def _draw_unified_section(self, base_x: int, y: int) -> None:
+        self._entry_rects.clear()
+        label = self._body_font.render("【游戏记录】", True, _GOLD)
         self.screen.blit(label, (base_x, y))
         y += 36
 
-        for idx, t in enumerate(reversed(p.training_history)):
-            if y > SCREEN_HEIGHT + 100:
-                break
-            orig_idx = len(p.training_history) - 1 - idx
-            card_w = SCREEN_WIDTH - base_x - 20
-            card_h = 90
-            rect = pygame.Rect(base_x, y, card_w, card_h)
-            self._training_rects.append((rect, orig_idx))
-
-            if y + card_h > 0:
-                is_expanded = self._expanded_training == orig_idx
-                bg = _CARD_HOVER if is_expanded else _CARD_BG
-                pygame.draw.rect(self.screen, bg, rect, border_radius=6)
-                if is_expanded:
-                    pygame.draw.rect(self.screen, _GOLD, rect, 2, border_radius=6)
-
-                line_y = y + 8
-                num = self._small_font.render(f"#{idx + 1}", True, _GOLD)
-                self.screen.blit(num, (base_x + 10, line_y))
-                date = self._small_font.render(str(t.get("date", "")), True, _WHITE)
-                self.screen.blit(date, (base_x + 50, line_y))
-                dur = self._small_font.render(
-                    f"时长: {int(t.get('duration', 0) // 60)}分{int(t.get('duration', 0) % 60)}秒",
-                    True, _GRAY)
-                self.screen.blit(dur, (base_x + 260, line_y))
-                hint = self._small_font.render("点击收起△" if is_expanded else "点击展开▼", True, _GRAY)
-                self.screen.blit(hint, (base_x + card_w - 110, line_y))
-                line_y += 24
-
-                rev = self._small_font.render(
-                    f"收益:{t.get('total_money', 0)}  杯数:{t.get('total_cups', 0)}  "
-                    f"秘方:{t.get('secret_count', 0)}  失败杯:{t.get('failed_cup_count', 0)}  "
-                    f"记忆成功:{t.get('memory_successes', 0)}  记忆失败:{t.get('memory_failures', 0)}",
-                    True, _WHITE)
-                self.screen.blit(rev, (base_x + 14, line_y))
-                line_y += 24
-
-                attn = self._small_font.render(
-                    f"专注:{t.get('avg_attention', 0):.1f}  轮次:{t.get('rounds', 0)}  "
-                    f"原萃{t.get('stage1_min', 0)}min({t.get('stage1_avg', 0):.1f})  "
-                    f"特调{t.get('stage2_min', 0)}min({t.get('stage2_avg', 0):.1f})  "
-                    f"忆调{t.get('stage3_min', 0)}min({t.get('stage3_avg', 0):.1f})",
-                    True, _GRAY)
-                self.screen.blit(attn, (base_x + 14, line_y))
-
-            y += card_h + 8
-
-            if is_expanded:
-                fs = t.get("focus_samples") or []
-                if fs:
-                    chart_y = y
-                    self._draw_focus_chart(base_x + 10, chart_y, _CHART_W, _CHART_H, fs,
-                                            t.get("avg_attention", 0), "专注力曲线")
-                    y = chart_y + _CHART_H + 6
-                    # stage color bar
-                    stage1_min = t.get("stage1_min", 0)
-                    stage2_min = t.get("stage2_min", 0)
-                    stage3_min = t.get("stage3_min", 0)
-                    total_min = stage1_min + stage2_min + stage3_min
-                    if total_min > 0:
-                        bar_y = y
-                        bar_h = 14
-                        pygame.draw.rect(self.screen, (30, 30, 45), (base_x + 10, bar_y, _CHART_W, bar_h), border_radius=3)
-                        s1_w = int(_CHART_W * stage1_min / total_min)
-                        s2_w = int(_CHART_W * stage2_min / total_min)
-                        s3_w = _CHART_W - s1_w - s2_w
-                        if s1_w > 0:
-                            pygame.draw.rect(self.screen, _ORANGE, (base_x + 10, bar_y, s1_w, bar_h), border_radius=3)
-                        if s2_w > 0:
-                            pygame.draw.rect(self.screen, _BLUE, (base_x + 10 + s1_w, bar_y, s2_w, bar_h))
-                        if s3_w > 0:
-                            pygame.draw.rect(self.screen, _GREEN, (base_x + 10 + s1_w + s2_w, bar_y, s3_w, bar_h),
-                                             border_top_right_radius=3, border_bottom_right_radius=3)
-                        txt = self._small_font.render(
-                            f"原萃{stage1_min}min({t.get('stage1_avg', 0):.1f})  "
-                            f"特调{stage2_min}min({t.get('stage2_avg', 0):.1f})  "
-                            f"忆调{stage3_min}min({t.get('stage3_avg', 0):.1f})",
-                            True, _GRAY)
-                        self.screen.blit(txt, (base_x + 10, bar_y + bar_h + 6))
-                        y = bar_y + bar_h + 28
-                y += 6
-
-        return y
-
-    def _draw_games_section(self, base_x: int, y: int, p: PlayerProfile) -> None:
-        self._game_rects.clear()
-        label = self._body_font.render("── 游戏记录 ──", True, _GOLD)
-        self.screen.blit(label, (base_x, y))
-        y += 36
-
-        headers = ["日期", "模式", "收益", "杯数", "秘方", "专注", "时长"]
-        cols = [0, 170, 260, 320, 370, 420, 500]
+        headers = ["模式", "日期", "时长", "收益", "杯数", "秘方", "专注"]
+        cols = [0, 90, 280, 410, 480, 530, 580]
         for hdr, cx in zip(headers, cols):
             txt = self._small_font.render(hdr, True, _GRAY)
             self.screen.blit(txt, (base_x + cx, y))
         y += 26
 
-        for g in reversed(p.games_history):
-            row_h = 24
-            rect = pygame.Rect(base_x, y, SCREEN_WIDTH - base_x - 20, row_h)
-            orig_idx = len(p.games_history) - 1 - list(reversed(p.games_history)).index(g)
-            self._game_rects.append((rect, orig_idx))
-            is_expanded = self._expanded_game == orig_idx
-
+        for idx, entry in enumerate(self._sorted_entries):
             if y > SCREEN_HEIGHT + 100:
                 break
+            row_h = 24
+            rect = pygame.Rect(base_x, y, SCREEN_WIDTH - base_x - 20, row_h)
+            self._entry_rects.append((rect, idx))
+            is_expanded = self._expanded_entry == idx
 
-            mode_name = {"regular": "特调", "bci": "BCI", "memory": "忆调", "infinite": "原萃"}.get(
-                g.get("mode", ""), g.get("mode", ""))
+            is_training = entry["_type"] == "training"
+            if is_training:
+                mode_str = "训练"
+            else:
+                mode_str = {"regular": "特调", "bci": "BCI", "memory": "忆调", "infinite": "原萃"}.get(
+                    entry.get("mode", ""), entry.get("mode", ""))
+
+            dur = entry.get("duration", 0)
+            dur_str = f"{int(dur // 60)}分{int(dur % 60)}秒" if dur else "—"
             values = [
-                str(g.get("date", "")),
-                mode_name,
-                str(g.get("revenue", 0)),
-                str(g.get("cups", 0)),
-                str(g.get("secrets", 0)),
-                f"{g.get('avg_attention', 0):.1f}",
-                f"{int(g.get('duration', 0) // 60)}分{int(g.get('duration', 0) % 60)}秒",
+                mode_str,
+                str(entry.get("date", "")),
+                dur_str,
+                str(entry.get("revenue", entry.get("total_money", 0))),
+                str(entry.get("cups", entry.get("total_cups", 0))),
+                str(entry.get("secrets", entry.get("secret_count", 0))),
+                f"{entry.get('avg_attention', 0):.1f}",
             ]
             row_color = _CARD_HOVER if is_expanded else _CARD_BG
             pygame.draw.rect(self.screen, row_color, rect, border_radius=4)
@@ -311,21 +318,54 @@ class AdminScreen:
             for val, cx in zip(values, cols):
                 txt = self._small_font.render(val, True, _WHITE)
                 self.screen.blit(txt, (base_x + cx + 4, y + 2))
-            expand_hint = self._small_font.render("▼" if not is_expanded else "△", True, _GRAY)
-            self.screen.blit(expand_hint, (base_x + 640, y + 2))
+            expand_hint = self._small_font.render("[展开]" if not is_expanded else "[收起]", True, _GRAY)
+            self.screen.blit(expand_hint, (base_x + 650, y + 2))
             y += row_h + 4
 
             if is_expanded:
-                fs = g.get("focus_samples") or []
+                fs = entry.get("focus_samples") or []
                 if fs:
                     chart_y = y
                     self._draw_focus_chart(base_x + 10, chart_y, _CHART_W, _CHART_H, fs,
-                                            g.get("avg_attention", 0), "专注力曲线")
-                    y = chart_y + _CHART_H + 12
-                y += 4
+                                            entry.get("avg_attention", 0), "专注力曲线",
+                                            duration=entry.get("duration", 0))
+                    y = chart_y + _CHART_H + 6
+
+                    if is_training:
+                        stage1_min = entry.get("stage1_min", 0)
+                        stage2_min = entry.get("stage2_min", 0)
+                        stage3_min = entry.get("stage3_min", 0)
+                        total_min = stage1_min + stage2_min + stage3_min
+                        if total_min > 0:
+                            bar_y = y
+                            bar_h = 14
+                            pygame.draw.rect(self.screen, (30, 30, 45), (base_x + 10, bar_y, _CHART_W, bar_h), border_radius=3)
+                            s1_w = int(_CHART_W * stage1_min / total_min)
+                            s2_w = int(_CHART_W * stage2_min / total_min)
+                            s3_w = _CHART_W - s1_w - s2_w
+                            if s1_w > 0:
+                                pygame.draw.rect(self.screen, _ORANGE, (base_x + 10, bar_y, s1_w, bar_h), border_radius=3)
+                            if s2_w > 0:
+                                pygame.draw.rect(self.screen, _BLUE, (base_x + 10 + s1_w, bar_y, s2_w, bar_h))
+                            if s3_w > 0:
+                                pygame.draw.rect(self.screen, _GREEN, (base_x + 10 + s1_w + s2_w, bar_y, s3_w, bar_h),
+                                                 border_top_right_radius=3, border_bottom_right_radius=3)
+                            txt = self._small_font.render(
+                                f"原萃{stage1_min}min({entry.get('stage1_avg', 0):.1f})  "
+                                f"特调{stage2_min}min({entry.get('stage2_avg', 0):.1f})  "
+                                f"忆调{stage3_min}min({entry.get('stage3_avg', 0):.1f})",
+                                True, _GRAY)
+                            self.screen.blit(txt, (base_x + 10, bar_y + bar_h + 6))
+                            y = bar_y + bar_h + 28
+                y += 6
+
+        if not self._sorted_entries:
+            hint = self._small_font.render("暂无游戏记录", True, _GRAY)
+            self.screen.blit(hint, (base_x, y))
 
     def _draw_focus_chart(self, x: int, y: int, w: int, h: int,
-                           samples: list, avg: float, label: str = "") -> None:
+                           samples: list, avg: float, label: str = "",
+                           duration: float = 0) -> None:
         """绘制专注力曲线图"""
         if len(samples) < 2:
             return
@@ -349,12 +389,11 @@ class AdminScreen:
             self.screen.blit(txt, (x + 2, gy - txt.get_height() // 2))
 
         # X label
-        xlbl = self._small_font.render(f"0", True, _GRAY)
+        xlbl = self._small_font.render("0min", True, _GRAY)
         self.screen.blit(xlbl, (x + margin_l - xlbl.get_width() // 2, y + h - margin_b + 4))
-        xlbl2 = self._small_font.render(str(len(samples)), True, _GRAY)
+        total_min = int(duration / 60) if duration > 0 else 0
+        xlbl2 = self._small_font.render(f"{total_min}min", True, _GRAY)
         self.screen.blit(xlbl2, (x + margin_l + plot_w - xlbl2.get_width() // 2, y + h - margin_b + 4))
-        xlbl3 = self._small_font.render("采样点", True, _GRAY)
-        self.screen.blit(xlbl3, (x + margin_l + plot_w // 2 - xlbl3.get_width() // 2, y + h - margin_b + 4))
 
         # title
         if label:

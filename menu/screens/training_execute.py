@@ -80,6 +80,7 @@ class TrainingExecuteScreen:
         self.running = True
         self.result = None
         self._external_control_mode = control_mode
+        self._keyboard_mode = False
         self._skip_connection = skip_connection
 
         self._stage_durations = [stage1_minutes, stage2_minutes, stage3_minutes]
@@ -240,6 +241,9 @@ class TrainingExecuteScreen:
         if stage_idx != 2:
             self._session.has_required = True
             self._session.cup_manager.has_required = True
+        if self._keyboard_mode:
+            self._session.use_yaw_control = False
+            self._session.cup.yaw_control = False
 
         if stage_idx == 2:
             self._pick_memory_recipe()
@@ -366,10 +370,10 @@ class TrainingExecuteScreen:
                             else:
                                 self._finish_stage()
                         elif event.key == pygame.K_SPACE:
+                            self._keyboard_mode = not self._keyboard_mode
                             if self._session is not None:
-                                yaw = not self._session.use_yaw_control
-                                self._session.use_yaw_control = yaw
-                                self._session.cup.yaw_control = yaw
+                                self._session.use_yaw_control = not self._keyboard_mode
+                                self._session.cup.yaw_control = not self._keyboard_mode
                 elif self._phase == "idle":
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                         self.running = False
@@ -820,6 +824,9 @@ class TrainingExecuteScreen:
             self._session.bci_available = True
             self._session.use_yaw_control = True
             self._session.cup.yaw_control = True
+        if self._keyboard_mode:
+            self._session.use_yaw_control = False
+            self._session.cup.yaw_control = False
         if old_cup_x is not None:
             self._session.cup.rect.centerx = old_cup_x
 

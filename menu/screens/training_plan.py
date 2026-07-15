@@ -15,7 +15,7 @@ _CTRL_WIDTH = 260
 _CTRL_LEFT = SCREEN_WIDTH // 2 - _CTRL_WIDTH // 2
 _LABEL_RIGHT = _CTRL_LEFT - 20
 
-_DEFAULTS = {"stage1": 3, "stage2": 7, "stage3": 5, "rounds": 16}
+_DEFAULTS = {"stage1": 3, "stage2": 7, "stage3": 5, "weeks": 4, "frequency": 4, "rounds": 16}
 
 
 class _PlainButton(MenuItem):
@@ -45,7 +45,7 @@ def _save_plan(username: str, data: dict) -> None:
 
 
 class StageSlider:
-    """阶段滑轨组件（整数 0-10，步长 1）"""
+    """阶段滑轨组件（整数，步长 1）"""
 
     def __init__(
         self,
@@ -55,6 +55,9 @@ class StageSlider:
         cy: int,
         label: str,
         default_value: int = 0,
+        min_val: int = 0,
+        max_val: int = 10,
+        unit: str = "min",
     ) -> None:
         self.screen = screen
         self.font = font
@@ -63,11 +66,12 @@ class StageSlider:
         self.track_x = _CTRL_LEFT
         self.track_y = cy
         self.handle_radius = 12
-        self._min = 0
-        self._max = 10
+        self._min = min_val
+        self._max = max_val
         self._value = max(self._min, min(self._max, default_value))
         self._dragging = False
         self._enabled = True
+        self._unit = unit
         self._label_surf = font.render(label, True, (40, 40, 40))
         self._label_disabled_surf = font.render(label, True, (140, 140, 140))
         self.label_x = _LABEL_RIGHT - self._label_surf.get_width()
@@ -122,7 +126,7 @@ class StageSlider:
         self.screen.blit(label_surf, (self.label_x, ly))
 
         val_color = (140, 140, 140) if disabled else (40, 40, 40)
-        val_text = self.font.render(f"{self._value}min", True, val_color)
+        val_text = self.font.render(f"{self._value}{self._unit}", True, val_color)
         val_x = self.track_x + self.track_width + 20
         vy = self.track_y - val_text.get_height() // 2
         self.screen.blit(val_text, (val_x, vy))
@@ -306,7 +310,12 @@ class TrainingPlanScreen:
         self.stage1_slider = StageSlider(screen, font, cx, cy - 110, "原萃阶段", default_value=plan.get("stage1", 3))
         self.stage2_slider = StageSlider(screen, font, cx, cy - 60, "特调阶段", default_value=plan.get("stage2", 7))
         self.stage3_slider = StageSlider(screen, font, cx, cy - 10, "忆调阶段", default_value=plan.get("stage3", 5))
-        self.round_input = NumberInputBox(screen, font, cx, cy + 40, "轮次", default_value=plan.get("rounds", 16))
+        self.weeks_slider = StageSlider(screen, font, cx, cy + 40, "训练周数", default_value=plan.get("weeks", 4), min_val=1, max_val=12, unit="周")
+        self.freq_slider = StageSlider(screen, font, cx, cy + 90, "每周频次", default_value=plan.get("frequency", 4), min_val=1, max_val=7, unit="次")
+        self.round_input = NumberInputBox(screen, font, cx, cy + 140, "轮次", default_value=plan.get("rounds", 16))
+
+        self._calc_mode = "weeks"
+        self._apply_calc_lock()
 
         btn_y = cy + 220
 
@@ -349,24 +358,41 @@ class TrainingPlanScreen:
             width=100,
         )
 
-        self._apply_lock_state()
-
         self._confirm_dialog_active = False
         self._confirm_confirm_rect = pygame.Rect(0, 0, 0, 0)
         self._confirm_cancel_rect = pygame.Rect(0, 0, 0, 0)
+
+    def _apply_calc_lock(self) -> None:
+        weeks_active = self._calc_mode == "weeks"
+        self.weeks_slider.set_enabled(weeks_active)
+        self.freq_slider.set_enabled(weeks_active)
+        self.round_input.set_enabled(not weeks_active)
 
     def _apply_lock_state(self) -> None:
         enabled = not self._locked
         self.stage1_slider.set_enabled(enabled)
         self.stage2_slider.set_enabled(enabled)
         self.stage3_slider.set_enabled(enabled)
+        self.weeks_slider.set_enabled(enabled)
+        self.freq_slider.set_enabled(enabled)
         self.round_input.set_enabled(enabled)
+
+    def _sync_rounds_from_weeks(self) -> None:
+        self.round_input.value = self.weeks_slider.value * self.freq_slider.value
+
+    def _sync_weeks_from_rounds(self) -> None:
+        rounds = self.round_input.value
+        self.freq_slider.value = 4
+        self.weeks_slider.value = max(1, round(rounds / 4))
+        self.round_input.value = self.weeks_slider.value * self.freq_slider.value
 
     def _get_plan_data(self) -> dict:
         return {
             "stage1": self.stage1_slider.value,
             "stage2": self.stage2_slider.value,
             "stage3": self.stage3_slider.value,
+            "weeks": self.weeks_slider.value,
+            "frequency": self.freq_slider.value,
             "rounds": self.round_input.value,
             "completed_rounds": self._completed_rounds,
             "generated": self._locked,
@@ -387,8 +413,12 @@ class TrainingPlanScreen:
         self.stage1_slider.value = _DEFAULTS["stage1"]
         self.stage2_slider.value = _DEFAULTS["stage2"]
         self.stage3_slider.value = _DEFAULTS["stage3"]
+        self.weeks_slider.value = _DEFAULTS["weeks"]
+        self.freq_slider.value = _DEFAULTS["frequency"]
         self.round_input.value = _DEFAULTS["rounds"]
+        self._calc_mode = "weeks"
         self._completed_rounds = 0
+        self._apply_calc_lock()
         self._apply_lock_state()
         self._update_plan_btn()
         self._do_save()
@@ -445,7 +475,11 @@ class TrainingPlanScreen:
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
                         self.result = "back"
-                    self.round_input.handle_event(event)
+                    if self.round_input._enabled:
+                        self.round_input.handle_event(event)
+                        if self._calc_mode == "rounds":
+                            old_val = self.round_input.value
+                            self._sync_weeks_from_rounds()
                 else:
                     if self.back_btn.handle_event(event):
                         self.running = False
@@ -460,10 +494,28 @@ class TrainingPlanScreen:
                             self._confirm_dialog_active = True
                         else:
                             self._do_reset()
-                    self.stage1_slider.handle_event(event)
-                    self.stage2_slider.handle_event(event)
-                    self.stage3_slider.handle_event(event)
-                    self.round_input.handle_event(event)
+                    if not self._locked:
+                        if self.stage1_slider.handle_event(event):
+                            pass
+                        if self.stage2_slider.handle_event(event):
+                            pass
+                        if self.stage3_slider.handle_event(event):
+                            pass
+                        if self.weeks_slider.handle_event(event):
+                            if self._calc_mode != "weeks":
+                                self._calc_mode = "weeks"
+                                self._apply_calc_lock()
+                            self._sync_rounds_from_weeks()
+                        if self.freq_slider.handle_event(event):
+                            if self._calc_mode != "weeks":
+                                self._calc_mode = "weeks"
+                                self._apply_calc_lock()
+                            self._sync_rounds_from_weeks()
+                        if self.round_input.handle_event(event):
+                            if self._calc_mode != "rounds":
+                                self._calc_mode = "rounds"
+                                self._apply_calc_lock()
+                            self._sync_weeks_from_rounds()
 
             self._update(dt)
             self._draw()
@@ -499,6 +551,8 @@ class TrainingPlanScreen:
         self.stage1_slider.draw()
         self.stage2_slider.draw()
         self.stage3_slider.draw()
+        self.weeks_slider.draw()
+        self.freq_slider.draw()
         self.round_input.draw()
 
         self.back_btn.draw(self.screen)

@@ -163,7 +163,7 @@ def _plot_player_comparison(all_results: dict[str, list[dict]]) -> None:
                 raw = [r["zero_revenue_cups"] / max(r["cups"], 1) * 100 for r in all_results[pname]]
             data_list.append(raw)
 
-        bp = ax.boxplot(data_list, tick_labels=[p[:4] for p in pnames], patch_artist=True,
+        bp = ax.boxplot(data_list, tick_labels=["高专注", "中专注", "低专注"], patch_artist=True,
                          widths=0.5, showfliers=True, flierprops=dict(marker="o", markersize=5))
 
         for patch, c in zip(bp["boxes"], [color] * 3):

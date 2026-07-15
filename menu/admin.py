@@ -64,6 +64,19 @@ class AdminScreen:
         self._confirm_rect = pygame.Rect(0, 0, 100, 36)
         self._cancel_rect = pygame.Rect(0, 0, 100, 36)
 
+        self._title_surf = self._title_font.render("管理后台", True, _GOLD)
+        self._back_surf = self._body_font.render("返回登录", True, _WHITE)
+        self._no_profile_surf = self._body_font.render("请选择用户", True, _GRAY)
+        self._section_label_surf = self._body_font.render("【游戏记录】", True, _GOLD)
+        self._expand_surf = self._small_font.render("[展开]", True, _GRAY)
+        self._collapse_surf = self._small_font.render("[收起]", True, _GRAY)
+        self._no_entries_surf = self._small_font.render("暂无游戏记录", True, _GRAY)
+        self._no_trend_surf = self._small_font.render("暂无游戏数据", True, _GRAY)
+        self._header_surfs = [
+            self._small_font.render(h, True, _GRAY)
+            for h in ["模式", "日期", "时长", "收益", "杯数", "秘方", "专注"]
+        ]
+
     @staticmethod
     def _load_users() -> list[str]:
         try:
@@ -141,14 +154,12 @@ class AdminScreen:
     def _draw(self) -> None:
         self.screen.fill(_BG_COLOR)
 
-        title = self._title_font.render("管理后台", True, _GOLD)
-        self.screen.blit(title, (20, 10))
+        self.screen.blit(self._title_surf, (20, 10))
 
         bc = _RED if self._back_hover else _GRAY
         pygame.draw.rect(self.screen, bc, self._back_rect, border_radius=6)
-        back_txt = self._body_font.render("返回登录", True, _WHITE)
-        self.screen.blit(back_txt, (self._back_rect.centerx - back_txt.get_width() // 2,
-                                     self._back_rect.centery - back_txt.get_height() // 2))
+        self.screen.blit(self._back_surf, (self._back_rect.centerx - self._back_surf.get_width() // 2,
+                                     self._back_rect.centery - self._back_surf.get_height() // 2))
 
         pygame.draw.line(self.screen, (50, 50, 70), (0, 58), (SCREEN_WIDTH, 58), 2)
         pygame.draw.line(self.screen, (50, 50, 70), (_LIST_W, 90), (_LIST_W, SCREEN_HEIGHT), 2)
@@ -157,8 +168,7 @@ class AdminScreen:
         if self._profile:
             self._draw_user_detail()
         else:
-            hint = self._body_font.render("请选择用户", True, _GRAY)
-            self.screen.blit(hint, (_LIST_W + 40, 100))
+            self.screen.blit(self._no_profile_surf, (_LIST_W + 40, 100))
 
         if self._delete_target:
             self._draw_delete_dialog()
@@ -282,15 +292,12 @@ class AdminScreen:
 
     def _draw_unified_section(self, base_x: int, y: int, max_list_y: int) -> None:
         self._entry_rects.clear()
-        label = self._body_font.render("【游戏记录】", True, _GOLD)
-        self.screen.blit(label, (base_x, y))
+        self.screen.blit(self._section_label_surf, (base_x, y))
         y += 36
 
-        headers = ["模式", "日期", "时长", "收益", "杯数", "秘方", "专注"]
         cols = [0, 90, 280, 410, 480, 530, 580]
-        for hdr, cx in zip(headers, cols):
-            txt = self._small_font.render(hdr, True, _GRAY)
-            self.screen.blit(txt, (base_x + cx, y))
+        for hdr_surf, cx in zip(self._header_surfs, cols):
+            self.screen.blit(hdr_surf, (base_x + cx, y))
         y += 26
 
         for idx, entry in enumerate(self._sorted_entries):
@@ -327,8 +334,7 @@ class AdminScreen:
             for val, cx in zip(values, cols):
                 txt = self._small_font.render(val, True, _WHITE)
                 self.screen.blit(txt, (base_x + cx + 4, y + 2))
-            expand_hint = self._small_font.render("[展开]" if not is_expanded else "[收起]", True, _GRAY)
-            self.screen.blit(expand_hint, (base_x + 650, y + 2))
+            self.screen.blit(self._expand_surf if not is_expanded else self._collapse_surf, (base_x + 650, y + 2))
             y += row_h + 4
 
             if is_expanded:
@@ -372,15 +378,13 @@ class AdminScreen:
                 y += 6
 
         if not self._sorted_entries:
-            hint = self._small_font.render("暂无游戏记录", True, _GRAY)
-            self.screen.blit(hint, (base_x, y))
+            self.screen.blit(self._no_entries_surf, (base_x, y))
 
     def _draw_overall_trend(self, x: int, y: int, w: int, h: int) -> None:
         entries = [e for e in self._sorted_entries if e.get("avg_attention", 0) > 0]
         entries.reverse()
         if not entries:
-            hint = self._small_font.render("暂无游戏数据", True, _GRAY)
-            self.screen.blit(hint, (x + w // 2 - hint.get_width() // 2, y + h // 2))
+            self.screen.blit(self._no_trend_surf, (x + w // 2 - self._no_trend_surf.get_width() // 2, y + h // 2))
             return
 
         pygame.draw.rect(self.screen, (30, 30, 50), (x, y, w, h), border_radius=6)

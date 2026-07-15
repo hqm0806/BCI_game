@@ -139,8 +139,3 @@ class CupManager:
             return False
         max_time = self.total_cups * CUP_DURATION
         return (time.time() - game_start_time) >= max_time
-
-    def should_force_secret_recipe(self) -> bool:
-        if self.cup_number == 0:
-            return False
-        return (self.cup_number % self.secret_recipe_interval) == 0

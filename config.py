@@ -22,7 +22,6 @@ def _get_base_path():
 # ============================================================
 SCREEN_WIDTH = 1280  # 游戏窗口宽度（像素），修改此项可改变窗口宽度
 SCREEN_HEIGHT = 720  # 游戏窗口高度（像素），修改此项可改变窗口高度
-FPS = 60  # 游戏帧率，值越大画面越流畅，但会增加 CPU/GPU 负担
 TITLE = "疯狂奶茶杯"  # 游戏窗口标题栏文字
 
 # ============================================================
@@ -142,18 +141,6 @@ SUMMARY_PANEL_POS = (128, 31)  # centered on 1280x720
 SUMMARY_BTN_W = 200
 SUMMARY_BTN_H = 50
 SUMMARY_BTN_GAP = 60  # 两按钮间距
-
-# ============================================================
-# 中文字体配置（按加载优先级排列）
-# 系统会依次尝试加载，直到成功为止
-# ============================================================
-CHINESE_FONTS = [
-    os.path.join(ASSETS_DIR, "fonts", "ZCOOLKuaiLe-Regular.ttf"),  # 站酷快乐体（项目内置卡通字体，优先使用）
-    "simhei.ttf",  # 黑体（Windows 系统字体）
-    "simkai.ttf",  # 楷体（Windows 系统字体）
-    "msyh.ttf",  # 微软雅黑（Windows 系统字体）
-    "msyhbd.ttf",  # 微软雅黑粗体（Windows 系统字体）
-]
 
 # ============================================================
 # 颜色定义（RGB 三元组，范围 0-255）
@@ -381,8 +368,6 @@ def get_attention_coefficient(normalized_attn: float) -> float:
 WARMUP_RESUME_TIME = 3.0  # 注意力恢复后持续多久解冻（秒）
 WARMUP_RESUME_THRESHOLD = 15  # 低专注恢复阈值（注意力 > 15 才计时恢复）
 WARMUP_SMOOTH_WINDOW = 3.0  # 注意力平滑窗口（秒），用于速度计算
-WARMUP_SPEED_MIN = 1.5  # 热身阶段最低速度（专注力高时，pixels/frame）
-WARMUP_SPEED_MAX = 6.0  # 热身阶段最高速度（专注力低时，pixels/frame），变化幅度大、感知明显
 
 # ============================================================
 # 正式游戏速度配置（热身结束后使用）
@@ -390,6 +375,8 @@ WARMUP_SPEED_MAX = 6.0  # 热身阶段最高速度（专注力低时，pixels/fr
 # ============================================================
 FORMAL_SPEED_MIN = 2.0  # 正式游戏最低速度（归一化值=100时，pixels/frame）
 FORMAL_SPEED_MAX = 4.5  # 正式游戏最高速度（归一化值=1时，pixels/frame）
+RAW_SPEED_MIN = 1.5  # 原萃模式最低速度（高专注时，pixels/frame）
+RAW_SPEED_MAX = 6.0  # 原萃模式最高速度（低专注时，pixels/frame）
 
 # ============================================================
 # 忆调模式配置

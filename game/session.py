@@ -29,6 +29,8 @@ from config import (
     FOCUS_BALL_SIZE,
     FORMAL_SPEED_MAX,
     FORMAL_SPEED_MIN,
+    RAW_SPEED_MAX,
+    RAW_SPEED_MIN,
     GAME_MODES,
     INFO_BAR_HEIGHT,
     INFO_BAR_IMG,
@@ -392,7 +394,7 @@ class GameSession:
         if self.bci_mode:
             attn = self._smooth_attention if self._smooth_attention is not None else 50.0
             if self._raw_attention:
-                speed = FORMAL_SPEED_MAX - (attn / 100.0) * (FORMAL_SPEED_MAX - FORMAL_SPEED_MIN)
+                speed = RAW_SPEED_MAX - (attn / 100.0) * (RAW_SPEED_MAX - RAW_SPEED_MIN)
             else:
                 norm = self._normalize_to_range(attn)
                 speed = FORMAL_SPEED_MAX - (norm - 1.0) / 99.0 * (FORMAL_SPEED_MAX - FORMAL_SPEED_MIN)

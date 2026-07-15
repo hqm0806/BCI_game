@@ -47,7 +47,9 @@ from config import (
     TOTAL_CUPS,
     WARMUP_FREEZE_TIME,
     WARMUP_LOW_THRESHOLD,
+    WARMUP_RESUME_THRESHOLD,
     WARMUP_RESUME_TIME,
+    WARMUP_SMOOTH_WINDOW,
     get_attention_coefficient,
 )
 from data.score_manager import ScoreManager
@@ -294,6 +296,8 @@ class GameSession:
         self._attn_offsets: list[float] = []
         self._attn_variance = 0.0
         self._attn_mode = "中等模式"
+        self._attn_smooth_buffer: list[float] = []
+        self._smooth_attention: float | None = None
 
         self._paused = False
         self._low_attn_seconds = 0.0
@@ -386,7 +390,7 @@ class GameSession:
 
     def _update_formal_speed(self) -> None:
         if self.bci_mode:
-            attn = self.attention if self.attention is not None else 50.0
+            attn = self._smooth_attention if self._smooth_attention is not None else 50.0
             if self._raw_attention:
                 speed = FORMAL_SPEED_MAX - (attn / 100.0) * (FORMAL_SPEED_MAX - FORMAL_SPEED_MIN)
             else:
@@ -417,7 +421,7 @@ class GameSession:
         if self.attention <= WARMUP_LOW_THRESHOLD:
             self._low_attn_seconds += dt_sec
             self._high_attn_seconds = 0.0
-        elif self.attention > WARMUP_LOW_THRESHOLD:
+        elif self.attention > WARMUP_RESUME_THRESHOLD:
             self._high_attn_seconds += dt_sec
             self._low_attn_seconds = 0.0
         else:
@@ -684,12 +688,19 @@ class GameSession:
         if self.attention is not None:
             self.focus_samples.append(self.attention)
             self._cup_attn_samples.append(self.attention)
+            self._attn_smooth_buffer.append(self.attention)
+            win = int(WARMUP_SMOOTH_WINDOW * 60)
+            if len(self._attn_smooth_buffer) > win:
+                self._attn_smooth_buffer = self._attn_smooth_buffer[-win:]
+            self._smooth_attention = sum(self._attn_smooth_buffer) / len(self._attn_smooth_buffer)
+        else:
+            self._smooth_attention = None
 
     def _update_attention_variance(self) -> None:
-        if self.attention is None:
+        if self._smooth_attention is None:
             return
         baseline = self._cup_baseline if self._cup_baseline > 0 else 40.0
-        offset = self.attention - baseline
+        offset = self._smooth_attention - baseline
         self._attn_offsets.append(offset)
         if len(self._attn_offsets) > 60:
             self._attn_offsets = self._attn_offsets[-60:]

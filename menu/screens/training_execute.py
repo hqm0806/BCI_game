@@ -299,7 +299,7 @@ class TrainingExecuteScreen:
     def _start_splash(self) -> None:
         if self._audio:
             self._audio.stop_bgm()
-            self._audio.play_bgm("晨光木盒.mp3", volume=0.5)
+            self._audio.play_bgm("木质小盒.mp3", volume=0.5)
         from menu.splash import SplashScreen
         SplashScreen(self.screen, load_chinese_font(110)).run()
 

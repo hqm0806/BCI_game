@@ -176,7 +176,7 @@ class TransitionState(State):
 
     def enter(self) -> GameState | None:
         self._audio.stop_bgm()
-        self._audio.play_bgm("晨光木盒.mp3", volume=0.5)
+        self._audio.play_bgm("木质小盒.mp3", volume=0.5)
         SplashScreen(self.screen, load_chinese_font(110)).run()
         return GameState.GAME
 
@@ -258,7 +258,7 @@ def main() -> None:
     context: dict = {}
     audio = AudioManager()
     audio.init()
-    audio.play_bgm("背景乐3.mp3", volume=0.4)
+    audio.play_bgm("暖阳茶话.mp3", volume=0.4)
     context["audio"] = audio
 
     sm = StateMachine()

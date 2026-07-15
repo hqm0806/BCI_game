@@ -710,7 +710,7 @@ class TrainingExecuteScreen:
             bg=bg_snapshot,
         )
         result = summary.run()
-        if result == "save" and self._profile:
+        if (result == "save" or duration >= 900) and self._profile:
             self._profile.add_training_result(
                 total_money=self._accumulated_money,
                 total_cups=self._accumulated_cups,

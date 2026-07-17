@@ -1,10 +1,6 @@
 {
   "level": 4,
-<<<<<<< HEAD
   "cumulative_revenue": 1606,
-=======
-  "cumulative_revenue": 1119,
->>>>>>> upstream/main
   "total_games": 0,
   "games_history": [],
   "training_history": [
@@ -850,7 +846,6 @@
         17,
         34
       ]
-<<<<<<< HEAD
     },
     {
       "mode": "training",
@@ -1132,8 +1127,6 @@
         15,
         3
       ]
-=======
->>>>>>> upstream/main
     }
   ]
 }

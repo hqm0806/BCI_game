@@ -4,9 +4,5 @@
   "stage3": 5,
   "rounds": 16,
   "generated": true,
-<<<<<<< HEAD
   "completed_rounds": 3
-=======
-  "completed_rounds": 2
->>>>>>> upstream/main
 }

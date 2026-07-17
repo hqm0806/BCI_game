@@ -9,7 +9,6 @@ import sys
 
 import pygame
 
-
 def _get_base_path():
     """获取资源基础路径，支持 PyInstaller 打包"""
     if getattr(sys, "frozen", False):

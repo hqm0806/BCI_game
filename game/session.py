@@ -800,13 +800,15 @@ class GameSession:
                     self.normalization_upper,
                 )
 
+            cup_avg_attn = sum(self._cup_attn_samples) / len(self._cup_attn_samples) if self._cup_attn_samples else (self.attention or 50.0)
+
             self._cup_attn_samples = []
 
             cup_money = self.cup_manager.settle_cup()
             had_secret = self.cup_manager.secret_recipe_spawned
 
             if self.bci_mode and cup_money > 0:
-                attn = self.attention if self.attention is not None else 50.0
+                attn = cup_avg_attn
                 if self._raw_attention:
                     norm = attn
                 else:

@@ -757,7 +757,7 @@ class GameSession:
                     self._audio.play_sfx("音效/触发秘方.wav", volume=0.7)
                 logger.info("秘方触发！专注力高于阈值 %.0f 持续 %.0f 秒", self._secret_threshold, self._secret_sustain)
         elif self.bci_mode and self.bci_available:
-            threshold = self._cup_baseline + 10
+            threshold = min(self._cup_baseline + 10, 80)
             attn = self.attention if self.attention is not None else 50.0
             if attn > threshold:
                 self.focus_above_seconds += dt_sec

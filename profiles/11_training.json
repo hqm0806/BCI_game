@@ -2,9 +2,9 @@
   "stage1": 3,
   "stage2": 7,
   "stage3": 5,
-  "weeks": 6,
-  "frequency": 3,
-  "rounds": 18,
+  "weeks": 9,
+  "frequency": 4,
+  "rounds": 36,
   "completed_rounds": 0,
-  "generated": false
+  "generated": true
 }
